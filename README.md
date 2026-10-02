@@ -90,31 +90,22 @@ Cold-boot defaults:
 | TXDELAY | 30 (300 ms) | 0–120, in 10 ms steps |
 | PERSIST | 63 | 0–255 |
 | SLOTTIME | 10 (100 ms) | 0–255, in 10 ms steps |
+| FULLDUP | off | off or on |
 | ALIAS 0–3 | blank, disabled | an AX.25 call and SSID, or empty to disable that slot |
 | NNALIAS 0–3 | blank, disabled | an n-N prefix, or empty to disable that slot |
 | BEACON | off | off, 1–60 minutes |
 | BTEXT | empty | printable ASCII, NUL terminated |
-| MYLOC | 0 0.0 N 0 0.0 E | 0-90 0.0-59.99 [NS] 0-180 0.0-59.99 [EW] |
+| BPATH | `-` | 1–4 paths; a callsign, or `-` for no path |
+| MYLOC | `00 00.00 N 000 00.00 E` | 0-90 0.0-59.99 [NS] 0-180 0.0-59.99 [EW] |
 | MAXHOPS | 3 | 1-7 |
 | MYSYMBOL | `/#` | two characters: primary `/`, alternate `\`, or overlay `0-9`/`A-Z`, then a symbol code |
 
 Every transmission ends with 3 HDLC flags, then the radio is unkeyed.
 
 At the `WF>` prompt, a config name alone prints the value stored in SRAM.
-`NAME VALUE` updates that value when it is in range. A rejected value is left
-unchanged and reported as `Bad config: NAME`. An unknown name prints `?`.
-
-| Command | Value |
-|---|---|
-| `MYCALL` | `CALL` or `CALL-SSID` |
-| `DIGIPEAT`, `FULLDUP` | `ON` or `OFF` |
-| `TXDELAY`, `PERSIST`, `SLOTTIME`, `BEACON` | decimal; `BEACON OFF` stores 0 |
-| `ALIAS0`–`ALIAS3` | `CALL-SSID`, or `OFF` to disable that slot |
-| `NNALIAS0`–`NNALIAS3` | prefix, or `OFF` to disable that slot |
-| `BTEXT` | the rest of the line, or `-` to clear it |
-| `MYLOC` | `deg min N/S deg min E/W`, such as `0 0.0 N 0 0.0 E`. 90° and 180° require 0 minutes |
-| `MAXHOPS` | 1–7 |
-| `MYSYMBOL` | two characters, such as `/#` |
+`NAME VALUE` updates that value when it is in range. `DISPLAY` prints every
+setting. [COMMANDS.md](COMMANDS.md) describes the line editor and the meaning
+of each command.
 
 An n-N prefix is at most five characters, so the hop-limit digit still fits in
 the six-character AX.25 callsign. `WIDE` matches `WIDE2-2` and `WIDE2-1`: the

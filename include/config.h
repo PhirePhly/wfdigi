@@ -7,9 +7,10 @@
  * Calls are up to 6 characters, A-Z and 0-9, with no SSID in the text.
  * An empty alias or n-N prefix disables that slot. There is no slot count.
  * Timing values are in 10 ms steps. Beacon is in minutes, and 0 turns it off.
- * MYLOC is degrees and decimal minutes, for example "0 0.0 N 0 0.0 E".
+ * MYLOC is degrees and decimal minutes, for example "00 00.00 N 000 00.00 E".
  * MAXHOPS is 1 through 7.
  * MYSYMBOL is two characters: a table or overlay, then the symbol code.
+ * BPATH is one to four beacon paths. "-" is a beacon with no path.
  */
 
 #define CFG_MYCALL "N0CALL"
@@ -38,8 +39,9 @@
 
 #define CFG_BEACON 0
 #define CFG_BTEXT ""
+#define CFG_BPATH "-"
 
-#define CFG_MYLOC "0 0.0 N 0 0.0 E"
+#define CFG_MYLOC "00 00.00 N 000 00.00 E"
 #define CFG_MAXHOPS 3
 #define CFG_MYSYMBOL "/#"
 

@@ -238,6 +238,7 @@ static bool store_btext(const uint8_t *text)
 
 static bool store_myloc(const char *text);
 static bool store_symbol(const char *text);
+static bool store_bpath(const char *text);
 static void load_btext(void)
 {
     uint8_t raw[BTEXT_LEN];
@@ -280,6 +281,7 @@ void config_cold_boot(void)
     store_nnalias(CFG_NNALIAS_3, g_config.nnalias[3]);
     store_u8("BEACON", (uint8_t)CFG_BEACON, 0u, BEACON_MAX, &g_config.beacon_every);
     load_btext();
+    store_bpath(CFG_BPATH);
     store_myloc(CFG_MYLOC);
     store_u8("MAXHOPS", (uint8_t)CFG_MAXHOPS, MAXHOPS_MIN, MAXHOPS_MAX, &g_config.maxhops);
     store_symbol(CFG_MYSYMBOL);
@@ -709,34 +711,45 @@ static bool parse_myloc(const char *text, LocFields *loc)
     return *text == '\0';
 }
 
-static void print_hund(uint8_t hund)
+static void print_2(uint8_t value)
 {
-    uint8_t tenths = 0u;
+    uint8_t tens = 0u;
 
-    while (hund >= 10u) {
-        hund = (uint8_t)(hund - 10u);
-        ++tenths;
+    while (value >= 10u) {
+        value = (uint8_t)(value - 10u);
+        ++tens;
     }
-    serial_putc('.');
-    serial_putc((uint8_t)('0' + tenths));
-    if (hund != 0u) {
-        serial_putc((uint8_t)('0' + hund));
+    serial_putc((uint8_t)('0' + tens));
+    serial_putc((uint8_t)('0' + value));
+}
+
+static void print_3(uint8_t value)
+{
+    uint8_t hundreds = 0u;
+
+    while (value >= 100u) {
+        value = (uint8_t)(value - 100u);
+        ++hundreds;
     }
+    serial_putc((uint8_t)('0' + hundreds));
+    print_2(value);
 }
 
 static void show_myloc(void)
 {
-    print_u8(g_config.loc_lat_deg);
+    print_2(g_config.loc_lat_deg);
     serial_putc(' ');
-    print_u8(g_config.loc_lat_min);
-    print_hund(g_config.loc_lat_hund);
+    print_2(g_config.loc_lat_min);
+    serial_putc('.');
+    print_2(g_config.loc_lat_hund);
     serial_putc(' ');
     serial_putc(g_config.loc_lat_ns);
     serial_putc(' ');
-    print_u8(g_config.loc_lon_deg);
+    print_3(g_config.loc_lon_deg);
     serial_putc(' ');
-    print_u8(g_config.loc_lon_min);
-    print_hund(g_config.loc_lon_hund);
+    print_2(g_config.loc_lon_min);
+    serial_putc('.');
+    print_2(g_config.loc_lon_hund);
     serial_putc(' ');
     serial_putc(g_config.loc_lon_ew);
     serial_puts("\r\n");
@@ -805,6 +818,159 @@ static bool store_symbol(const char *text)
     return true;
 }
 
+static void print_path(const uint8_t *call, uint8_t ssid)
+{
+    uint8_t i;
+
+    if (call_is_blank(call)) {
+        serial_putc('-');
+        return;
+    }
+    for (i = 0u; i < CALLSIGN_LEN; ++i) {
+        if (call[i] == ' ') {
+            break;
+        }
+        serial_putc(call[i]);
+    }
+    serial_putc('-');
+    print_u8(ssid);
+}
+
+static void show_bpath(void)
+{
+    uint8_t i;
+    uint8_t count = g_config.bpath_count;
+
+    if (count == 0u || count > BPATH_SLOTS) {
+        serial_puts("-\r\n");
+        return;
+    }
+    for (i = 0u; i < count; ++i) {
+        if (i != 0u) {
+            serial_putc(' ');
+        }
+        print_path(g_config.bpath[i], g_config.bpath_ssid[i]);
+    }
+    serial_puts("\r\n");
+}
+
+static bool store_bpath(const char *text)
+{
+    uint8_t calls[BPATH_SLOTS][CALLSIGN_LEN];
+    uint8_t ssids[BPATH_SLOTS];
+    uint8_t count = 0u;
+    uint8_t i;
+
+    while (*text != '\0') {
+        char token[CALLSIGN_LEN + 4u];
+        uint8_t n = 0u;
+        char body[CALLSIGN_LEN + 1u];
+        uint8_t ssid = 0u;
+
+        if (count >= BPATH_SLOTS) {
+            reject("BPATH");
+            return false;
+        }
+        while (*text != '\0' && *text != ' ') {
+            if (n + 1u >= (uint8_t)sizeof(token)) {
+                reject("BPATH");
+                return false;
+            }
+            token[n] = *text;
+            ++n;
+            ++text;
+        }
+        token[n] = '\0';
+        if (n == 1u && token[0] == '-') {
+            pad_call(calls[count], "");
+            ssids[count] = 0u;
+        } else {
+            if (!parse_call(token, body, &ssid)) {
+                reject("BPATH");
+                return false;
+            }
+            pad_call(calls[count], body);
+            if (!callsign_ok(calls[count])) {
+                reject("BPATH");
+                return false;
+            }
+            ssids[count] = ssid;
+        }
+        ++count;
+        while (*text == ' ') {
+            ++text;
+        }
+    }
+    if (count == 0u) {
+        reject("BPATH");
+        return false;
+    }
+    for (i = 0u; i < BPATH_SLOTS; ++i) {
+        uint8_t c;
+        if (i < count) {
+            for (c = 0u; c < CALLSIGN_LEN; ++c) {
+                g_config.bpath[i][c] = calls[i][c];
+            }
+            g_config.bpath_ssid[i] = ssids[i];
+        } else {
+            for (c = 0u; c < CALLSIGN_LEN; ++c) {
+                g_config.bpath[i][c] = ' ';
+            }
+            g_config.bpath_ssid[i] = 0u;
+        }
+    }
+    g_config.bpath_count = count;
+    g_config.bpath_next = 0u;
+    return true;
+}
+
+static void show_number(const char *name, uint8_t value)
+{
+    serial_puts(name);
+    serial_putc(' ');
+    print_u8(value);
+    serial_puts("\r\n");
+}
+
+static void command_display(void)
+{
+    serial_puts("MYCALL ");
+    show_call(g_config.mycall, g_config.mycall_ssid);
+    serial_puts("DIGIPEAT ");
+    show_flag(g_config.digipeat);
+    show_number("TXDELAY", g_config.txdelay);
+    show_number("PERSIST", g_config.persist);
+    show_number("SLOTTIME", g_config.slottime);
+    serial_puts("FULLDUP ");
+    show_flag(g_config.fulldup);
+    serial_puts("ALIAS0 ");
+    show_call(g_config.alias[0], g_config.alias_ssid[0]);
+    serial_puts("ALIAS1 ");
+    show_call(g_config.alias[1], g_config.alias_ssid[1]);
+    serial_puts("ALIAS2 ");
+    show_call(g_config.alias[2], g_config.alias_ssid[2]);
+    serial_puts("ALIAS3 ");
+    show_call(g_config.alias[3], g_config.alias_ssid[3]);
+    serial_puts("NNALIAS0 ");
+    show_prefix(g_config.nnalias[0]);
+    serial_puts("NNALIAS1 ");
+    show_prefix(g_config.nnalias[1]);
+    serial_puts("NNALIAS2 ");
+    show_prefix(g_config.nnalias[2]);
+    serial_puts("NNALIAS3 ");
+    show_prefix(g_config.nnalias[3]);
+    show_number("BEACON", g_config.beacon_every);
+    serial_puts("BTEXT ");
+    show_btext();
+    serial_puts("BPATH ");
+    show_bpath();
+    serial_puts("MYLOC ");
+    show_myloc();
+    show_number("MAXHOPS", g_config.maxhops);
+    serial_puts("MYSYMBOL ");
+    show_symbol();
+}
+
 void config_command(char *line)
 {
     char *cmd;
@@ -847,6 +1013,14 @@ void config_command(char *line)
         value = 0;
     }
 
+    if (same_text(cmd, "DISPLAY")) {
+        if (value == 0) {
+            command_display();
+        } else {
+            serial_puts("?\r\n");
+        }
+        return;
+    }
     if (same_text(cmd, "MYCALL")) {
         command_call("MYCALL", value, g_config.mycall, &g_config.mycall_ssid, false);
         return;
@@ -945,6 +1119,14 @@ void config_command(char *line)
     }
     if (same_text(cmd, "BTEXT")) {
         command_btext(value);
+        return;
+    }
+    if (same_text(cmd, "BPATH")) {
+        if (value == 0) {
+            show_bpath();
+        } else if (store_bpath(value)) {
+            show_bpath();
+        }
         return;
     }
     if (same_text(cmd, "MYLOC")) {

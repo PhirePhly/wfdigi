@@ -13,7 +13,7 @@ static void lamp_test(void)
     uint8_t bit = LED_CONV;
     do {
         hardware_lamps(bit);
-        delay_spins(20000u);
+        delay_spins(5000u);
         bit = (uint8_t)(bit << 1);
     } while (bit != 0u);
     hardware_lamps(LED_CMD);

@@ -54,6 +54,7 @@ typedef uint8_t bool;
  */
 #define NNALIAS_LEN 5u
 #define BTEXT_LEN 64u
+#define BPATH_SLOTS 4u
 
 #define TXDELAY_MIN 0u
 #define TXDELAY_MAX 120u
@@ -87,6 +88,13 @@ typedef struct {
     uint8_t nnalias[NNALIAS_COUNT][CALLSIGN_LEN];
     uint8_t beacon_every;
     uint8_t btext[BTEXT_LEN];
+    /* One to four beacon paths. A blank call in a used slot is a direct
+     * beacon ("-"). Each beacon uses bpath_next, then advances it.
+     */
+    uint8_t bpath_count;
+    uint8_t bpath[BPATH_SLOTS][CALLSIGN_LEN];
+    uint8_t bpath_ssid[BPATH_SLOTS];
+    uint8_t bpath_next;
     /* Degrees and hundredths of a minute. Hemispheres are 'N'/'S' and 'E'/'W'.
      * 90 and 180 degrees are stored only with 0.00 minutes.
      */
