@@ -1,5 +1,5 @@
-#ifndef PK88_H
-#define PK88_H
+#ifndef WFDIGI_H
+#define WFDIGI_H
 
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
@@ -27,6 +27,16 @@ typedef uint8_t bool;
 #define RR0_RX_CHAR 0x01u
 #define RR0_TX_EMPTY 0x04u
 #define RR0_DCD 0x08u
+#define RR0_TX_EOM 0x40u
+#define RR0_ABORT 0x80u
+
+/* RR1: end of frame, CRC error, overrun, and the SDLC residue field. */
+#define RR1_END_FRAME 0x80u
+#define RR1_CRC_ERR 0x40u
+#define RR1_OVERRUN 0x20u
+#define RR1_RESIDUE 0x0Eu
+/* A byte-aligned CRC leaves residue code 011. */
+#define RR1_RESIDUE_OK 0x06u
 
 #define WR5_RTS 0x02u
 #define WR5_TX_ENABLE 0x08u
@@ -68,6 +78,17 @@ typedef uint8_t bool;
 #define BEACON_MAX 60u
 #define MAXHOPS_MIN 1u
 #define MAXHOPS_MAX 7u
+/* Software countdown slots, in 10 ms ticks. A tick is 12 interrupts of the 1200 Hz /SYNCB input.
+ * One hundred ticks are one second. The duplicate window and the beacon interval use that second.
+ */
+#define DUPE_WINDOW 30u
+#define TIMER_TXDELAY 0u
+#define TIMER_TXTAIL 1u
+#define TIMER_TXWAIT 2u
+#define TIMER_STA 3u
+#define TIMER_COUNT 8u
+/* STA stays lit for this many 10 ms ticks after a valid received frame. */
+#define STA_TICKS 40u
 
 typedef struct {
     uint8_t mycall[CALLSIGN_LEN];
@@ -110,6 +131,7 @@ typedef struct {
     /* APRS symbol table ('/', '\\', or overlay 0-9/A-Z) and code ('!'..'~'). */
     uint8_t symbol_table;
     uint8_t symbol_code;
+    uint8_t logging;
     uint8_t valid;
 } DigiConfig;
 
@@ -122,6 +144,12 @@ extern DigiConfig __at (CONFIG_ADDR) g_config;
 void firmware_boot(void);
 
 void hardware_set_im2(void);
+void hardware_irq_off(void);
+void hardware_irq_on(void);
+/* Enables CPU interrupts and remembers that later critical sections may turn them back on. */
+void hardware_irq_enable(void);
+/* Turns CPU interrupts back on only after hardware_irq_enable. */
+void hardware_irq_restore(void);
 /* Strobes the PTT watchdog. Call only while this station is deliberately keying the radio. */
 void hardware_watchdog_pet(void);
 /* Assert or release radio PTT. While keyed, each call also pets the watchdog. */
@@ -133,12 +161,65 @@ bool hardware_radio_dcd(void);
 void serial_putc(uint8_t byte);
 void serial_puts(const char *text);
 bool serial_getc(uint8_t *byte);
+/* Writes one byte when the terminal transmitter is idle. */
+bool serial_try_putc(uint8_t byte);
 
 void config_cold_boot(void);
 void config_command(char *line);
 
 void cli_start(void);
 void cli_input(uint8_t byte);
+/* MYCALL> with a trailing space. A non-zero SSID is included, as in MYCALL-3>. */
+const char *cli_prompt(void);
+/* Reprint the callsign prompt and any partial line. Used after a modem trace. */
+void cli_redraw(void);
+
+void modem_quiesce(void);
+void modem_init(void);
+void modem_service(void);
+#define PKTQ_AX25 0u
+#define PKTQ_BEACON 1u
+
+void pktq_init(void);
+/* True while at least one frame is still waiting in the transmit queue. */
+bool pktq_pending(void);
+/* Copy a frame into 31-byte blocks. False when the pool or the 64-deep queue is full. */
+bool pktq_put(uint8_t kind, const uint8_t *data, uint16_t len);
+/* Copy the oldest frame into dest and return its blocks to the pool. */
+bool pktq_take(uint8_t *kind, uint8_t *dest, uint16_t dest_max, uint16_t *len);
+
+/* Queue one AX.25 frame, without the CRC. The modem sends it when the radio is free. */
+bool modem_send(uint8_t kind, const uint8_t *frame, uint16_t len);
+bool modem_keyed(void);
+bool modem_dcd(void);
+
+void timer_init(void);
+void timer_service(void);
+/* One edge of the 1200 Hz /SYNCB square wave. Called from the channel B external-status ISR. */
+void timer_sync_edge(void);
+void timer_set(uint8_t slot, uint16_t ticks_10ms);
+bool timer_running(uint8_t slot);
+bool timer_expired(uint8_t slot);
+/* Free-running seconds since timer_init. Wraps after about 18 hours. */
+uint16_t timer_seconds(void);
+/* True when heard_at is less than DUPE_WINDOW seconds ago. */
+bool timer_in_dupe_window(uint16_t heard_at);
+/* Starts the beacon second countdown over. A zero interval stays idle. */
+void timer_beacon_restart(void);
+/* Queue one beacon now and arm the next interval. False if the queue did not accept it. */
+bool timer_beacon_now(void);
+
+void prng_init(void);
+void prng_stir(uint16_t extra);
+uint8_t prng_u8(void);
+
+/* Seconds until the next beacon, already shortened by 0-31. Zero if beacons are off. */
+uint16_t beacon_next_wait(void);
+/* Build the position beacon and hand it to the modem. */
+bool beacon_send(void);
+
+uint8_t cli_pending_len(void);
+char cli_pending_char(uint8_t index);
 
 void isr_b_tx(void);
 void isr_b_ext(void);

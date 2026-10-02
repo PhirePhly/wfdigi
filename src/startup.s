@@ -2,6 +2,8 @@
 
 	.globl _firmware_boot
 	.globl _hardware_set_im2
+	.globl _hardware_irq_off
+	.globl _hardware_irq_on
 	.globl _hardware_watchdog_pet
 	.globl _isr_b_tx_stub
 	.globl _isr_b_ext_stub
@@ -39,6 +41,14 @@ _hardware_set_im2:
 	ld a,#0x01
 	ld i,a
 	im 2
+	ret
+
+_hardware_irq_off:
+	di
+	ret
+
+_hardware_irq_on:
+	ei
 	ret
 
 _hardware_watchdog_pet:

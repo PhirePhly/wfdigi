@@ -121,7 +121,7 @@ WR11 = `0x56`: receive and transmit clocks are the baud-rate generator, and `/TR
 | 26 | `/TRxCB` | output | Baud-rate generator clock output |
 | 27 | RxDB | input | Terminal receive data from the RS-232 line receiver |
 | 28 | `/RTxCB` | input | TTL clock input. Not selected as the receive or transmit clock |
-| 29 | `/SYNCB` | input | Sync/hunt status input. External-status interrupt for this pin is left off |
+| 29 | `/SYNCB` | input | 74HC4020 `Q12`, clocked by the 4.9152 MHz CPU clock. `Q12` is ÷4096, so the pin is a 1200 Hz square wave. In asynchronous mode RR0 bit 4 follows the pin, and WR15 bit 4 enables an external-status interrupt at 1200 Hz |
 | 30 | `/W//REQB` | output | Wait/DMA request. Left disabled |
 
 `/DTRA` is 7910 `MC0` and `/DTRB` is 7910 `MC1`. Because `/DTR` is active low, a clear WR5 bit 7 holds the corresponding MC pin high. `MC2` and `MC3` are tied low, and `MC4` is tied high.

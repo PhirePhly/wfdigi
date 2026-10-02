@@ -5,9 +5,10 @@ clean rewrite in C for the SDCC Z80 compiler, in the same spirit as UIDIGI on
 the TAPR TNC-2: the board comes up as a digipeater, without the original
 terminal command set.
 
-The image in the tree today is the hardware bring-up. It initializes the SCC,
-loads the default digipeater configuration into SRAM, and talks to a terminal
-at 9600 baud. It does not digipeat yet.
+The image in the tree today brings up the board and the radio modem. It loads
+the digipeater configuration into SRAM, talks to a terminal at 9600 baud, and
+sends and receives AX.25. With `BEACON` set it queues a position beacon. It
+does not digipeat yet.
 
 ## Hardware target
 
@@ -53,12 +54,17 @@ make clean
   `0x0100`, and the watchdog strobe
 - `src/hardware.c`: SCC setup, front-panel lamps, radio carrier detect, and PTT
 - `src/serial.c`: polled terminal I/O
-- `src/cli.c`: `WF>` line editor
+- `src/pktq.c`: transmit queue of 31-byte blocks
+- `src/modem.c`: HDLC AX.25 receive and transmit on the radio channel
+- `src/util.c`: shared helpers, including the 32-bit xorshift
+- `src/beacon.c`: APRS position beacon
+- `src/timer.c`: 10 ms countdown timers, from the 1200 Hz `/SYNCB` square wave
+- `src/cli.c`: callsign line editor. SSID 0 is omitted from the prompt
 - `include/config.h`: cold-boot defaults. Edit this file and run `make`
 - `src/config.c`: range checks and the SRAM image at `0x8000`
-- `src/main.c`: boot banner, lamp test, and the foreground loop
-- `src/interrupts.c`: mode-2 handlers. The SCC master interrupt enable is
-  still off, so these are not called yet
+- `src/main.c`: boot banner, lamp test, and the service loop
+- `src/interrupts.c`: mode-2 handlers. The radio channel interrupts for HDLC,
+  and the terminal channel interrupts on each `/SYNCB` edge
 
 ## What the current ROM does
 
@@ -76,10 +82,14 @@ make clean
    left clear and reported as `Bad config: NAME`. The image is marked valid
    only when every parameter passes.
 4. The eight front-panel lamps walk once, then CMD stays lit. The DCD lamp
-   follows radio carrier. The serial port then presents a `WF>` prompt.
-5. The foreground loop does not pet the watchdog. `0xF8` is read only while
-   the radio is deliberately keyed. When those reads stop, the watchdog
-   releases PTT.
+   follows radio carrier. STA lights for 400 ms after each valid received frame.
+   MULT lights while another frame is waiting in the transmit queue.
+   The serial port then presents the callsign as the prompt, omitting SSID 0.
+5. The foreground loop is one service pass: the 10 ms timers, the modem, the
+   lamps, and one terminal character. The `/SYNCB` interrupt runs at 1200 Hz,
+   and 12 interrupts queue one 10 ms tick. The loop does
+   not pet the watchdog. `0xF8` is read only while the radio is deliberately
+   keyed. When those reads stop, the watchdog releases PTT.
 
 Cold-boot defaults:
 
@@ -87,8 +97,9 @@ Cold-boot defaults:
 |---|---|---|
 | MYCALL | `N0CALL-0` | AX.25 call, SSID 0–15 |
 | DIGIPEAT | on | off or on |
+| LOGGING | on | off or on |
 | TXDELAY | 30 (300 ms) | 0–120, in 10 ms steps |
-| PERSIST | 63 | 0–255 |
+| PPERSIST | 63 | 0–255 |
 | SLOTTIME | 10 (100 ms) | 0–255, in 10 ms steps |
 | FULLDUP | off | off or on |
 | ALIAS 0–3 | blank, disabled | an AX.25 call and SSID, or empty to disable that slot |
@@ -100,9 +111,11 @@ Cold-boot defaults:
 | MAXHOPS | 3 | 1-7 |
 | MYSYMBOL | `/#` | two characters: primary `/`, alternate `\`, or overlay `0-9`/`A-Z`, then a symbol code |
 
-Every transmission ends with 3 HDLC flags, then the radio is unkeyed.
+Every transmission ends with 3 HDLC flags. The radio is unkeyed when nothing
+else is waiting. A frame already in the transmit queue follows those flags
+immediately, and `TXDELAY` is used only when the radio keys up.
 
-At the `WF>` prompt, a config name alone prints the value stored in SRAM.
+At the callsign prompt, a config name alone prints the value stored in SRAM.
 `NAME VALUE` updates that value when it is in range. `DISPLAY` prints every
 setting. [COMMANDS.md](COMMANDS.md) describes the line editor and the meaning
 of each command.
@@ -113,5 +126,9 @@ callsign is the prefix plus a digit N from 1 to 7, and the SSID is the
 remaining hop count n, with n from 1 through N. It does not match a bare
 `WIDE` or a hop count above N, such as `WIDE2-3`.
 
-The SCC interrupt controller is programmed for Z80 mode 2, but interrupts
-remain masked until the digipeater has handlers that can retire them.
+The SCC interrupt controller runs in Z80 mode 2. Radio HDLC receive interrupts
+are enabled, and the terminal channel interrupts at 1200 Hz from the
+`/SYNCB` square wave. The terminal data path stays polled. Twelve interrupts
+queue one 10 ms tick, and 100 of those ticks queue one second. A heard packet
+stays inside the duplicate window for 30 seconds. The beacon countdown runs
+in those seconds, shortened by a random 0–31 seconds each time it is armed.

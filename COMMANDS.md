@@ -1,10 +1,13 @@
 # Commands
 
 The terminal port is 9600 baud, 8 data bits, no parity, and one stop bit.
-After the lamp test the TNC prints `WF> ` and waits for a line.
+After the lamp test the TNC prints a prompt of the callsign and waits for a
+line. A non-zero SSID is included, so SSID 0 is `N0CALL> ` and SSID 3 is
+`N0CALL-3> `. Changing `MYCALL` changes the next prompt.
 
 The current firmware stores these settings in battery SRAM. It does not
-digipeat or send beacons yet. Every reset runs a cold boot, which copies
+digipeat yet. A non-zero `BEACON` interval queues a position beacon. Every
+reset runs a cold boot, which copies
 `include/config.h` back over the SRAM image and replaces any values entered
 at the prompt.
 
@@ -27,20 +30,23 @@ new value when it is in range, then prints that stored value. A rejected
 value is left unchanged and reported as `Bad config: NAME`. An unknown
 command prints `?`.
 
+The symbol `-` is used to represent an empty or null string. This can be used
+to disable some settings and express a empty value for other settings.
+
 `DISPLAY` takes no value. It prints every setting as `NAME VALUE`, in the
 same form that setting command accepts. `DISPLAY` followed by anything else
 prints `?`.
 
 ```
-WF> MYCALL
+N0CALL> MYCALL
 N0CALL-0
-WF> MYCALL W6FOO-3
+N0CALL> MYCALL W6FOO-3
 W6FOO-3
-WF> DISPLAY
+W6FOO-3> DISPLAY
 MYCALL W6FOO-3
 DIGIPEAT ON
 ...
-WF>
+W6FOO-3>
 ```
 
 ## DISPLAY
@@ -55,7 +61,9 @@ This station's AX.25 address. Enter `CALL` or `CALL-SSID`. The callsign is
 one to six characters, `A`–`Z` and `0`–`9`, with no embedded spaces. The SSID
 is 0–15; omitting it stores 0, and the value is always printed with the SSID,
 including `-0`. `MYCALL` cannot be turned off. The cold-boot default is
-`N0CALL-0`.
+`N0CALL-0`. The transmitter will not key while the callsign is `N0CALL`.
+A frame that reaches the radio is discarded, and the TNC prints
+`ERR - Set Callsign`.
 
 ## DIGIPEAT
 
@@ -63,30 +71,55 @@ Turns digipeating on or off. Accepts `ON`, `OFF`, `1`, or `0`. When it is
 on, this station is willing to repeat packets addressed to `MYCALL`, an
 enabled alias, or a matching n-N prefix. The cold-boot default is `ON`.
 
+## LOGGING
+
+Prints every frame the radio modem receives or sends. Accepts `ON`, `OFF`,
+`1`, or `0`. The cold-boot default is `ON`.
+
+A received frame is printed as:
+
+```
+R N0CALL>APRS,WIDE1-1:Hello
+```
+
+A sent frame uses the same layout with `T` in place of `R`. Each trace starts
+and ends with a new line, and the callsign prompt is redrawn under it, including
+any characters already typed. The line is sent one byte per service pass, so
+the 10 ms timers keep running while it goes out. An SSID of 0 is omitted. The last digipeater
+that has already repeated the frame is marked with `*`, as in `WIDE1-1*`.
+Bytes in the payload that are not printable ASCII are left out of the trace,
+so it stays on one line. A CRC-good frame that is not AX.25 is printed as
+hexadecimal instead. A valid frame discarded before it can be printed is
+reported as `!R`. `LOGGING OFF` keeps the modem running and suppresses
+these lines.
+
 ## TXDELAY
 
-How long the radio is keyed before the first byte of a frame, in 10 ms steps.
-The range is 0–120, so 30 means 300 ms. The cold-boot default is 30. This is
-separate from the end of a transmission: every transmission sends 3 HDLC
-flags and then unkeys. That closing rule is fixed and is not a command.
+How long the radio sends HDLC flags before the first byte when it keys up
+and acquires the channel. The range is 0–120 steps of 10 ms, so 30 means
+300 ms and 45 flags. At 1200 baud each step is 12 bit times, which is 1.5
+flags. The cold-boot default is 30. A 10 ms step is 12 interrupts from the
+1200 Hz sync input on the terminal channel. A frame already waiting when the
+previous one finishes does not repeat this delay: the radio stays keyed,
+sends the closing flags, and starts that frame.
 
-## PERSIST
+## PPERSIST
 
 The CSMA persistence threshold, 0–255. When the channel is free, the TNC
 draws a number from 0 to 255 and keys the transmitter if the draw is less
-than or equal to `PERSIST`. A larger draw waits one `SLOTTIME` and tries
+than or equal to `PPERSIST`. A larger draw waits one `SLOTTIME` and tries
 again. The cold-boot default is 63.
 
 ## SLOTTIME
 
-The channel-access slot used with `PERSIST`, in 10 ms steps. The range is
+The channel-access slot used with `PPERSIST`, in 10 ms steps. The range is
 0–255, so 10 means 100 ms. The cold-boot default is 10.
 
 ## FULLDUP
 
 Selects full duplex. Accepts `ON`, `OFF`, `1`, or `0`. When it is on, the
 TNC transmits without waiting for a clear channel. When it is off, transmit
-timing follows carrier detect, `PERSIST`, and `SLOTTIME`. The cold-boot
+timing follows carrier detect, `PPERSIST`, and `SLOTTIME`. The cold-boot
 default is `OFF`.
 
 ## ALIAS0, ALIAS1, ALIAS2, ALIAS3
@@ -114,6 +147,30 @@ match a hop count above N, such as `WIDE2-3`.
 How often this station beacons, in whole minutes. The range is 0–60. A value
 of 0 turns the beacon off. `OFF` or `-` stores 0. The printed value is the
 number of minutes, including `0`. The cold-boot default is 0.
+
+The interval is converted to seconds and counted down once a second. Each
+time it is armed, including when you set a new value, a random 0–31 seconds
+is subtracted so the beacons are not spaced by the exact same interval. When
+the count reaches zero the TNC assembles one UI position frame and puts it
+on the transmit queue, then arms the next interval. The queue holds many
+frames in 31-byte blocks, so a beacon does not wait for the radio to go
+idle. If the queue is full, it tries again on the next second.
+
+The frame is `MYCALL` to `APZWFD`, then the current `BPATH` entry, with an
+APRS position report: `!` latitude, symbol table, longitude, symbol code,
+then `BTEXT`. Latitude is `DDMM.hh` and longitude is `DDDMM.hh`. An empty
+`BPATH` entry is sent with no digipeater, and the path advances only after
+the frame is queued.
+
+## BSEND
+
+Queues one beacon immediately, the same way the beacon timer does when its
+countdown reaches zero. `BSEND` takes no value; extra text prints `?`. It
+sends even when `BEACON` is 0. After the frame is queued, the countdown
+starts over from the current interval, including the random 0–31 second
+offset. A zero interval stays idle after that one beacon. If the transmit
+queue cannot take the frame, the TNC prints `Busy` and leaves the countdown
+at zero so the next second tries again while `BEACON` is non-zero.
 
 ## BTEXT
 
@@ -156,6 +213,9 @@ accepted only with 0 minutes. The cold-boot default prints as
 
 The most digipeater hops a packet may have for this station to repeat it.
 The range is 1–7, which is the APRS n-N limit. The cold-boot default is 3.
+If a packet is received with a consumed number of hops plus pending requested
+hops which exceeds this count, if this station supports one of the pending aliases
+then it will mark all hops as used and append station callsign to the end.
 
 ## MYSYMBOL
 

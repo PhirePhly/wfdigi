@@ -1,4 +1,4 @@
-#include "pk88.h"
+#include "wfdigi.h"
 #include "config.h"
 
 _Static_assert(sizeof(CFG_MYCALL) > 1u, "MYCALL is empty");
@@ -6,7 +6,7 @@ _Static_assert(sizeof(CFG_MYCALL) <= CALLSIGN_LEN + 1u, "MYCALL is longer than 6
 _Static_assert(CFG_MYCALL_SSID <= SSID_MAX, "MYCALL SSID is above 15");
 _Static_assert(CFG_DIGIPEAT <= 1u, "DIGIPEAT must be 0 or 1");
 _Static_assert(CFG_TXDELAY >= TXDELAY_MIN && CFG_TXDELAY <= TXDELAY_MAX, "TXDELAY is out of range");
-_Static_assert(CFG_PERSIST >= PERSIST_MIN && CFG_PERSIST <= PERSIST_MAX, "PERSIST is out of range");
+_Static_assert(CFG_PPERSIST >= PERSIST_MIN && CFG_PPERSIST <= PERSIST_MAX, "PPERSIST is out of range");
 _Static_assert(CFG_SLOTTIME >= SLOTTIME_MIN && CFG_SLOTTIME <= SLOTTIME_MAX, "SLOTTIME is out of range");
 _Static_assert(CFG_FULLDUP <= 1u, "FULLDUP must be 0 or 1");
 _Static_assert(sizeof(CFG_ALIAS_0) <= CALLSIGN_LEN + 1u, "ALIAS 0 is longer than 6 characters");
@@ -26,6 +26,7 @@ _Static_assert(sizeof(CFG_BTEXT) <= BTEXT_LEN, "BTEXT is longer than 63 characte
 _Static_assert(CFG_MAXHOPS >= MAXHOPS_MIN && CFG_MAXHOPS <= MAXHOPS_MAX, "MAXHOPS is out of range");
 _Static_assert(sizeof(CFG_MYLOC) <= 32u, "MYLOC default is too long");
 _Static_assert(sizeof(CFG_MYSYMBOL) == 3u, "MYSYMBOL must be two characters");
+_Static_assert(CFG_LOGGING <= 1u, "LOGGING must be 0 or 1");
 
 DigiConfig __at (CONFIG_ADDR) g_config;
 
@@ -267,8 +268,9 @@ void config_cold_boot(void)
     store_call("MYCALL", CFG_MYCALL, (uint8_t)CFG_MYCALL_SSID, g_config.mycall,
                &g_config.mycall_ssid);
     store_u8("DIGIPEAT", (uint8_t)CFG_DIGIPEAT, 0u, 1u, &g_config.digipeat);
+    store_u8("LOGGING", (uint8_t)CFG_LOGGING, 0u, 1u, &g_config.logging);
     store_u8("TXDELAY", (uint8_t)CFG_TXDELAY, TXDELAY_MIN, TXDELAY_MAX, &g_config.txdelay);
-    store_u8("PERSIST", (uint8_t)CFG_PERSIST, PERSIST_MIN, PERSIST_MAX, &g_config.persist);
+    store_u8("PPERSIST", (uint8_t)CFG_PPERSIST, PERSIST_MIN, PERSIST_MAX, &g_config.persist);
     store_u8("SLOTTIME", (uint8_t)CFG_SLOTTIME, SLOTTIME_MIN, SLOTTIME_MAX, &g_config.slottime);
     store_u8("FULLDUP", (uint8_t)CFG_FULLDUP, 0u, 1u, &g_config.fulldup);
     store_alias(CFG_ALIAS_0, (uint8_t)CFG_ALIAS_0_SSID, g_config.alias[0], &g_config.alias_ssid[0]);
@@ -938,8 +940,10 @@ static void command_display(void)
     show_call(g_config.mycall, g_config.mycall_ssid);
     serial_puts("DIGIPEAT ");
     show_flag(g_config.digipeat);
+    serial_puts("LOGGING ");
+    show_flag(g_config.logging);
     show_number("TXDELAY", g_config.txdelay);
-    show_number("PERSIST", g_config.persist);
+    show_number("PPERSIST", g_config.persist);
     show_number("SLOTTIME", g_config.slottime);
     serial_puts("FULLDUP ");
     show_flag(g_config.fulldup);
@@ -1033,6 +1037,14 @@ void config_command(char *line)
         }
         return;
     }
+    if (same_text(cmd, "LOGGING")) {
+        if (value == 0) {
+            show_flag(g_config.logging);
+        } else if (set_flag("LOGGING", value, &g_config.logging)) {
+            show_flag(g_config.logging);
+        }
+        return;
+    }
     if (same_text(cmd, "TXDELAY")) {
         if (value == 0) {
             print_u8(g_config.txdelay);
@@ -1043,11 +1055,11 @@ void config_command(char *line)
         }
         return;
     }
-    if (same_text(cmd, "PERSIST")) {
+    if (same_text(cmd, "PPERSIST")) {
         if (value == 0) {
             print_u8(g_config.persist);
             serial_puts("\r\n");
-        } else if (set_number("PERSIST", value, PERSIST_MIN, PERSIST_MAX, &g_config.persist)) {
+        } else if (set_number("PPERSIST", value, PERSIST_MIN, PERSIST_MAX, &g_config.persist)) {
             print_u8(g_config.persist);
             serial_puts("\r\n");
         }
@@ -1103,15 +1115,25 @@ void config_command(char *line)
         command_prefix(value, g_config.nnalias[3]);
         return;
     }
+    if (same_text(cmd, "BSEND")) {
+        if (value != 0) {
+            serial_puts("?\r\n");
+        } else if (!timer_beacon_now()) {
+            serial_puts("Busy\r\n");
+        }
+        return;
+    }
     if (same_text(cmd, "BEACON")) {
         if (value == 0) {
             print_u8(g_config.beacon_every);
             serial_puts("\r\n");
         } else if (is_off(value)) {
             g_config.beacon_every = 0u;
+            timer_beacon_restart();
             print_u8(0u);
             serial_puts("\r\n");
         } else if (set_number("BEACON", value, 0u, BEACON_MAX, &g_config.beacon_every)) {
+            timer_beacon_restart();
             print_u8(g_config.beacon_every);
             serial_puts("\r\n");
         }
@@ -1155,5 +1177,5 @@ void config_command(char *line)
         }
         return;
     }
-    serial_puts("?\r\n");
+    serial_puts("Huh?\r\n");
 }

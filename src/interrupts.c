@@ -1,13 +1,50 @@
-#include "pk88.h"
+#include "wfdigi.h"
 
-/* Master interrupt enable is left clear. These handlers exist so the mode-2
- * table at 0x0100 has a real target if a vector is ever presented.
- */
-void isr_b_tx(void) {}
-void isr_b_ext(void) {}
-void isr_b_rx(void) {}
-void isr_b_special(void) {}
-void isr_a_tx(void) {}
-void isr_a_ext(void) {}
-void isr_a_rx(void) {}
-void isr_a_special(void) {}
+void modem_isr_b_tx(void);
+void modem_isr_b_ext(void);
+void modem_isr_b_rx(void);
+void modem_isr_b_special(void);
+void modem_isr_a_tx(void);
+void modem_isr_a_ext(void);
+void modem_isr_a_rx(void);
+void modem_isr_a_special(void);
+
+void isr_b_tx(void)
+{
+    modem_isr_b_tx();
+}
+
+void isr_b_ext(void)
+{
+    modem_isr_b_ext();
+}
+
+void isr_b_rx(void)
+{
+    modem_isr_b_rx();
+}
+
+void isr_b_special(void)
+{
+    modem_isr_b_special();
+}
+
+void isr_a_tx(void)
+{
+    modem_isr_a_tx();
+}
+
+void isr_a_ext(void)
+{
+    modem_isr_a_ext();
+}
+
+void isr_a_rx(void)
+{
+    modem_isr_a_rx();
+}
+
+void isr_a_special(void)
+{
+    modem_isr_a_special();
+}

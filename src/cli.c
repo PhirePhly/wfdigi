@@ -1,4 +1,4 @@
-#include "pk88.h"
+#include "wfdigi.h"
 
 #define LINE_MAX 80u
 
@@ -7,9 +7,43 @@ static uint8_t line_len;
 static bool overflow;
 static bool ignore_lf;
 
+static char prompt_buf[CALLSIGN_LEN + 6u];
+
+const char *cli_prompt(void)
+{
+    uint8_t n = 0u;
+    uint8_t i;
+    uint8_t ssid = g_config.mycall_ssid;
+
+    for (i = 0u; i < CALLSIGN_LEN; ++i) {
+        if (g_config.mycall[i] == (uint8_t)' ') {
+            break;
+        }
+        prompt_buf[n] = (char)g_config.mycall[i];
+        ++n;
+    }
+    if (ssid != 0u) {
+        prompt_buf[n] = '-';
+        ++n;
+        if (ssid >= 10u) {
+            prompt_buf[n] = '1';
+            ++n;
+            ssid = (uint8_t)(ssid - 10u);
+        }
+        prompt_buf[n] = (char)('0' + ssid);
+        ++n;
+    }
+    prompt_buf[n] = '>';
+    ++n;
+    prompt_buf[n] = ' ';
+    ++n;
+    prompt_buf[n] = '\0';
+    return prompt_buf;
+}
+
 static void prompt(void)
 {
-    serial_puts("WF> ");
+    serial_puts(cli_prompt());
 }
 
 void cli_start(void)
@@ -18,6 +52,26 @@ void cli_start(void)
     overflow = false;
     ignore_lf = false;
     prompt();
+}
+
+uint8_t cli_pending_len(void)
+{
+    return line_len;
+}
+
+char cli_pending_char(uint8_t index)
+{
+    return line[index];
+}
+
+void cli_redraw(void)
+{
+    uint8_t i;
+
+    prompt();
+    for (i = 0u; i < line_len; ++i) {
+        serial_putc((uint8_t)line[i]);
+    }
 }
 
 static void execute(void)

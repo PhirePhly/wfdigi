@@ -11,15 +11,17 @@
  * MAXHOPS is 1 through 7.
  * MYSYMBOL is two characters: a table or overlay, then the symbol code.
  * BPATH is one to four beacon paths. "-" is a beacon with no path.
+ * LOGGING is 1 to print radio traffic, or 0 to stay quiet.
  */
 
 #define CFG_MYCALL "N0CALL"
 #define CFG_MYCALL_SSID 0
 
 #define CFG_DIGIPEAT 1
+#define CFG_LOGGING 1
 
 #define CFG_TXDELAY 30
-#define CFG_PERSIST 63
+#define CFG_PPERSIST 63
 #define CFG_SLOTTIME 10
 #define CFG_FULLDUP 0
 

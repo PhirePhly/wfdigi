@@ -1,4 +1,4 @@
-#include "pk88.h"
+#include "wfdigi.h"
 
 __sfr __at (PORT_SCC_A_CTRL) scc_a_ctrl;
 __sfr __at (PORT_SCC_B_CTRL) scc_b_ctrl;
@@ -10,6 +10,8 @@ __sfr __at (PORT_LED) led_latch;
  */
 static uint8_t radio_wr5;
 static uint8_t terminal_wr5;
+/* Stays clear until the boot path reaches hardware_irq_enable. */
+static uint8_t irq_live;
 
 static void radio_reg(uint8_t reg, uint8_t value)
 {
@@ -40,7 +42,7 @@ static void init_radio(void)
     radio_reg(5, radio_wr5);
     radio_reg(6, 0x00u);
     radio_reg(7, 0x7Eu);                         /* HDLC flag */
-    radio_reg(10, 0xA0u);                        /* NRZI, CRC preset to ones */
+    radio_reg(10, 0xA0u);                        /* NRZI, flag idle, CRC preset to ones */
     radio_reg(11, 0x66u);                        /* Rx clock DPLL, Tx clock /RTxC, /TRxC = BRG */
     radio_reg(14, 0x02u);                        /* BRG source is PCLK, generator off */
     radio_reg(12, (uint8_t)RADIO_DPLL_TC);
@@ -51,12 +53,12 @@ static void init_radio(void)
     radio_reg(3, 0xD9u);                         /* enable the receiver */
     radio_wr5 = (uint8_t)(radio_wr5 | WR5_TX_ENABLE);
     radio_reg(5, radio_wr5);                     /* enable Tx; RTS stays off so PTT is idle */
-    radio_reg(0, 0x80u);                         /* reset Tx underrun/EOM latch */
-    radio_reg(0, 0x40u);                         /* error reset */
+    radio_reg(0, 0x80u);                         /* reset Tx CRC; leave the underrun latch set */
+    radio_reg(0, 0x40u);                         /* reset Rx CRC */
     radio_reg(15, 0xD8u);                        /* DCD, sync/hunt, underrun, break/abort */
     radio_reg(0, 0x10u);                         /* reset external/status, twice */
     radio_reg(0, 0x10u);
-    radio_reg(1, 0x00u);                         /* interrupts stay off until the digipeater uses them */
+    radio_reg(1, 0x00u);                         /* modem_init enables the HDLC receiver interrupts */
 }
 
 static void init_terminal(void)
@@ -84,8 +86,22 @@ static void init_terminal(void)
     terminal_reg(9, 0x01u);                      /* vector includes status; master interrupt stays off */
 }
 
+void hardware_irq_enable(void)
+{
+    irq_live = 1u;
+    hardware_irq_on();
+}
+
+void hardware_irq_restore(void)
+{
+    if (irq_live != 0u) {
+        hardware_irq_on();
+    }
+}
+
 void hardware_init(void)
 {
+    irq_live = 0u;
     (void)scc_a_ctrl;
     (void)scc_b_ctrl;
     radio_reg(9, 0xC0u);                         /* hardware reset of both channels */
@@ -119,6 +135,6 @@ void hardware_lamps(uint8_t lamps_on)
 
 bool hardware_radio_dcd(void)
 {
-    scc_a_ctrl = 0x00u;
-    return (scc_a_ctrl & RR0_DCD) != 0u;
+    /* The radio ISR owns channel A once modem_init has run. */
+    return modem_dcd();
 }
