@@ -1,0 +1,57 @@
+# SDCC build tree. The Makefile should send every compiler, assembler,
+# and linker product here.
+/build/
+
+# SDCC and asxxxx products that show up beside sources when a tool is
+# invoked without an output directory.
+*.rel
+*.ihx
+*.lk
+*.map
+*.noi
+*.sym
+*.cdb
+*.adb
+*.mem
+*.dump
+*.lst
+
+# Other compiler and linker leftovers
+*.o
+*.obj
+*.a
+*.lib
+*.elf
+*.exe
+*.out
+*.d
+
+# Editor backups and swap files
+*~
+*.bak
+*.orig
+*.swp
+*.swo
+*.swn
+.*.swp
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+.Trash-*
+.fuse_hidden*
+.nfs*
