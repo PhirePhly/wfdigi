@@ -31,6 +31,18 @@ _Static_assert(CFG_LOGGING <= 1u, "LOGGING must be 0 or 1");
 
 DigiConfig __at (CONFIG_ADDR) g_config;
 
+bool tx_interlock;
+
+void check_tx_interlock(void)
+{
+    tx_interlock = g_config.mycall[0] == (uint8_t)'N' &&
+                   g_config.mycall[1] == (uint8_t)'0' &&
+                   g_config.mycall[2] == (uint8_t)'C' &&
+                   g_config.mycall[3] == (uint8_t)'A' &&
+                   g_config.mycall[4] == (uint8_t)'L' &&
+                   g_config.mycall[5] == (uint8_t)'L';
+}
+
 static bool g_ok;
 /* False while cold boot is filling the image, so each store does not seal a partial page. */
 static bool seal_live;

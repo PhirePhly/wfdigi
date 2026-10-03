@@ -57,7 +57,8 @@ need SDCC.
 
 - `src/startup.s`, `src/isr_stubs.s`: reset, the mode-2 vector table at
   `0x0100`, and the watchdog strobe
-- `src/hardware.c`: SCC setup, front-panel lamps, radio carrier detect, and PTT
+- `src/hardware.c`: SCC setup, the front-panel lamp latch, radio carrier detect, and PTT
+- `src/lamps.c`: which front-panel lamps are lit on each service pass
 - `src/serial.c`: polled terminal I/O
 - `src/pktq.c`: transmit queue of 31-byte blocks
 - `src/modem.c`: HDLC AX.25 receive and transmit on the radio channel
@@ -94,7 +95,9 @@ need SDCC.
    bytes. Warm boot checks that CRC, keeps the image, and still starts the
    timers, modem, packet queue, and duplicate list from zero. The beacon path
    index starts over at the first path.
-4. The eight front-panel lamps walk once, then CMD stays lit. The DCD lamp
+4. The eight front-panel lamps walk once. CMD then stays lit, unless `MYCALL`
+   is still `N0CALL`, in which case CMD blinks at 2 Hz until the callsign is
+   changed. The DCD lamp
    follows radio carrier. STA lights for 400 ms after each valid received frame.
    MULT lights while another frame is waiting in the transmit queue.
    The serial port then presents the callsign as the prompt, omitting SSID 0.

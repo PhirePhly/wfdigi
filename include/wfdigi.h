@@ -173,6 +173,8 @@ void hardware_cal_restore(void);
 void hardware_init(void);
 void hardware_lamps(uint8_t lamps_on);
 bool hardware_radio_dcd(void);
+/* Refresh the front-panel lamps from the current radio, queue, and interlock state. */
+void lamps_service(void);
 
 void serial_putc(uint8_t byte);
 void serial_puts(const char *text);
@@ -185,6 +187,10 @@ void config_boot(void);
 /* Recompute the CRC stored after the configuration image. */
 void config_seal(void);
 void config_command(char *line);
+/* True while MYCALL is still N0CALL. The transmitter stays off and CMD blinks. */
+extern bool tx_interlock;
+/* Set tx_interlock from MYCALL. Called at the top of each service pass. */
+void check_tx_interlock(void);
 
 void cli_start(void);
 void cli_input(uint8_t byte);
@@ -233,6 +239,8 @@ bool timer_running(uint8_t slot);
 bool timer_expired(uint8_t slot);
 /* Free-running seconds since timer_init. Wraps after about 18 hours. */
 uint16_t timer_seconds(void);
+/* Lit half of a 2 Hz blink: 250 ms on, 250 ms off. */
+bool timer_blink(void);
 /* True when heard_at is less than DUPE_WINDOW seconds ago. */
 bool timer_in_dupe_window(uint16_t heard_at);
 /* Starts the beacon second countdown over. A zero interval stays idle. */

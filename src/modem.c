@@ -488,16 +488,6 @@ static void tx_drain_rx(void)
     rx_reset();
 }
 
-static bool mycall_unset(void)
-{
-    return g_config.mycall[0] == (uint8_t)'N' &&
-           g_config.mycall[1] == (uint8_t)'0' &&
-           g_config.mycall[2] == (uint8_t)'C' &&
-           g_config.mycall[3] == (uint8_t)'A' &&
-           g_config.mycall[4] == (uint8_t)'L' &&
-           g_config.mycall[5] == (uint8_t)'L';
-}
-
 static void tx_key(void);
 static void tx_persist(void);
 
@@ -544,7 +534,7 @@ static void tx_kick(void)
         return;
     }
     (void)kind;
-    if (mycall_unset()) {
+    if (tx_interlock) {
         serial_puts("ERR - Set Callsign\r\n");
         while (pktq_take(&kind, tx_buf, AX25_MAX, &tx_len)) {
         }
@@ -591,7 +581,7 @@ static void tx_continue(void)
     if (g_config.logging != 0u) {
         log_frame('T', tx_buf, tx_len);
     }
-    if (mycall_unset()) {
+    if (tx_interlock) {
         serial_puts("ERR - Set Callsign\r\n");
         while (pktq_take(&kind, tx_buf, AX25_MAX, &tx_len)) {
         }
@@ -799,7 +789,7 @@ void modem_cal_stop(void)
 
 void modem_calibrate(uint8_t tone, uint8_t seconds)
 {
-    if (mycall_unset()) {
+    if (tx_interlock) {
         serial_puts("ERR - Set Callsign\r\n");
         return;
     }

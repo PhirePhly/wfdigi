@@ -141,6 +141,12 @@ uint16_t timer_seconds(void)
     return clock_sec;
 }
 
+bool timer_blink(void)
+{
+    /* subsec counts 10 ms ticks, 0 through 99, then restarts. */
+    return subsec < 25u || (subsec >= 50u && subsec < 75u);
+}
+
 bool timer_in_dupe_window(uint16_t heard_at)
 {
     return (uint16_t)(clock_sec - heard_at) < DUPE_WINDOW;

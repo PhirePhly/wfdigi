@@ -22,7 +22,6 @@ static void lamp_test(void)
 void firmware_boot(void)
 {
     uint8_t byte;
-    uint8_t lamps;
 
     modem_quiesce();
     hardware_init();
@@ -37,22 +36,10 @@ void firmware_boot(void)
     hardware_irq_enable();
 
     for (;;) {
+        check_tx_interlock();
         timer_service();
         modem_service();
-        lamps = LED_CMD;
-        if (hardware_radio_dcd()) {
-            lamps = (uint8_t)(lamps | LED_DCD);
-        }
-        if (modem_keyed()) {
-            lamps = (uint8_t)(lamps | LED_SEND);
-        }
-        if (timer_running(TIMER_STA)) {
-            lamps = (uint8_t)(lamps | LED_STA);
-        }
-        if (pktq_pending()) {
-            lamps = (uint8_t)(lamps | LED_MULT);
-        }
-        hardware_lamps(lamps);
+        lamps_service();
 
         if (serial_getc(&byte)) {
             cli_input(byte);

@@ -64,7 +64,8 @@ is 0–15; omitting it stores 0, and the value is always printed with the SSID,
 including `-0`. `MYCALL` cannot be turned off. The cold-boot default is
 `N0CALL-0`. The transmitter will not key while the callsign is `N0CALL`.
 A frame that reaches the radio is discarded, and the TNC prints
-`ERR - Set Callsign`.
+`ERR - Set Callsign`. While that interlock is active, the CMD lamp blinks at
+2 Hz. After `MYCALL` is changed, CMD stays lit.
 
 ## DIGIPEAT
 

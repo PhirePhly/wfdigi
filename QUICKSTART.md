@@ -1,8 +1,8 @@
 # Quick start
 
-Whiskey Fox Digi replaces the original PK-88 ROM with a standalone APRS
-digipeater. Build the image, program it into a 27C256, and talk to the TNC at
-9600 baud. [COMMANDS.md](COMMANDS.md) is the command reference.
+Whiskey Fox Digi replaces the original PK-88 ROM with a standalone APRS digipeater.
+Build the image, program it into a 27C256, install it in the TNC, and talk to the TNC over the serial port at 9600 baud.
+[COMMANDS.md](COMMANDS.md) is the command reference.
 [HARDWARE.md](HARDWARE.md) is the board reference.
 
 ## Build tools
@@ -61,9 +61,10 @@ N0CALL>
 ## Set the station up
 
 The shipped callsign is `N0CALL`. The transmitter will not key while that
-callsign is still set. A frame that would have gone out is discarded, and the
-TNC prints `ERR - Set Callsign`. Digipeating and beacons stay idle until
-`MYCALL` is changed.
+callsign is still set, and the CMD lamp blinks at 2 Hz. A frame that would
+have gone out is discarded, and the TNC prints `ERR - Set Callsign`.
+Digipeating and beacons stay idle until `MYCALL` is changed. CMD then stays
+lit.
 
 At the prompt, set the callsign, position, beacon text, beacon interval, and
 one n-N prefix. The useful n-N setting is `NNALIAS0 WIDE`. Leave the plain
