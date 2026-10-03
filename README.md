@@ -70,8 +70,8 @@ need SDCC.
 - `include/config.h`: cold-boot defaults. Edit this file and run `make`
 - `src/config.c`: range checks and the SRAM image at `0x8000`
 - `src/main.c`: boot banner, lamp test, and the service loop
-- `src/interrupts.c`: mode-2 handlers. The radio channel interrupts for HDLC,
-  and the terminal channel interrupts on each `/SYNCB` edge
+- `src/interrupts.c`: mode-2 handlers. The radio channel interrupts for HDLC
+  receive and transmit, and the terminal channel interrupts on each `/SYNCB` edge
 
 ## What the current ROM does
 
@@ -161,8 +161,9 @@ is repeated normally. A larger request is quashed: it is marked used and
 replaces the last one. A path with no matching address is left alone.
 
 The SCC interrupt controller runs in Z80 mode 2. Radio HDLC receive interrupts
-are enabled, and the terminal channel interrupts at 1200 Hz from the
-`/SYNCB` square wave. The terminal data path stays polled. Twelve interrupts
+stay enabled, and the transmit-empty interrupt feeds each byte of a frame.
+The terminal channel interrupts at 1200 Hz from the `/SYNCB` square wave.
+The terminal data path stays polled. Twelve interrupts
 queue one 10 ms tick, and 100 of those ticks queue one second. The last 250
 packets this station transmits are kept for 30 seconds, each as the source
 callsign and SSID, a one-byte sum of the printable characters in the

@@ -58,7 +58,7 @@ static void init_radio(void)
     radio_reg(15, 0xD8u);                        /* DCD, sync/hunt, underrun, break/abort */
     radio_reg(0, 0x10u);                         /* reset external/status, twice */
     radio_reg(0, 0x10u);
-    radio_reg(1, 0x00u);                         /* modem_init enables the HDLC receiver interrupts */
+    radio_reg(1, 0x00u);                         /* modem_init enables HDLC receive; TX IRQ is per frame */
 }
 
 static void init_terminal(void)

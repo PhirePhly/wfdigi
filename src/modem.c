@@ -17,11 +17,15 @@ typedef enum {
     TX_WAIT_SLOT,
     TX_DELAY,
     TX_DATA,
-    TX_WAIT_EMPTY,
     TX_WAIT_EOM,
     TX_TAIL,
     TX_CAL
 } TxState;
+/* WR1: external/status and an interrupt on every received byte.
+ * The transmit-empty interrupt is enabled only while a frame is being fed.
+ */
+#define WR1_HDLC 0x11u
+#define WR1_HDLC_TX 0x13u
 /* SCC byte and CRC should finish well inside 40 ms. Three flags are 20 ms. */
 #define TX_WAIT_TICKS 4u
 #define TX_TAIL_TICKS 2u
@@ -36,9 +40,14 @@ static volatile uint8_t rx_done;
 static volatile uint16_t rx_done_len;
 
 static uint8_t tx_buf[AX25_MAX];
-static TxState tx_state;
-static uint16_t tx_i;
-static uint16_t tx_len;
+/* uint8_t so the main loop and the transmit ISR can share it without a torn read. */
+static volatile uint8_t tx_state;
+static volatile uint16_t tx_i;
+static volatile uint16_t tx_len;
+static volatile uint8_t tx_eom_watch;
+static volatile uint8_t tx_eom_seen;
+static uint16_t tx_mark;
+static uint8_t tx_wait_armed;
 static volatile bool keyed;
 
 static char trace[TRACE_MAX];
@@ -63,6 +72,12 @@ static uint8_t radio_rr1(void)
 static void radio_cmd(uint8_t cmd)
 {
     scc_a_ctrl = cmd;
+}
+
+static void radio_wr1(uint8_t value)
+{
+    scc_a_ctrl = 0x01u;
+    scc_a_ctrl = value;
 }
 
 static void rx_reset(void)
@@ -162,12 +177,35 @@ void modem_isr_a_ext(void)
     if ((latched & RR0_ABORT) != 0u) {
         rx_reset();
     }
+    /* Reset Ext/Status clears the latched EOM bit, so remember it here.
+     * The latch also changes when the frame is armed; tx_eom_watch ignores that.
+     */
+    if (tx_eom_watch != 0u && (latched & RR0_TX_EOM) != 0u) {
+        tx_eom_seen = 1u;
+    }
     radio_cmd(0x38u);
 }
 
+/* The transmit buffer has just emptied. Load the next byte before the shift
+ * register underruns. One byte is about 6.7 ms at 1200 baud.
+ */
 void modem_isr_a_tx(void)
 {
+    if (tx_state == TX_DATA && tx_i < tx_len) {
+        scc_a_data = tx_buf[tx_i];
+        ++tx_i;
+        hardware_watchdog_pet();
+        radio_cmd(0x38u);
+        return;
+    }
+    if (tx_state == TX_DATA) {
+        /* The last byte has moved into the shift register. CRC and flags follow. */
+        tx_state = TX_WAIT_EOM;
+        tx_eom_watch = 1u;
+    }
+    radio_wr1(WR1_HDLC);
     radio_cmd(0x28u);
+    hardware_watchdog_pet();
     radio_cmd(0x38u);
 }
 
@@ -222,6 +260,9 @@ void modem_quiesce(void)
 {
     keyed = false;
     tx_state = TX_IDLE;
+    tx_eom_watch = 0u;
+    tx_eom_seen = 0u;
+    tx_wait_armed = 0u;
     trace_len = 0u;
     trace_pos = 0u;
     sta_arm = 0u;
@@ -435,16 +476,6 @@ static void service_rx(void)
     rx_ready = 0u;
 }
 
-static bool tx_flag(uint8_t mask)
-{
-    uint8_t rr0;
-
-    hardware_irq_off();
-    rr0 = radio_rr0();
-    hardware_irq_on();
-    return (rr0 & mask) != 0u;
-}
-
 static void tx_drain_rx(void)
 {
     uint8_t guard = 0u;
@@ -469,6 +500,38 @@ static bool mycall_unset(void)
 
 static void tx_key(void);
 static void tx_persist(void);
+
+/* Drop the transmit-empty interrupt. Caller has interrupts off. */
+static void tx_pump_disarm(void)
+{
+    radio_wr1(WR1_HDLC);
+    radio_cmd(0x28u);
+    tx_eom_watch = 0u;
+    tx_eom_seen = 0u;
+    tx_wait_armed = 0u;
+}
+
+/* Load the first byte, then let modem_isr_a_tx feed the rest. The transmitter
+ * is already shifting flags, so the buffer stays full until that flag finishes
+ * and the empty interrupt is not missed.
+ */
+static void tx_start_data(void)
+{
+    hardware_irq_off();
+    tx_eom_watch = 0u;
+    tx_eom_seen = 0u;
+    tx_wait_armed = 0u;
+    tx_i = 0u;
+    tx_state = TX_DATA;
+    radio_wr1(WR1_HDLC_TX);
+    radio_cmd(0x80u); /* reset Tx CRC, then load the byte, then arm CRC-on-underrun */
+    scc_a_data = tx_buf[0];
+    radio_cmd(0xC0u);
+    tx_i = 1u;
+    tx_mark = 1u;
+    hardware_irq_on();
+    timer_set(TIMER_TXWAIT, TX_WAIT_TICKS);
+}
 
 static void tx_kick(void)
 {
@@ -498,6 +561,8 @@ static void tx_kick(void)
 static void tx_release(bool abort)
 {
     hardware_irq_off();
+    tx_state = TX_IDLE;
+    tx_pump_disarm();
     if (abort) {
         radio_cmd(0x18u);
     }
@@ -505,7 +570,6 @@ static void tx_release(bool abort)
     keyed = false;
     tx_drain_rx();
     hardware_irq_on();
-    tx_state = TX_IDLE;
 }
 
 static void tx_unkey(bool sent)
@@ -539,9 +603,7 @@ static void tx_continue(void)
         return;
     }
     (void)kind;
-    tx_i = 0u;
-    tx_state = TX_DATA;
-    timer_set(TIMER_TXWAIT, TX_WAIT_TICKS);
+    tx_start_data();
 }
 
 static void tx_key(void)
@@ -565,11 +627,10 @@ static void tx_key(void)
     radio_cmd(0x10u);
     hardware_irq_on();
     hardware_watchdog_pet();
-    tx_i = 0u;
     if (g_config.txdelay == 0u) {
-        tx_state = TX_DATA;
-        timer_set(TIMER_TXWAIT, TX_WAIT_TICKS);
+        tx_start_data();
     } else {
+        tx_i = 0u;
         tx_state = TX_DELAY;
         timer_set(TIMER_TXDELAY, g_config.txdelay);
     }
@@ -598,10 +659,15 @@ static void tx_persist(void)
 
 static void tx_service(void)
 {
+    uint8_t state;
+
     if (keyed) {
         hardware_watchdog_pet();
     }
-    switch (tx_state) {
+    hardware_irq_off();
+    state = tx_state;
+    hardware_irq_on();
+    switch (state) {
     case TX_WAIT_DCD:
         if (dcd_now == 0u || g_config.fulldup != 0u) {
             tx_persist();
@@ -619,41 +685,40 @@ static void tx_service(void)
         break;
     case TX_DELAY:
         if (timer_expired(TIMER_TXDELAY)) {
-            tx_state = TX_DATA;
-            timer_set(TIMER_TXWAIT, TX_WAIT_TICKS);
+            tx_start_data();
         }
         break;
-    case TX_DATA:
-        if (tx_flag(RR0_TX_EMPTY)) {
-            hardware_irq_off();
-            if (tx_i == 0u) {
-                radio_cmd(0x80u); /* reset Tx CRC, then load the byte, then arm CRC-on-underrun */
-            }
-            scc_a_data = tx_buf[tx_i];
-            if (tx_i == 0u) {
-                radio_cmd(0xC0u);
-            }
-            hardware_irq_on();
-            ++tx_i;
-            timer_set(TIMER_TXWAIT, TX_WAIT_TICKS);
-            if (tx_i >= tx_len) {
-                tx_state = TX_WAIT_EMPTY;
-            }
-        } else if (timer_expired(TIMER_TXWAIT)) {
-            tx_unkey(false);
+    case TX_DATA: {
+        uint16_t sent;
+
+        hardware_irq_off();
+        sent = tx_i;
+        state = tx_state;
+        hardware_irq_on();
+        if (state != TX_DATA) {
+            break;
         }
-        break;
-    case TX_WAIT_EMPTY:
-        if (tx_flag(RR0_TX_EMPTY)) {
-            tx_state = TX_WAIT_EOM;
+        /* The ISR advances tx_i. No progress for 40 ms means the pump stalled. */
+        if (sent != tx_mark) {
+            tx_mark = sent;
             timer_set(TIMER_TXWAIT, TX_WAIT_TICKS);
         } else if (timer_expired(TIMER_TXWAIT)) {
             tx_unkey(false);
         }
         break;
+    }
     case TX_WAIT_EOM:
-        if (tx_flag(RR0_TX_EOM)) {
+        if (tx_wait_armed == 0u) {
+            timer_set(TIMER_TXWAIT, TX_WAIT_TICKS);
+            tx_wait_armed = 1u;
+        }
+        if (tx_eom_seen != 0u) {
+            hardware_irq_off();
+            tx_eom_watch = 0u;
+            tx_eom_seen = 0u;
+            tx_wait_armed = 0u;
             tx_state = TX_TAIL;
+            hardware_irq_on();
             timer_set(TIMER_TXTAIL, TX_TAIL_TICKS);
         } else if (timer_expired(TIMER_TXWAIT)) {
             tx_unkey(false);
@@ -762,6 +827,10 @@ void modem_init(void)
     tx_state = TX_IDLE;
     tx_i = 0u;
     tx_len = 0u;
+    tx_eom_watch = 0u;
+    tx_eom_seen = 0u;
+    tx_mark = 0u;
+    tx_wait_armed = 0u;
     keyed = false;
     pktq_init();
     dupe_init();
@@ -771,9 +840,10 @@ void modem_init(void)
     radio_cmd(0x10u);
     radio_cmd(0x10u);
     dcd_now = (radio_rr0() & RR0_DCD) != 0u;
-    /* External status, and an interrupt on every received byte or special condition. */
-    scc_a_ctrl = 0x01u;
-    scc_a_ctrl = 0x11u;
+    /* External status, and an interrupt on every received byte or special condition.
+     * Transmit-empty interrupts stay off until tx_start_data.
+     */
+    radio_wr1(WR1_HDLC);
     /* VIS was already set. Master interrupt enable turns the receiver loose. */
     scc_a_ctrl = 0x09u;
     scc_a_ctrl = 0x09u;
