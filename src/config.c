@@ -1168,6 +1168,14 @@ void config_command(char *line)
         value = 0;
     }
 
+    if (same_text(cmd, "HELP")) {
+        if (value == 0) {
+            serial_puts("Visit https://github.com/PhirePhly/wfdigi for documentation\r\n");
+        } else {
+            serial_puts("?\r\n");
+        }
+        return;
+    }
     if (same_text(cmd, "DISPLAY")) {
         if (value == 0) {
             command_display();

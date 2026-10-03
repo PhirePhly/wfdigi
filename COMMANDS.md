@@ -34,8 +34,9 @@ command prints `Huh?`.
 The symbol `-` is used to represent an empty or null string. This can be used
 to disable some settings and express a empty value for other settings.
 
-`DISPLAY` takes no value. It prints every setting as `NAME VALUE`, in the
-same form that setting command accepts. `DISPLAY` followed by anything else
+`DISPLAY` and `HELP` take no value. `DISPLAY` prints every setting as
+`NAME VALUE`, in the same form that setting command accepts. `HELP` prints
+where to read the documentation. Either command followed by anything else
 prints `?`.
 
 ```
@@ -48,6 +49,14 @@ MYCALL W6FOO-3
 DIGIPEAT ON
 ...
 W6FOO-3>
+```
+
+## HELP
+
+Prints where to read the documentation:
+
+```
+Visit https://github.com/PhirePhly/wfdigi for documentation
 ```
 
 ## DISPLAY

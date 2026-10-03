@@ -138,7 +138,8 @@ radio stays keyed does not draw again.
 
 At the callsign prompt, a config name alone prints the value stored in SRAM.
 `NAME VALUE` updates that value when it is in range. `DISPLAY` prints every
-setting. Unknown commands print `Huh?`; lines longer than 79 characters print
+setting. `HELP` prints where to read the documentation. Unknown commands
+print `Huh?`; lines longer than 79 characters print
 `Too long?`. [COMMANDS.md](COMMANDS.md) describes the line editor and the
 meaning of each command.
 
