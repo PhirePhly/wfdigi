@@ -5,8 +5,9 @@ After the lamp test the TNC prints a prompt of the callsign and waits for a
 line. A non-zero SSID is included, so SSID 0 is `N0CALL> ` and SSID 3 is
 `N0CALL-3> `. Changing `MYCALL` changes the next prompt.
 
-The current firmware stores these settings in battery SRAM. It does not
-digipeat yet. A non-zero `BEACON` interval queues a position beacon. Every
+The current firmware stores these settings in battery SRAM. A received frame
+is repeated when `DIGIPEAT` is on and the path matches this station. A
+non-zero `BEACON` interval queues a position beacon. Every
 reset runs a cold boot, which copies
 `include/config.h` back over the SRAM image and replaces any values entered
 at the prompt.
@@ -68,8 +69,44 @@ A frame that reaches the radio is discarded, and the TNC prints
 ## DIGIPEAT
 
 Turns digipeating on or off. Accepts `ON`, `OFF`, `1`, or `0`. When it is
-on, this station is willing to repeat packets addressed to `MYCALL`, an
-enabled alias, or a matching n-N prefix. The cold-boot default is `ON`.
+on, a received frame is repeated when its path contains `MYCALL`, an enabled
+alias, or a matching n-N prefix. The cold-boot default is `ON`. A frame this
+station originated is not repeated.
+
+The path is searched with preemption, in this order. `MYCALL` is tried first,
+anywhere in the path, including when earlier hops are already used. Every
+digipeater up through `MYCALL` is marked repeated. `DIRECTONLY` and
+`MAXHOPS` do not change that match. A path that already contains this
+station's callsign is left alone.
+
+If `MYCALL` is not in the path, the first unused alias is replaced with
+`MYCALL`, marked repeated, and every digipeater before it is marked repeated
+as well. If no alias matches, the first unused n-N address is handled the
+same way, then its remaining hop count is reduced by one and written at the
+end of the path when that count is still at least one. `WIDE2-2` becomes
+`MYCALL*,WIDE2-1`. `WIDE2-1` becomes `MYCALL*`. Hops that followed the n-N
+address stay where they were.
+
+Each packet this station transmits is kept in a list of 250. An entry holds
+the source callsign and SSID, a one-byte sum of the information field, and
+the second the packet was sent. A sum of 0 means the slot is empty, so a
+calculated sum of 0 is stored as 1. The transmitted packet takes the first
+empty slot. Before a digipeat, the list is scanned by that sum, then the
+source callsign and the SSID. An entry 30 seconds old or older is cleared.
+A match that is still inside that window is not repeated. When every slot
+is still inside the window, the oldest entry is replaced.
+
+## DIRECTONLY
+
+Limits alias and n-N digipeating to a path that has not been used yet.
+Accepts `ON`, `OFF`, `1`, or `0`. The cold-boot default is `OFF`.
+
+When it is on, a packet is repeated for an alias or a matching n-N prefix
+only if no digipeater address has the has-been-repeated bit set, and every
+via that matches a configured n-N prefix still has its remaining hop count
+equal to its hop limit. `WIDE2-2` is complete. `WIDE2-1` is not. A packet
+addressed to `MYCALL` is repeated even when earlier hops have already been
+used.
 
 ## LOGGING
 
@@ -225,9 +262,13 @@ accepted only with 0 minutes. The cold-boot default prints as
 
 The most digipeater hops a packet may have for this station to repeat it.
 The range is 1–7, which is the APRS n-N limit. The cold-boot default is 3.
-If a packet is received with a consumed number of hops plus pending requested
-hops which exceeds this count, if this station supports one of the pending aliases
-then it will mark all hops as used and append station callsign to the end.
+Each digipeater that has already been repeated counts as one consumed hop.
+An unused n-N address counts as its remaining hop count, and any other unused
+address counts as one. When that sum exceeds this setting, and the path still
+asks for an alias or n-N prefix this station supports, every digipeater is
+marked repeated and `MYCALL` is appended, also marked repeated. The n-N hop
+count is not decremented in that case. A `MYCALL` match is repeated normally
+even when the sum exceeds this setting.
 
 ## MYSYMBOL
 

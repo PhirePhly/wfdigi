@@ -7,8 +7,9 @@ terminal command set.
 
 The image in the tree today brings up the board and the radio modem. It loads
 the digipeater configuration into SRAM, talks to a terminal at 9600 baud, and
-sends and receives AX.25. With `BEACON` set it queues a position beacon. It
-does not digipeat yet.
+sends and receives AX.25. With `BEACON` set it queues a position beacon. With
+`DIGIPEAT` on, a received frame whose path matches this station is rewritten
+and queued for transmit.
 
 ## Hardware target
 
@@ -56,6 +57,8 @@ make clean
 - `src/serial.c`: polled terminal I/O
 - `src/pktq.c`: transmit queue of 31-byte blocks
 - `src/modem.c`: HDLC AX.25 receive and transmit on the radio channel
+- `src/digi.c`: path matching, header rewrite, and the transmit queue for repeats
+- `src/dupe.c`: the last 250 transmitted packets, used to skip a repeat
 - `src/util.c`: shared helpers, including the 32-bit xorshift
 - `src/beacon.c`: APRS position beacon
 - `src/timer.c`: 10 ms countdown timers, from the 1200 Hz `/SYNCB` square wave
@@ -97,6 +100,7 @@ Cold-boot defaults:
 |---|---|---|
 | MYCALL | `N0CALL-0` | AX.25 call, SSID 0–15 |
 | DIGIPEAT | on | off or on |
+| DIRECTONLY | off | off or on |
 | LOGGING | on | off or on |
 | TXDELAY | 30 (300 ms) | 0–120, in 10 ms steps |
 | PPERSIST | 63 | 0–255 |
@@ -126,9 +130,22 @@ callsign is the prefix plus a digit N from 1 to 7, and the SSID is the
 remaining hop count n, with n from 1 through N. It does not match a bare
 `WIDE` or a hop count above N, such as `WIDE2-3`.
 
+A repeat searches the whole path, not only the next unused address. `MYCALL`
+is taken first and every hop through it is marked repeated. An alias is
+replaced by `MYCALL`. An n-N address is replaced by `MYCALL`, and the same
+n-N call is appended at the end with the SSID reduced by one when that SSID
+is still at least 1. `WIDE2-2` goes out as `MYCALL*,WIDE2-1`. `WIDE2-1` goes
+out as `MYCALL*`. `DIRECTONLY` limits alias and n-N repeats to a path that
+has not been used yet. `MAXHOPS` stops a path that asks for too many hops by
+marking it used and appending `MYCALL`.
+
 The SCC interrupt controller runs in Z80 mode 2. Radio HDLC receive interrupts
 are enabled, and the terminal channel interrupts at 1200 Hz from the
 `/SYNCB` square wave. The terminal data path stays polled. Twelve interrupts
-queue one 10 ms tick, and 100 of those ticks queue one second. A heard packet
-stays inside the duplicate window for 30 seconds. The beacon countdown runs
-in those seconds, shortened by a random 0–31 seconds each time it is armed.
+queue one 10 ms tick, and 100 of those ticks queue one second. The last 250
+packets this station transmits are kept for 30 seconds, each as the source
+callsign and SSID, a one-byte sum of the information field, and the second
+it was sent. A sum of 0 is an empty slot. A digipeat of the same source and
+information field inside that window is skipped, and older entries are
+cleared when the list is scanned. The beacon countdown runs in those seconds, shortened by
+a random 0–31 seconds each time it is armed.

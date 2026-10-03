@@ -400,6 +400,7 @@ static void service_rx(void)
     } else if (g_config.logging != 0u) {
         serial_puts("!R");
     }
+    digi_ingress(rx_buf[idx], n);
     rx_ready = 0u;
 }
 
@@ -491,6 +492,7 @@ static void tx_continue(void)
 {
     uint8_t kind;
 
+    dupe_remember(tx_buf, tx_len);
     if (g_config.logging != 0u) {
         log_frame('T', tx_buf, tx_len);
     }
@@ -699,6 +701,7 @@ void modem_init(void)
     tx_len = 0u;
     keyed = false;
     pktq_init();
+    dupe_init();
     trace_len = 0u;
     trace_pos = 0u;
     radio_cmd(0x30u);

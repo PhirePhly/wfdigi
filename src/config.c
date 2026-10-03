@@ -5,6 +5,7 @@ _Static_assert(sizeof(CFG_MYCALL) > 1u, "MYCALL is empty");
 _Static_assert(sizeof(CFG_MYCALL) <= CALLSIGN_LEN + 1u, "MYCALL is longer than 6 characters");
 _Static_assert(CFG_MYCALL_SSID <= SSID_MAX, "MYCALL SSID is above 15");
 _Static_assert(CFG_DIGIPEAT <= 1u, "DIGIPEAT must be 0 or 1");
+_Static_assert(CFG_DIRECTONLY <= 1u, "DIRECTONLY must be 0 or 1");
 _Static_assert(CFG_TXDELAY >= TXDELAY_MIN && CFG_TXDELAY <= TXDELAY_MAX, "TXDELAY is out of range");
 _Static_assert(CFG_PPERSIST >= PERSIST_MIN && CFG_PPERSIST <= PERSIST_MAX, "PPERSIST is out of range");
 _Static_assert(CFG_SLOTTIME >= SLOTTIME_MIN && CFG_SLOTTIME <= SLOTTIME_MAX, "SLOTTIME is out of range");
@@ -268,6 +269,7 @@ void config_cold_boot(void)
     store_call("MYCALL", CFG_MYCALL, (uint8_t)CFG_MYCALL_SSID, g_config.mycall,
                &g_config.mycall_ssid);
     store_u8("DIGIPEAT", (uint8_t)CFG_DIGIPEAT, 0u, 1u, &g_config.digipeat);
+    store_u8("DIRECTONLY", (uint8_t)CFG_DIRECTONLY, 0u, 1u, &g_config.directonly);
     store_u8("LOGGING", (uint8_t)CFG_LOGGING, 0u, 1u, &g_config.logging);
     store_u8("TXDELAY", (uint8_t)CFG_TXDELAY, TXDELAY_MIN, TXDELAY_MAX, &g_config.txdelay);
     store_u8("PPERSIST", (uint8_t)CFG_PPERSIST, PERSIST_MIN, PERSIST_MAX, &g_config.persist);
@@ -940,6 +942,8 @@ static void command_display(void)
     show_call(g_config.mycall, g_config.mycall_ssid);
     serial_puts("DIGIPEAT ");
     show_flag(g_config.digipeat);
+    serial_puts("DIRECTONLY ");
+    show_flag(g_config.directonly);
     serial_puts("LOGGING ");
     show_flag(g_config.logging);
     show_number("TXDELAY", g_config.txdelay);
@@ -1070,6 +1074,14 @@ void config_command(char *line)
             show_flag(g_config.digipeat);
         } else if (set_flag("DIGIPEAT", value, &g_config.digipeat)) {
             show_flag(g_config.digipeat);
+        }
+        return;
+    }
+    if (same_text(cmd, "DIRECTONLY")) {
+        if (value == 0) {
+            show_flag(g_config.directonly);
+        } else if (set_flag("DIRECTONLY", value, &g_config.directonly)) {
+            show_flag(g_config.directonly);
         }
         return;
     }

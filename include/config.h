@@ -18,6 +18,7 @@
 #define CFG_MYCALL_SSID 0
 
 #define CFG_DIGIPEAT 1
+#define CFG_DIRECTONLY 0
 #define CFG_LOGGING 1
 
 #define CFG_TXDELAY 30

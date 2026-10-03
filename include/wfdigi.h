@@ -83,6 +83,8 @@ typedef uint8_t bool;
  * One hundred ticks are one second. The duplicate window and the beacon interval use that second.
  */
 #define DUPE_WINDOW 30u
+/* Recently transmitted packets kept for the duplicate check. */
+#define DUPE_SLOTS 250u
 #define TIMER_TXDELAY 0u
 #define TIMER_TXTAIL 1u
 #define TIMER_TXWAIT 2u
@@ -100,6 +102,8 @@ typedef struct {
     uint8_t mycall[CALLSIGN_LEN];
     uint8_t mycall_ssid;
     uint8_t digipeat;
+    /* When set, alias and n-N repeats require an unused path. MYCALL does not. */
+    uint8_t directonly;
     uint8_t txdelay;
     uint8_t persist;
     uint8_t slottime;
@@ -199,6 +203,14 @@ bool pktq_take(uint8_t *kind, uint8_t *dest, uint16_t dest_max, uint16_t *len);
 
 /* Queue one AX.25 frame, without the CRC. The modem sends it when the radio is free. */
 bool modem_send(uint8_t kind, const uint8_t *frame, uint16_t len);
+/* Repeat a received frame when DIGIPEAT is on and the path matches this station. */
+void digi_ingress(const uint8_t *frame, uint16_t len);
+/* Clear the recently-sent list. Call before any packet is transmitted. */
+void dupe_init(void);
+/* Remember a frame that has gone out on the air. */
+void dupe_remember(const uint8_t *frame, uint16_t len);
+/* True when this source and information field were sent less than DUPE_WINDOW seconds ago. */
+bool dupe_recent(const uint8_t *frame, uint16_t len);
 bool modem_keyed(void);
 bool modem_dcd(void);
 /* Key and send one calibration tone for the given number of seconds. */
