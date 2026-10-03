@@ -54,7 +54,7 @@ W6FOO-3>
 
 Prints every setting and its current value. A disabled alias or n-N prefix
 prints as `OFF`. An empty beacon text prints as `-`. A beacon interval of 0
-prints as `0`.
+prints as `OFF`.
 
 ## MYCALL
 
@@ -186,8 +186,9 @@ match a hop count above N, such as `WIDE2-3`.
 ## BEACON
 
 How often this station beacons, in whole minutes. The range is 0–60. A value
-of 0 turns the beacon off. `OFF` or `-` stores 0. The printed value is the
-number of minutes, including `0`. The cold-boot default is 0.
+of 0 turns the beacon off. `OFF` or `-` stores 0. A disabled beacon prints as
+`OFF`. Any other value prints as the number of minutes. The cold-boot default
+is off.
 
 The interval is converted to seconds and counted down once a second. Each
 time it is armed, including when you set a new value, a random 0–31 seconds

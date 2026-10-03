@@ -1024,6 +1024,16 @@ static void show_number(const char *name, uint8_t value)
     serial_puts("\r\n");
 }
 
+static void show_beacon(void)
+{
+    if (g_config.beacon_every == 0u) {
+        serial_puts("OFF\r\n");
+    } else {
+        print_u8(g_config.beacon_every);
+        serial_puts("\r\n");
+    }
+}
+
 static void command_display(void)
 {
     serial_puts("MYCALL ");
@@ -1055,7 +1065,8 @@ static void command_display(void)
     show_prefix(g_config.nnalias[2]);
     serial_puts("NNALIAS3 ");
     show_prefix(g_config.nnalias[3]);
-    show_number("BEACON", g_config.beacon_every);
+    serial_puts("BEACON ");
+    show_beacon();
     serial_puts("BTEXT ");
     show_btext();
     serial_puts("BPATH ");
@@ -1261,17 +1272,15 @@ void config_command(char *line)
     }
     if (same_text(cmd, "BEACON")) {
         if (value == 0) {
-            print_u8(g_config.beacon_every);
-            serial_puts("\r\n");
+            show_beacon();
         } else if (is_off(value)) {
             g_config.beacon_every = 0u;
+            note_config();
             timer_beacon_restart();
-            print_u8(0u);
-            serial_puts("\r\n");
+            show_beacon();
         } else if (set_number("BEACON", value, 0u, BEACON_MAX, &g_config.beacon_every)) {
             timer_beacon_restart();
-            print_u8(g_config.beacon_every);
-            serial_puts("\r\n");
+            show_beacon();
         }
         return;
     }
