@@ -79,7 +79,8 @@ typedef uint8_t bool;
 #define TX_CLOSING_FLAGS 3u
 #define BEACON_MAX 60u
 #define MAXHOPS_MIN 1u
-#define MAXHOPS_MAX 7u
+/* Eight digipeater addresses is the AX.25 path limit. */
+#define MAXHOPS_MAX 8u
 /* Software countdown slots, in 10 ms ticks. A tick is 12 interrupts of the 1200 Hz /SYNCB input.
  * One hundred ticks are one second. The duplicate window and the beacon interval use that second.
  */

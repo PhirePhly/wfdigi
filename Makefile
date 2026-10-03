@@ -17,7 +17,10 @@ C_OBJECTS := $(patsubst src/%.c,$(BUILD)/%.rel,$(C_SOURCES))
 ASM_OBJECTS := $(patsubst src/%.s,$(BUILD)/%.rel,$(ASM_SOURCES))
 OBJECTS := $(ASM_OBJECTS) $(C_OBJECTS)
 
-.PHONY: all clean require-sdcc layout
+HOSTCC ?= gcc
+HOSTCFLAGS := -std=c11 -Wall -Wextra -Werror -Iinclude -include tools/host_prefix.h
+
+.PHONY: all clean require-sdcc layout test
 
 all: require-sdcc $(BUILD)/$(PROJECT).bin layout
 
@@ -44,6 +47,12 @@ $(BUILD)/$(PROJECT).bin: $(BUILD)/$(PROJECT).ihx
 
 layout: $(BUILD)/$(PROJECT).ihx
 	$(PYTHON) tools/check-layout.py $< $(BUILD)/$(PROJECT).map
+
+test: $(BUILD)/digi_test
+	./$(BUILD)/digi_test
+
+$(BUILD)/digi_test: src/digi.c src/dupe.c tools/digi_test.c include/wfdigi.h tools/host_prefix.h | $(BUILD)
+	$(HOSTCC) $(HOSTCFLAGS) -o $@ src/digi.c src/dupe.c tools/digi_test.c
 
 clean:
 	rm -rf $(BUILD)

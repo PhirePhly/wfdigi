@@ -8,7 +8,7 @@
  * An empty alias or n-N prefix disables that slot. There is no slot count.
  * Timing values are in 10 ms steps. Beacon is in minutes, and 0 turns it off.
  * MYLOC is degrees and decimal minutes, for example "00 00.00 N 000 00.00 E".
- * MAXHOPS is 1 through 7.
+ * MAXHOPS is 1 through 8.
  * MYSYMBOL is two characters: a table or overlay, then the symbol code.
  * BPATH is one to four beacon paths. "-" is a beacon with no path.
  * LOGGING is 1 to print radio traffic, or 0 to stay quiet.

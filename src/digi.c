@@ -419,10 +419,14 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
     if (g_config.directonly != 0u && !path_is_fresh(vias)) {
         return;
     }
-    /* A request equal to MAXHOPS is repeated normally. Only a larger request is killed. */
+    /* A request equal to MAXHOPS is repeated normally. Only a larger request is quashed. */
     if (pending_hops(vias) > g_config.maxhops) {
         mark_all(vias);
         if (append_mycall(vias)) {
+            send_work();
+        } else if (vias >= AX25_MAX_VIAS) {
+            /* The path already holds eight digipeaters. Quash it by stamping MYCALL on the last one. */
+            write_mycall(via_ptr((uint8_t)(vias - 1u)), (uint8_t)(AX25_H | AX25_EXT));
             send_work();
         }
         return;

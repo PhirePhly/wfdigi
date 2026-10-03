@@ -49,6 +49,10 @@ other than 9600 on the terminal and the 1200 baud DPLL clock on the radio.
 make clean
 ```
 
+`make test` compiles the digipeater and duplicate list on the host and checks
+alias, n-N, `DIRECTONLY`, `MAXHOPS`, and duplicate suppression. It does not
+need SDCC.
+
 ## Firmware organization
 
 - `src/startup.s`, `src/isr_stubs.s`: reset, the mode-2 vector table at
@@ -118,7 +122,7 @@ Cold-boot defaults:
 | BTEXT | empty | printable ASCII, NUL terminated |
 | BPATH | `-` | 1–4 paths; a callsign, or `-` for no path |
 | MYLOC | `00 00.00 N 000 00.00 E` | 0-90 0.0-59.99 [NS] 0-180 0.0-59.99 [EW] |
-| MAXHOPS | 3 | 1-7 |
+| MAXHOPS | 3 | 1-8 |
 | MYSYMBOL | `/#` | two characters: primary `/`, alternate `\`, or overlay `0-9`/`A-Z`, then a symbol code |
 
 Every transmission ends with 3 HDLC flags. The radio is unkeyed when nothing
@@ -149,7 +153,9 @@ is still at least 1. `WIDE2-2` goes out as `MYCALL*,WIDE2-1`. `WIDE2-1` goes
 out as `MYCALL*`. `DIRECTONLY` limits alias and n-N repeats to a path that
 has not been used yet. A path that already has `MAXHOPS` repeated digipeaters
 is not repeated. A remaining hop request equal to `MAXHOPS` is repeated
-normally. A larger request is marked used and `MYCALL` is appended.
+normally. A larger request is quashed: it is marked used and `MYCALL` is
+appended. When the path already holds eight digipeaters, `MYCALL` replaces
+the last one.
 
 The SCC interrupt controller runs in Z80 mode 2. Radio HDLC receive interrupts
 are enabled, and the terminal channel interrupts at 1200 Hz from the

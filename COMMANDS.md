@@ -265,7 +265,8 @@ accepted only with 0 minutes. The cold-boot default prints as
 ## MAXHOPS
 
 The most digipeater hops a packet may have for this station to repeat it.
-The range is 1–7, which is the APRS n-N limit. The cold-boot default is 3.
+The range is 1–8. The cold-boot default is 3. One n-N address is still at most
+7. Eight is the most digipeater addresses an AX.25 path can hold.
 
 Each digipeater that has already been repeated counts as one used hop. When
 that count is already `MAXHOPS` or more, the packet is not repeated.
@@ -274,9 +275,10 @@ An unused n-N address counts as its remaining hop count, and any other unused
 address counts as one. That is the hop request still ahead. A request equal
 to `MAXHOPS` is repeated normally: `WIDE2-1` in `AAA,BBB*,WIDE2-1` becomes
 `AAA,BBB,MYCALL*`. A larger request, such as `WIDE5-5` when this setting is
-3, is killed instead: every digipeater is marked repeated and `MYCALL` is
+3, is quashed instead: every digipeater is marked repeated and `MYCALL` is
 appended, also marked repeated. The n-N hop count is not decremented in that
-case.
+case. If the path already has eight digipeaters, `MYCALL` replaces the last
+one. A ninth address is not added.
 
 ## MYSYMBOL
 
