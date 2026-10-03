@@ -16,6 +16,7 @@ static uint8_t subsec;
 static uint8_t seconds_pending;
 static uint16_t clock_sec;
 static uint16_t beacon_left;
+static uint8_t cal_left;
 
 static void arm_sync_interrupt(void)
 {
@@ -37,6 +38,7 @@ void timer_init(void)
     seconds_pending = 0u;
     clock_sec = 0u;
     beacon_left = 0u;
+    cal_left = 0u;
     prng_init();
     for (i = 0u; i < TIMER_COUNT; ++i) {
         left[i] = 0u;
@@ -114,6 +116,12 @@ static void tick(void)
 static void on_second(void)
 {
     ++clock_sec;
+    if (cal_left != 0u) {
+        --cal_left;
+        if (cal_left == 0u) {
+            modem_cal_stop();
+        }
+    }
     if (g_config.beacon_every == 0u) {
         return;
     }
@@ -151,6 +159,11 @@ bool timer_beacon_now(void)
     }
     beacon_left = beacon_next_wait();
     return true;
+}
+
+void timer_cal_start(uint8_t seconds)
+{
+    cal_left = seconds;
 }
 
 void timer_service(void)

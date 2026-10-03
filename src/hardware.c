@@ -128,6 +128,32 @@ void hardware_ptt(bool keyed)
     }
 }
 
+void hardware_cal_tone(uint8_t tone)
+{
+    uint8_t wr5 = (uint8_t)(radio_wr5 & (uint8_t)~WR5_BREAK);
+
+    if (tone == CAL_HIGH) {
+        /* NRZ mark idle, then break forces TxD low: 7910 space, 2200 Hz. */
+        radio_reg(10, 0x88u);
+        wr5 = (uint8_t)(wr5 | WR5_BREAK);
+    } else if (tone == CAL_LOW) {
+        /* NRZ mark idle holds TxD high: 7910 mark, 1200 Hz. */
+        radio_reg(10, 0x88u);
+    } else {
+        /* Flag idle NRZI shifts 0x7E, so the modem sends both symbols. */
+        radio_reg(10, 0xA0u);
+    }
+    radio_wr5 = wr5;
+    radio_reg(5, radio_wr5);
+}
+
+void hardware_cal_restore(void)
+{
+    radio_wr5 = (uint8_t)(radio_wr5 & (uint8_t)~WR5_BREAK);
+    radio_reg(5, radio_wr5);
+    radio_reg(10, 0xA0u);
+}
+
 void hardware_lamps(uint8_t lamps_on)
 {
     led_latch = (uint8_t)~lamps_on;

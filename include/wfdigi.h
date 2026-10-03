@@ -40,6 +40,7 @@ typedef uint8_t bool;
 
 #define WR5_RTS 0x02u
 #define WR5_TX_ENABLE 0x08u
+#define WR5_BREAK 0x10u
 #define WR5_DTR 0x80u
 
 /* Front-panel latch is active low. These masks are the lamps that should be on. */
@@ -89,6 +90,11 @@ typedef uint8_t bool;
 #define TIMER_COUNT 8u
 /* STA stays lit for this many 10 ms ticks after a valid received frame. */
 #define STA_TICKS 40u
+/* CAL tones. High is the 2200 Hz space, low is the 1200 Hz mark. */
+#define CAL_LOW 0u
+#define CAL_HIGH 1u
+#define CAL_BOTH 2u
+#define CAL_SECONDS_MAX 30u
 
 typedef struct {
     uint8_t mycall[CALLSIGN_LEN];
@@ -154,6 +160,9 @@ void hardware_irq_restore(void);
 void hardware_watchdog_pet(void);
 /* Assert or release radio PTT. While keyed, each call also pets the watchdog. */
 void hardware_ptt(bool keyed);
+/* Select the calibration waveform. Packet HDLC is restored by hardware_cal_restore. */
+void hardware_cal_tone(uint8_t tone);
+void hardware_cal_restore(void);
 void hardware_init(void);
 void hardware_lamps(uint8_t lamps_on);
 bool hardware_radio_dcd(void);
@@ -192,6 +201,10 @@ bool pktq_take(uint8_t *kind, uint8_t *dest, uint16_t dest_max, uint16_t *len);
 bool modem_send(uint8_t kind, const uint8_t *frame, uint16_t len);
 bool modem_keyed(void);
 bool modem_dcd(void);
+/* Key and send one calibration tone for the given number of seconds. */
+void modem_calibrate(uint8_t tone, uint8_t seconds);
+/* Unkey and restore HDLC. Called when the calibration second count reaches zero. */
+void modem_cal_stop(void);
 
 void timer_init(void);
 void timer_service(void);
@@ -208,6 +221,8 @@ bool timer_in_dupe_window(uint16_t heard_at);
 void timer_beacon_restart(void);
 /* Queue one beacon now and arm the next interval. False if the queue did not accept it. */
 bool timer_beacon_now(void);
+/* Count down in on_second, then modem_cal_stop runs. */
+void timer_cal_start(uint8_t seconds);
 
 void prng_init(void);
 void prng_stir(uint16_t extra);

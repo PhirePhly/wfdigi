@@ -172,6 +172,18 @@ offset. A zero interval stays idle after that one beacon. If the transmit
 queue cannot take the frame, the TNC prints `Busy` and leaves the countdown
 at zero so the next second tries again while `BEACON` is non-zero.
 
+## CAL
+
+Keys the radio and sends a Bell 202 calibration tone, then unkeys. It takes
+two arguments: `H`, `L`, or `D`, and a duration from 1 to 30 seconds.
+`CAL H 15` sends the high tone, 2200 Hz, for 15 seconds. `L` sends the low
+tone, 1200 Hz. `D` sends HDLC flags, which use both symbols. A missing or
+malformed argument prints `?`. A duration of 0 or above 30 prints
+`Bad config: CAL`. The transmitter must be idle; otherwise the TNC prints
+`Busy`. `MYCALL` still has to be set, or the TNC prints `ERR - Set Callsign`
+and does not key. `CAL` is not a stored setting and does not appear in
+`DISPLAY`.
+
 ## BTEXT
 
 The text carried in a beacon. The value is the rest of the line after

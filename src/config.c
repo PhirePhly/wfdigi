@@ -975,6 +975,42 @@ static void command_display(void)
     show_symbol();
 }
 
+static void command_cal(char *value)
+{
+    char mode;
+    uint8_t i;
+    uint8_t seconds;
+    uint8_t tone;
+
+    if (value == 0 || value[0] == '\0' || value[1] != ' ') {
+        serial_puts("?\r\n");
+        return;
+    }
+    mode = value[0];
+    if (mode >= 'a' && mode <= 'z') {
+        mode = (char)(mode - ('a' - 'A'));
+    }
+    if (mode == 'H') {
+        tone = CAL_HIGH;
+    } else if (mode == 'L') {
+        tone = CAL_LOW;
+    } else if (mode == 'D') {
+        tone = CAL_BOTH;
+    } else {
+        serial_puts("?\r\n");
+        return;
+    }
+    i = 2u;
+    while (value[i] == ' ') {
+        ++i;
+    }
+    if (!parse_u8(&value[i], &seconds, CAL_SECONDS_MAX) || seconds == 0u) {
+        serial_puts("Bad config: CAL\r\n");
+        return;
+    }
+    modem_calibrate(tone, seconds);
+}
+
 void config_command(char *line)
 {
     char *cmd;
@@ -1175,6 +1211,10 @@ void config_command(char *line)
         } else if (store_symbol(value)) {
             show_symbol();
         }
+        return;
+    }
+    if (same_text(cmd, "CAL")) {
+        command_cal(value);
         return;
     }
     serial_puts("Huh?\r\n");

@@ -11,13 +11,16 @@ __sfr __at (PORT_SCC_A_DATA) scc_a_data;
 __sfr __at (PORT_SCC_B_CTRL) scc_b_ctrl;
 __sfr __at (PORT_SCC_B_DATA) scc_b_data;
 
-#define TX_IDLE 0u
-#define TX_WAIT_DCD 1u
-#define TX_DELAY 2u
-#define TX_DATA 3u
-#define TX_WAIT_EMPTY 4u
-#define TX_WAIT_EOM 5u
-#define TX_TAIL 6u
+typedef enum {
+    TX_IDLE,
+    TX_WAIT_DCD,
+    TX_DELAY,
+    TX_DATA,
+    TX_WAIT_EMPTY,
+    TX_WAIT_EOM,
+    TX_TAIL,
+    TX_CAL
+} TxState;
 /* SCC byte and CRC should finish well inside 40 ms. Three flags are 20 ms. */
 #define TX_WAIT_TICKS 4u
 #define TX_TAIL_TICKS 2u
@@ -32,7 +35,7 @@ static volatile uint8_t rx_done;
 static volatile uint16_t rx_done_len;
 
 static uint8_t tx_buf[AX25_MAX];
-static uint8_t tx_state;
+static TxState tx_state;
 static uint16_t tx_i;
 static uint16_t tx_len;
 static volatile bool keyed;
@@ -648,6 +651,40 @@ bool modem_send(uint8_t kind, const uint8_t *frame, uint16_t len)
     }
     tx_kick();
     return true;
+}
+
+void modem_cal_stop(void)
+{
+    if (tx_state != TX_CAL) {
+        return;
+    }
+    hardware_irq_off();
+    hardware_ptt(false);
+    keyed = false;
+    hardware_cal_restore();
+    hardware_irq_on();
+    tx_state = TX_IDLE;
+    tx_kick();
+}
+
+void modem_calibrate(uint8_t tone, uint8_t seconds)
+{
+    if (mycall_unset()) {
+        serial_puts("ERR - Set Callsign\r\n");
+        return;
+    }
+    if (tx_state != TX_IDLE || keyed) {
+        serial_puts("Busy\r\n");
+        return;
+    }
+    hardware_irq_off();
+    hardware_cal_tone(tone);
+    tx_state = TX_CAL;
+    keyed = true;
+    hardware_ptt(true);
+    hardware_irq_on();
+    hardware_watchdog_pet();
+    timer_cal_start(seconds);
 }
 
 void modem_init(void)
