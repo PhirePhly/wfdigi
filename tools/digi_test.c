@@ -671,7 +671,7 @@ static void test_nnalias(void)
         {"WIDE1-1 is consumed", "N0SRC>APRS,WIDE1-1:Hi", "N0SRC>APRS,WFDIGI*:Hi"},
         {"WIDE3-3 decrements", "N0SRC>APRS,WIDE3-3:Hi", "N0SRC>APRS,WFDIGI*,WIDE3-2:Hi"},
         {"WIDE3-1 is consumed", "N0SRC>APRS,WIDE3-1:Hi", "N0SRC>APRS,WFDIGI*:Hi"},
-        {"WIDE7-7 asks for more than MAXHOPS", "N0SRC>APRS,WIDE7-7:Hi", "N0SRC>APRS,WIDE7-7*,WFDIGI*:Hi"},
+        {"WIDE7-7 asks for more than MAXHOPS", "N0SRC>APRS,WIDE7-7:Hi", "N0SRC>APRS,WIDE7-6*,WFDIGI*:Hi"},
         {"WIDE7-1 is consumed", "N0SRC>APRS,WIDE7-1:Hi", "N0SRC>APRS,WFDIGI*:Hi"},
         {"n above N does not match", "N0SRC>APRS,WIDE2-3:Hi", 0},
         {"bare prefix does not match", "N0SRC>APRS,WIDE:Hi", 0},
@@ -691,7 +691,7 @@ static void test_nnalias(void)
          "N0SRC>APRS,WFDIGI*,WIDE1-1,TRACE2-1:Hi"},
         {"fourth n-N slot", "N0SRC>APRS,QST1-1:Hi", "N0SRC>APRS,WFDIGI*:Hi"},
         {"full path quash replaces the last via", "N0SRC>APRS,WIDE2-2,A,B,C,D,E,F,G:Hi",
-         "N0SRC>APRS,WIDE2-2*,A*,B*,C*,D*,E*,F*,WFDIGI*:Hi"},
+         "N0SRC>APRS,WIDE2-1*,A*,B*,C*,D*,E*,F*,WFDIGI*:Hi"},
     };
 
     setup();
@@ -750,18 +750,18 @@ static void test_maxhops(void)
     set_alias(0, "TEMP", 0u);
     set_nn(0, "WIDE");
     check("request equal to MAXHOPS decrements", "N0SRC>APRS,WIDE3-3:Hi", "N0SRC>APRS,WFDIGI*,WIDE3-2:Hi");
-    check("WIDE5-5 is quashed", "N0SRC>APRS,WIDE5-5:Hi", "N0SRC>APRS,WIDE5-5*,WFDIGI*:Hi");
-    check("WIDE4-4 is quashed", "N0SRC>APRS,WIDE4-4:Hi", "N0SRC>APRS,WIDE4-4*,WFDIGI*:Hi");
+    check("WIDE5-5 is quashed", "N0SRC>APRS,WIDE5-5:Hi", "N0SRC>APRS,WIDE5-4*,WFDIGI*:Hi");
+    check("WIDE4-4 is quashed", "N0SRC>APRS,WIDE4-4:Hi", "N0SRC>APRS,WIDE4-3*,WFDIGI*:Hi");
     check("WIDE3-2 is under the limit", "N0SRC>APRS,WIDE3-2:Hi", "N0SRC>APRS,WFDIGI*,WIDE3-1:Hi");
     check("used hop plus WIDE2-1 stays a normal repeat", "N0SRC>APRS,AAA,BBB*,WIDE2-1:Hi",
           "N0SRC>APRS,AAA*,BBB*,WFDIGI*:Hi");
-    check("used hop plus WIDE2-2 decrements", "N0SRC>APRS,AAA,BBB*,WIDE2-2:Hi",
-          "N0SRC>APRS,AAA*,BBB*,WFDIGI*,WIDE2-1:Hi");
+    check("used hop plus WIDE2-2 is quashed", "N0SRC>APRS,AAA,BBB*,WIDE2-2:Hi",
+          "N0SRC>APRS,AAA*,BBB*,WIDE2-1*,WFDIGI*:Hi");
     check("pending hops equal MAXHOPS", "N0SRC>APRS,AAA,WIDE2-2:Hi", "N0SRC>APRS,AAA*,WFDIGI*,WIDE2-1:Hi");
     check("pending hops above MAXHOPS are quashed", "N0SRC>APRS,AAA,BBB,WIDE2-2:Hi",
-          "N0SRC>APRS,AAA*,BBB*,WIDE2-2*,WFDIGI*:Hi");
+          "N0SRC>APRS,AAA*,BBB*,WIDE2-1*,WFDIGI*:Hi");
     check("two WIDE2-2 requests are quashed", "N0SRC>APRS,WIDE2-2,WIDE2-2:Hi",
-          "N0SRC>APRS,WIDE2-2*,WIDE2-2*,WFDIGI*:Hi");
+          "N0SRC>APRS,WIDE2-1*,WIDE2-2*,WFDIGI*:Hi");
     check("alias request equal to MAXHOPS", "N0SRC>APRS,AAA,TEMP:Hi", "N0SRC>APRS,AAA*,WFDIGI*:Hi");
     check("n-N shape that does not match still counts one", "N0SRC>APRS,TEMP,WIDE2-3:Hi",
           "N0SRC>APRS,WFDIGI*,WIDE2-3:Hi");
@@ -771,17 +771,21 @@ static void test_maxhops(void)
     check("an unmatched n-N shape is not quashed", "N0SRC>APRS,GATE5-5:Hi", 0);
 
     g_config.maxhops = 2u;
-    check("MAXHOPS 2 quashes WIDE3-3", "N0SRC>APRS,WIDE3-3:Hi", "N0SRC>APRS,WIDE3-3*,WFDIGI*:Hi");
+    check("MAXHOPS 2 quashes WIDE3-3", "N0SRC>APRS,WIDE3-3:Hi", "N0SRC>APRS,WIDE3-2*,WFDIGI*:Hi");
     check("MAXHOPS 2 quashes three alias hops", "N0SRC>APRS,AAA,BBB,TEMP:Hi", "N0SRC>APRS,AAA*,BBB*,TEMP*,WFDIGI*:Hi");
     check("MAXHOPS 2 still repeats two hops", "N0SRC>APRS,AAA,TEMP:Hi", "N0SRC>APRS,AAA*,WFDIGI*:Hi");
     check("MAXHOPS 2 still repeats an unconfigured two-hop call", "N0SRC>APRS,TEMP,RELAY2-2:Hi",
           "N0SRC>APRS,WFDIGI*,RELAY2-2:Hi");
+    check("MAXHOPS 2 decrements a fresh WIDE2-2", "N0SRC>APRS,WIDE2-2:Hi",
+          "N0SRC>APRS,WFDIGI*,WIDE2-1:Hi");
+    check("MAXHOPS 2 quashes a used hop plus WIDE2-2", "N0SRC>APRS,AAA*,WIDE2-2:Hi",
+          "N0SRC>APRS,AAA*,WIDE2-1*,WFDIGI*:Hi");
     check("already used MAXHOPS drops the frame", "N0SRC>APRS,AAA*,BBB*,WIDE1-1:Hi", 0);
     check("used hops win over a quash", "N0SRC>APRS,AAA*,BBB*,CCC*,WIDE5-5:Hi", 0);
 
     g_config.maxhops = 1u;
     check("MAXHOPS 1 repeats WIDE1-1", "N0SRC>APRS,WIDE1-1:Hi", "N0SRC>APRS,WFDIGI*:Hi");
-    check("MAXHOPS 1 quashes WIDE2-2", "N0SRC>APRS,WIDE2-2:Hi", "N0SRC>APRS,WIDE2-2*,WFDIGI*:Hi");
+    check("MAXHOPS 1 quashes WIDE2-2", "N0SRC>APRS,WIDE2-2:Hi", "N0SRC>APRS,WIDE2-1*,WFDIGI*:Hi");
 
     g_config.maxhops = 7u;
     check("MAXHOPS 7 repeats WIDE7-7", "N0SRC>APRS,WIDE7-7:Hi", "N0SRC>APRS,WFDIGI*,WIDE7-6:Hi");
@@ -800,18 +804,18 @@ static void test_maxhops(void)
     check("eight n-N hops are repeated normally", "N0SRC>APRS,WIDE7-7,WIDE1-1:Hi",
           "N0SRC>APRS,WFDIGI*,WIDE1-1,WIDE7-6:Hi");
     check("nine hops are quashed by appending", "N0SRC>APRS,WIDE7-7,WIDE2-2:Hi",
-          "N0SRC>APRS,WIDE7-7*,WIDE2-2*,WFDIGI*:Hi");
+          "N0SRC>APRS,WIDE7-6*,WIDE2-2*,WFDIGI*:Hi");
     check("nine hops in a full path replace the last via", "N0SRC>APRS,A,B,C,D,E,F,G,WIDE2-2:Hi",
           "N0SRC>APRS,A*,B*,C*,D*,E*,F*,G*,WFDIGI*:Hi");
     check("eight used hops are not repeated", "N0SRC>APRS,A*,B*,C*,D*,E*,F*,G*,WIDE1-1*:Hi", 0);
 
     g_config.maxhops = 3u;
     g_config.directonly = 1u;
-    check("a fresh oversized n-N is still quashed", "N0SRC>APRS,WIDE5-5:Hi", "N0SRC>APRS,WIDE5-5*,WFDIGI*:Hi");
+    check("a fresh oversized n-N is still quashed", "N0SRC>APRS,WIDE5-5:Hi", "N0SRC>APRS,WIDE5-4*,WFDIGI*:Hi");
     check("DIRECTONLY drops before a quash", "N0SRC>APRS,AAA*,WIDE5-5:Hi", 0);
     g_config.directonly = 0u;
     check("two used hops still quash WIDE5-5", "N0SRC>APRS,AAA*,BBB*,WIDE5-5:Hi",
-          "N0SRC>APRS,AAA*,BBB*,WIDE5-5*,WFDIGI*:Hi");
+          "N0SRC>APRS,AAA*,BBB*,WIDE5-4*,WFDIGI*:Hi");
 }
 
 static void fill_char(char *dest, int n, char c)

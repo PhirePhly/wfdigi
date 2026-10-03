@@ -159,10 +159,14 @@ out as `MYCALL*`. `DIRECTONLY` limits alias and n-N repeats to a path that
 has not been used yet. A path that already has `MAXHOPS` repeated digipeaters
 is not repeated. An unused address counts as one hop unless it matches a
 configured n-N prefix, in which case it counts as the remaining hop count. A
-used digipeater counts as one hop. A remaining hop request equal to `MAXHOPS`
-is repeated normally. A larger request is quashed: it is marked used and
-`MYCALL` is appended. When the path already holds eight digipeaters, `MYCALL`
-replaces the last one. A path with no matching address is left alone.
+used digipeater counts as one hop. The hop total is those used hops plus the
+remaining request. A total equal to `MAXHOPS` is repeated normally. A larger
+total is quashed: the matched n-N is decremented by one, every digipeater is
+marked used, and `MYCALL` is appended so the last repeated hop is this station.
+One used hop followed by `WIDE2-2` therefore goes out as `WIDE2-1*,MYCALL*`
+when `MAXHOPS` is 2. When the path already
+holds eight digipeaters, `MYCALL` replaces the last one. A path with no
+matching address is left alone.
 
 The SCC interrupt controller runs in Z80 mode 2. Radio HDLC receive interrupts
 stay enabled, and the transmit-empty interrupt feeds each byte of a frame.

@@ -290,15 +290,18 @@ including a used n-N address such as `WIDE5-5*`. When that count is already
 
 An unused address that matches a configured n-N prefix counts as its remaining
 hop count. Any other unused address counts as one, including a call that looks
-like n-N for a prefix this station does not have. That is the hop request
-still ahead. A path with no `MYCALL`, alias, or n-N match is left alone. A
-request equal to `MAXHOPS` is repeated normally: `WIDE2-1` in `AAA,BBB*,WIDE2-1`
-becomes
-`AAA,BBB,MYCALL*`. A larger request, such as `WIDE5-5` when this setting is
-3, is quashed instead: every digipeater is marked repeated and `MYCALL` is
-appended, also marked repeated. The n-N hop count is not decremented in that
-case. If the path already has eight digipeaters, `MYCALL` replaces the last
-one. A ninth address is not added.
+like n-N for a prefix this station does not have. The hop total is the used
+hops plus that remaining request. A path with no `MYCALL`, alias, or n-N match
+is left alone. A total equal to `MAXHOPS` is repeated normally: a fresh
+`WIDE2-2` when this setting is 2 becomes `MYCALL*,WIDE2-1`, and `WIDE2-1` in
+`AAA,BBB*,WIDE2-1` becomes `AAA,BBB,MYCALL*`. A larger total is quashed.
+`AAA*,WIDE2-2` when this setting is 2 is one used hop plus two still requested,
+so the matched n-N is decremented, every digipeater is marked repeated, and
+`MYCALL` is appended at the end: `AAA*,WIDE2-1*,MYCALL*`. The last repeated
+hop is this station. An alias is marked repeated in place the same way, and
+`MYCALL` is still appended after it. `WIDE5-5` when this setting is 3 goes
+out as `WIDE5-4*,MYCALL*`. If the path already has eight digipeaters, `MYCALL`
+replaces the last one. A ninth address is not added.
 
 ## MYSYMBOL
 

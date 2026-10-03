@@ -336,6 +336,20 @@ static uint8_t pending_hops(uint8_t vias)
     return total;
 }
 
+/* Take one hop from the n-N we matched. SSID 1 stays and the quash marks it used. */
+static void reduce_nn(uint8_t index, uint8_t remain)
+{
+    uint8_t *p;
+    uint8_t ssid_mask;
+
+    if (remain <= 1u) {
+        return;
+    }
+    p = via_ptr(index);
+    ssid_mask = (uint8_t)(0x0Fu << 1);
+    p[6] = (uint8_t)((p[6] & (uint8_t)~ssid_mask) | (uint8_t)((uint8_t)(remain - 1u) << 1));
+}
+
 static void rewrite_alias(uint8_t index)
 {
     uint8_t *p = via_ptr(index);
@@ -376,6 +390,8 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
     uint8_t alias_at;
     uint8_t nn_at;
     uint8_t remain;
+    uint8_t used;
+    uint8_t ahead;
 
     if (g_config.digipeat == 0u) {
         return;
@@ -391,7 +407,8 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
         return;
     }
     /* MAXHOPS already-used digipeaters end the trip. Do not add another. */
-    if (used_hops(vias) >= g_config.maxhops) {
+    used = used_hops(vias);
+    if (used >= g_config.maxhops) {
         return;
     }
     if (mycall_used(vias)) {
@@ -419,8 +436,13 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
     if (g_config.directonly != 0u && !path_is_fresh(vias)) {
         return;
     }
-    /* A request equal to MAXHOPS is repeated normally. Only a larger request is quashed. */
-    if (pending_hops(vias) > g_config.maxhops) {
+    /* Used hops plus the request still ahead. Equal to MAXHOPS is repeated. */
+    ahead = pending_hops(vias);
+    if ((uint8_t)(255u - used) < ahead || (uint8_t)(used + ahead) > g_config.maxhops) {
+        /* Consume the matched n-N, mark every via used, and end on MYCALL. */
+        if (nn_at != NOT_FOUND) {
+            reduce_nn(nn_at, remain);
+        }
         mark_all(vias);
         if (append_mycall(vias)) {
             send_work();
