@@ -30,7 +30,7 @@ void firmware_boot(void)
     serial_puts("\r\n\r\nWhiskey Fox Digi - version 0.1\r\n");
     serial_puts("Copyright 2026 - Kenneth Finnegan\r\n");
     lamp_test();
-    config_cold_boot();
+    config_boot();
     timer_init();
     cli_start();
     modem_init();

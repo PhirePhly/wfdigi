@@ -7,10 +7,10 @@ line. A non-zero SSID is included, so SSID 0 is `N0CALL> ` and SSID 3 is
 
 The current firmware stores these settings in battery SRAM. A received frame
 is repeated when `DIGIPEAT` is on and the path matches this station. A
-non-zero `BEACON` interval queues a position beacon. Every
-reset runs a cold boot, which copies
-`include/config.h` back over the SRAM image and replaces any values entered
-at the prompt.
+non-zero `BEACON` interval queues a position beacon. A 16-bit CRC is stored
+in the two bytes after the configuration image. When that CRC matches, reset
+keeps the settings and prints `Warm boot...`. When it does not, reset copies
+`include/config.h` over the image and prints `Cold boot...`.
 
 ## Entering a line
 
@@ -20,7 +20,7 @@ line prints the prompt again.
 
 Printable characters are echoed. Backspace (`0x08`) and DEL (`0x7F`) erase
 the last character. Other control characters are ignored. A line of more than
-79 characters is discarded, and the TNC prints `?`.
+79 characters is discarded, and the TNC prints `Too long?`.
 
 The command name is not case sensitive. Callsigns and n-N prefixes are stored
 in uppercase. Beacon text keeps the case you type. On `MYSYMBOL`, a lowercase
@@ -29,7 +29,7 @@ overlay letter is stored as uppercase, and the symbol code keeps its case.
 A setting name alone prints the value stored in SRAM. `NAME VALUE` stores a
 new value when it is in range, then prints that stored value. A rejected
 value is left unchanged and reported as `Bad config: NAME`. An unknown
-command prints `?`.
+command prints `Huh?`.
 
 The symbol `-` is used to represent an empty or null string. This can be used
 to disable some settings and express a empty value for other settings.

@@ -80,10 +80,16 @@ make clean
     Cold boot...
     ```
 
+   A later reset with a matching configuration CRC prints `Warm boot...` instead
+   and keeps the settings entered at the prompt.
+
 3. Cold boot copies the defaults from `include/config.h` into the battery SRAM image at `0x8000`.
    Each value is range-checked as it is stored. A value outside its limits is
    left clear and reported as `Bad config: NAME`. The image is marked valid
-   only when every parameter passes.
+   only when every parameter passes. A CRC-16 is then stored in the next two
+   bytes. Warm boot checks that CRC, keeps the image, and still starts the
+   timers, modem, packet queue, and duplicate list from zero. The beacon path
+   index starts over at the first path.
 4. The eight front-panel lamps walk once, then CMD stays lit. The DCD lamp
    follows radio carrier. STA lights for 400 ms after each valid received frame.
    MULT lights while another frame is waiting in the transmit queue.
@@ -125,8 +131,9 @@ radio stays keyed does not draw again.
 
 At the callsign prompt, a config name alone prints the value stored in SRAM.
 `NAME VALUE` updates that value when it is in range. `DISPLAY` prints every
-setting. [COMMANDS.md](COMMANDS.md) describes the line editor and the meaning
-of each command.
+setting. Unknown commands print `Huh?`; lines longer than 79 characters print
+`Too long?`. [COMMANDS.md](COMMANDS.md) describes the line editor and the
+meaning of each command.
 
 An n-N prefix is at most five characters, so the hop-limit digit still fits in
 the six-character AX.25 callsign. `WIDE` matches `WIDE2-2` and `WIDE2-1`: the

@@ -53,7 +53,8 @@ typedef uint8_t bool;
 #define LED_CON 0x40u
 #define LED_MULT 0x80u
 
-/* Cold-boot configuration image at the base of battery SRAM.
+/* Configuration image at the base of battery SRAM.
+ * A CRC-16 is stored in the two bytes immediately after this image.
  * Timing values are in the usual 10 ms TNC units.
  */
 #define CONFIG_ADDR 0x8000u
@@ -147,8 +148,8 @@ typedef struct {
 } DigiConfig;
 
 _Static_assert(sizeof(DigiConfig) <= 255u, "config image must fit in one clear loop");
-_Static_assert(CONFIG_ADDR + sizeof(DigiConfig) <= 0x8100u,
-               "config image overlaps compiler RAM at 0x8100");
+_Static_assert(CONFIG_ADDR + sizeof(DigiConfig) + 2u <= 0x8100u,
+               "config image and CRC overlap compiler RAM at 0x8100");
 
 extern DigiConfig __at (CONFIG_ADDR) g_config;
 
@@ -178,7 +179,10 @@ bool serial_getc(uint8_t *byte);
 /* Writes one byte when the terminal transmitter is idle. */
 bool serial_try_putc(uint8_t byte);
 
-void config_cold_boot(void);
+/* Keep the battery image when its CRC matches. Otherwise load the defaults. */
+void config_boot(void);
+/* Recompute the CRC stored after the configuration image. */
+void config_seal(void);
 void config_command(char *line);
 
 void cli_start(void);

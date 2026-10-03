@@ -32,6 +32,67 @@ _Static_assert(CFG_LOGGING <= 1u, "LOGGING must be 0 or 1");
 DigiConfig __at (CONFIG_ADDR) g_config;
 
 static bool g_ok;
+/* False while cold boot is filling the image, so each store does not seal a partial page. */
+static bool seal_live;
+
+/* CRC-16/CCITT-FALSE: polynomial 0x1021, initial value 0xFFFF, no final XOR. */
+static uint16_t crc16_feed(uint16_t crc, uint8_t byte)
+{
+    uint8_t bit;
+
+    crc = (uint16_t)(crc ^ (uint16_t)((uint16_t)byte << 8));
+    for (bit = 0u; bit < 8u; ++bit) {
+        if ((crc & 0x8000u) != 0u) {
+            crc = (uint16_t)((uint16_t)(crc << 1) ^ 0x1021u);
+        } else {
+            crc = (uint16_t)(crc << 1);
+        }
+    }
+    return crc;
+}
+
+static uint16_t config_crc(void)
+{
+    uint8_t *raw = (uint8_t *)&g_config;
+    uint16_t n = (uint16_t)sizeof(DigiConfig);
+    uint16_t crc = 0xFFFFu;
+
+    while (n != 0u) {
+        crc = crc16_feed(crc, *raw);
+        ++raw;
+        --n;
+    }
+    return crc;
+}
+
+static uint8_t *config_crc_at(void)
+{
+    return (uint8_t *)&g_config + sizeof(DigiConfig);
+}
+
+static bool config_crc_ok(void)
+{
+    uint8_t *stored = config_crc_at();
+    uint16_t found = (uint16_t)stored[0] | (uint16_t)((uint16_t)stored[1] << 8);
+
+    return found == config_crc();
+}
+
+void config_seal(void)
+{
+    uint16_t crc = config_crc();
+    uint8_t *stored = config_crc_at();
+
+    stored[0] = (uint8_t)crc;
+    stored[1] = (uint8_t)(crc >> 8);
+}
+
+static void note_config(void)
+{
+    if (seal_live) {
+        config_seal();
+    }
+}
 
 static void reject(const char *name)
 {
@@ -109,6 +170,7 @@ static bool store_u8(const char *name, uint8_t value, uint8_t min, uint8_t max, 
         return false;
     }
     *dest = value;
+    note_config();
     return true;
 }
 
@@ -157,6 +219,7 @@ static bool store_call(const char *name, const char *text, uint8_t ssid, uint8_t
         dest[i] = raw[i];
     }
     *ssid_dest = ssid;
+    note_config();
     return true;
 }
 
@@ -171,6 +234,7 @@ static bool store_alias(const char *text, uint8_t ssid, uint8_t *dest, uint8_t *
             dest[i] = ' ';
         }
         *ssid_dest = 0u;
+        note_config();
         return true;
     }
     return store_call("ALIAS", text, ssid, dest, ssid_dest);
@@ -212,6 +276,7 @@ static bool store_nnalias(const char *text, uint8_t *dest)
         for (i = 0u; i < CALLSIGN_LEN; ++i) {
             dest[i] = ' ';
         }
+        note_config();
         return true;
     }
     if (!nnalias_ok(raw)) {
@@ -221,6 +286,7 @@ static bool store_nnalias(const char *text, uint8_t *dest)
     for (i = 0u; i < CALLSIGN_LEN; ++i) {
         dest[i] = raw[i];
     }
+    note_config();
     return true;
 }
 
@@ -235,6 +301,7 @@ static bool store_btext(const uint8_t *text)
     for (i = 0u; i < BTEXT_LEN; ++i) {
         g_config.btext[i] = text[i];
     }
+    note_config();
     return true;
 }
 
@@ -260,7 +327,7 @@ static void load_btext(void)
     store_btext(raw);
 }
 
-void config_cold_boot(void)
+static void config_cold_boot(void)
 {
     serial_puts("Cold boot...\r\n");
     g_ok = true;
@@ -291,6 +358,22 @@ void config_cold_boot(void)
     store_symbol(CFG_MYSYMBOL);
 
     g_config.valid = g_ok ? 1u : 0u;
+    if (g_ok) {
+        config_seal();
+    }
+}
+
+void config_boot(void)
+{
+    seal_live = false;
+    if (config_crc_ok()) {
+        serial_puts("Warm boot...\r\n");
+        g_config.bpath_next = 0u;
+        config_seal();
+    } else {
+        config_cold_boot();
+    }
+    seal_live = true;
 }
 
 static bool same_text(const char *text, const char *word)
@@ -491,6 +574,7 @@ static bool set_flag(const char *name, const char *value, uint8_t *dest)
         return false;
     }
     *dest = flag;
+    note_config();
     return true;
 }
 
@@ -503,6 +587,7 @@ static bool set_number(const char *name, const char *value, uint8_t min, uint8_t
         return false;
     }
     *dest = number;
+    note_config();
     return true;
 }
 
@@ -775,6 +860,7 @@ static bool store_myloc(const char *text)
     g_config.loc_lon_min = loc.lon_min;
     g_config.loc_lon_hund = loc.lon_hund;
     g_config.loc_lon_ew = loc.lon_ew;
+    note_config();
     return true;
 }
 
@@ -819,6 +905,7 @@ static bool store_symbol(const char *text)
     }
     g_config.symbol_table = table;
     g_config.symbol_code = code;
+    note_config();
     return true;
 }
 
@@ -925,6 +1012,7 @@ static bool store_bpath(const char *text)
     }
     g_config.bpath_count = count;
     g_config.bpath_next = 0u;
+    note_config();
     return true;
 }
 

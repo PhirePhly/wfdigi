@@ -89,6 +89,7 @@ static void advance_path(void)
 
     if (count == 0u) {
         g_config.bpath_next = 0u;
+        config_seal();
         return;
     }
     next = (uint8_t)(g_config.bpath_next + 1u);
@@ -96,6 +97,7 @@ static void advance_path(void)
         next = 0u;
     }
     g_config.bpath_next = next;
+    config_seal();
 }
 
 bool beacon_send(void)

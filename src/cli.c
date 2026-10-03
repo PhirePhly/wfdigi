@@ -77,7 +77,7 @@ void cli_redraw(void)
 static void execute(void)
 {
     if (overflow) {
-        serial_puts("?\r\n");
+        serial_puts("Too long?\r\n");
     } else if (line_len != 0u) {
         line[line_len] = '\0';
         config_command(line);
