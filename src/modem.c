@@ -255,6 +255,34 @@ static void trace_puts(const char *text)
     }
 }
 
+static void trace_timestamp_digit(uint16_t *value, uint16_t divisor, bool *leading, bool last)
+{
+    uint8_t digit = 0u;
+
+    while (*value >= divisor) {
+        *value = (uint16_t)(*value - divisor);
+        ++digit;
+    }
+    if (*leading && digit == 0u && !last) {
+        trace_char(' ');
+    } else {
+        trace_char((uint8_t)('0' + digit));
+        *leading = false;
+    }
+}
+
+static void trace_timestamp(void)
+{
+    uint16_t value = timer_seconds();
+    bool leading = true;
+
+    trace_timestamp_digit(&value, 10000u, &leading, false);
+    trace_timestamp_digit(&value, 1000u, &leading, false);
+    trace_timestamp_digit(&value, 100u, &leading, false);
+    trace_timestamp_digit(&value, 10u, &leading, false);
+    trace_timestamp_digit(&value, 1u, &leading, true);
+}
+
 static void trace_drain(void)
 {
     if (trace_idle()) {
@@ -366,6 +394,8 @@ static void log_frame(char kind, const uint8_t *frame, uint16_t len)
     trace_begin();
     trace_puts("\r\n");
     trace_char((uint8_t)kind);
+    trace_char(' ');
+    trace_timestamp();
     trace_char(' ');
     if (!print_tnc2(frame, len)) {
         for (i = 0u; i < len; ++i) {

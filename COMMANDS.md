@@ -117,14 +117,16 @@ Prints every frame the radio modem receives or sends. Accepts `ON`, `OFF`,
 A received frame is printed as:
 
 ```
-R N0CALL>APRS,WIDE1-1:Hello
+R   123 N0CALL>APRS,WIDE1-1:Hello
 ```
 
-A sent frame uses the same layout with `T` in place of `R`. Each trace starts
-and ends with a new line, and the callsign prompt is redrawn under it, including
-any characters already typed. The line is sent one byte per service pass, so
-the 10 ms timers keep running while it goes out. An SSID of 0 is omitted. The last digipeater
-that has already repeated the frame is marked with `*`, as in `WIDE1-1*`.
+A sent frame uses the same layout with `T` in place of `R`. The timestamp is
+the rolling 16-bit seconds counter, printed right-aligned in five characters
+so packet text stays aligned. Each trace starts and ends with a new line, and
+the callsign prompt is redrawn under it, including any characters already
+typed. The line is sent one byte per service pass, so the 10 ms timers keep
+running while it goes out. An SSID of 0 is omitted. The last digipeater that
+has already repeated the frame is marked with `*`, as in `WIDE1-1*`.
 Bytes in the payload that are not printable ASCII are left out of the trace,
 so it stays on one line. A CRC-good frame that is not AX.25 is printed as
 hexadecimal instead. A valid frame discarded before it can be printed is
