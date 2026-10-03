@@ -454,6 +454,30 @@ static void log_frame(char kind, const uint8_t *frame, uint16_t len)
     }
 }
 
+/* True when the source address contains a printable character other than space. */
+static bool source_call_present(const uint8_t *frame, uint16_t len)
+{
+    uint8_t i;
+    const uint8_t *src;
+
+    if (len < (uint16_t)(AX25_ADDR + AX25_ADDR)) {
+        return false;
+    }
+    /* The extension bit on the destination means this frame has no source. */
+    if ((frame[6] & 0x01u) != 0u) {
+        return false;
+    }
+    src = frame + AX25_ADDR;
+    for (i = 0u; i < 6u; ++i) {
+        uint8_t c = (uint8_t)(src[i] >> 1);
+
+        if (c > (uint8_t)' ' && c <= (uint8_t)'~') {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void service_rx(void)
 {
     uint8_t idx;
@@ -466,6 +490,13 @@ static void service_rx(void)
     n = rx_done_len;
     if (n > AX25_MAX) {
         n = AX25_MAX;
+    }
+    if (!source_call_present(rx_buf[idx], n)) {
+        if (g_config.logging != 0u) {
+            log_frame('D', rx_buf[idx], n);
+        }
+        rx_ready = 0u;
+        return;
     }
     if (g_config.logging != 0u && trace_idle()) {
         log_frame('R', rx_buf[idx], n);

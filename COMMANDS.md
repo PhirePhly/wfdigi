@@ -121,7 +121,10 @@ A received frame is printed as:
 R   123 N0CALL>APRS,WIDE1-1:Hello
 ```
 
-A sent frame uses the same layout with `T` in place of `R`. The timestamp is
+A frame whose source callsign has no printable character is printed the same
+way with `D` in place of `R`, and it is not digipeated. Six spaces and an
+SSID, which would have been shown as `-7`, is one such source. A sent frame
+uses the same layout with `T` in place of `R`. The timestamp is
 the rolling 16-bit seconds counter, printed right-aligned in five characters
 so packet text stays aligned. Each trace starts and ends with a new line, and
 the callsign prompt is redrawn under it, including any characters already
