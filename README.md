@@ -146,16 +146,19 @@ remaining hop count n, with n from 1 through N. It does not match a bare
 `WIDE` or a hop count above N, such as `WIDE2-3`.
 
 A repeat searches the whole path, not only the next unused address. `MYCALL`
-is taken first and every hop through it is marked repeated. An alias is
+is taken first and every hop through it is marked repeated. A path in which
+`MYCALL` is already repeated has looped and is not sent again. An alias is
 replaced by `MYCALL`. An n-N address is replaced by `MYCALL`, and the same
 n-N call is appended at the end with the SSID reduced by one when that SSID
 is still at least 1. `WIDE2-2` goes out as `MYCALL*,WIDE2-1`. `WIDE2-1` goes
 out as `MYCALL*`. `DIRECTONLY` limits alias and n-N repeats to a path that
 has not been used yet. A path that already has `MAXHOPS` repeated digipeaters
-is not repeated. A remaining hop request equal to `MAXHOPS` is repeated
-normally. A larger request is quashed: it is marked used and `MYCALL` is
-appended. When the path already holds eight digipeaters, `MYCALL` replaces
-the last one.
+is not repeated. An unused address counts as one hop unless it matches a
+configured n-N prefix, in which case it counts as the remaining hop count. A
+used digipeater counts as one hop. A remaining hop request equal to `MAXHOPS`
+is repeated normally. A larger request is quashed: it is marked used and
+`MYCALL` is appended. When the path already holds eight digipeaters, `MYCALL`
+replaces the last one. A path with no matching address is left alone.
 
 The SCC interrupt controller runs in Z80 mode 2. Radio HDLC receive interrupts
 are enabled, and the terminal channel interrupts at 1200 Hz from the

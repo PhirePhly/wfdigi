@@ -612,7 +612,7 @@ static void test_mycall(void)
         {"preempt already used hops", "N0SRC>APRS,AAA*,BBB,WFDIGI:Hi", "N0SRC>APRS,AAA*,BBB*,WFDIGI*:Hi"},
         {"leave hops after MYCALL", "N0SRC>APRS,AAA,WFDIGI,BBB:Hi", "N0SRC>APRS,AAA*,WFDIGI*,BBB:Hi"},
         {"used MYCALL is finished", "N0SRC>APRS,WFDIGI*:Hi", 0},
-        {"later unused MYCALL", "N0SRC>APRS,AAA,WFDIGI*,BBB,WFDIGI:Hi", "N0SRC>APRS,AAA*,WFDIGI*,BBB*,WFDIGI*:Hi"},
+        {"used MYCALL is a loop", "N0SRC>APRS,AAA,WFDIGI*,BBB,WFDIGI:Hi", 0},
         {"long preempt is not quashed", "N0SRC>APRS,AAA,BBB,CCC,DDD,WFDIGI:Hi",
          "N0SRC>APRS,AAA*,BBB*,CCC*,DDD*,WFDIGI*:Hi"},
         {"hops after a long preempt stay", "N0SRC>APRS,AAA,WFDIGI,BBB,CCC,DDD:Hi",
@@ -630,6 +630,7 @@ static void test_mycall(void)
     check("DIRECTONLY still repeats MYCALL", "N0SRC>APRS,AAA*,WFDIGI:Hi", "N0SRC>APRS,AAA*,WFDIGI*:Hi");
     set_nn(0, "WIDE");
     check("DIRECTONLY MYCALL with a used n-N", "N0SRC>APRS,WIDE2-1,WFDIGI:Hi", "N0SRC>APRS,WIDE2-1*,WFDIGI*:Hi");
+    check("used MYCALL is a loop before an n-N", "N0SRC>APRS,WFDIGI*,WIDE2-2:Hi", 0);
 
     setup();
     g_config.mycall_ssid = 3u;
@@ -764,14 +765,17 @@ static void test_maxhops(void)
     check("alias request equal to MAXHOPS", "N0SRC>APRS,AAA,TEMP:Hi", "N0SRC>APRS,AAA*,WFDIGI*:Hi");
     check("n-N shape that does not match still counts one", "N0SRC>APRS,TEMP,WIDE2-3:Hi",
           "N0SRC>APRS,WFDIGI*,WIDE2-3:Hi");
-    check("unconfigured n-N shape counts its SSID", "N0SRC>APRS,TEMP,RELAY2-2:Hi", "N0SRC>APRS,WFDIGI*,RELAY2-2:Hi");
+    check("unconfigured n-N shape counts as one hop", "N0SRC>APRS,TEMP,GATE5-5:Hi", "N0SRC>APRS,WFDIGI*,GATE5-5:Hi");
+    check("a used n-N address counts as one hop", "N0SRC>APRS,WIDE5-5*,TEMP:Hi", "N0SRC>APRS,WIDE5-5*,WFDIGI*:Hi");
+    check("an unmatched path is not quashed", "N0SRC>APRS,AAA,BBB,CCC,DDD:Hi", 0);
+    check("an unmatched n-N shape is not quashed", "N0SRC>APRS,GATE5-5:Hi", 0);
 
     g_config.maxhops = 2u;
     check("MAXHOPS 2 quashes WIDE3-3", "N0SRC>APRS,WIDE3-3:Hi", "N0SRC>APRS,WIDE3-3*,WFDIGI*:Hi");
     check("MAXHOPS 2 quashes three alias hops", "N0SRC>APRS,AAA,BBB,TEMP:Hi", "N0SRC>APRS,AAA*,BBB*,TEMP*,WFDIGI*:Hi");
     check("MAXHOPS 2 still repeats two hops", "N0SRC>APRS,AAA,TEMP:Hi", "N0SRC>APRS,AAA*,WFDIGI*:Hi");
-    check("MAXHOPS 2 quashes an unconfigured two-hop call", "N0SRC>APRS,TEMP,RELAY2-2:Hi",
-          "N0SRC>APRS,TEMP*,RELAY2-2*,WFDIGI*:Hi");
+    check("MAXHOPS 2 still repeats an unconfigured two-hop call", "N0SRC>APRS,TEMP,RELAY2-2:Hi",
+          "N0SRC>APRS,WFDIGI*,RELAY2-2:Hi");
     check("already used MAXHOPS drops the frame", "N0SRC>APRS,AAA*,BBB*,WIDE1-1:Hi", 0);
     check("used hops win over a quash", "N0SRC>APRS,AAA*,BBB*,CCC*,WIDE5-5:Hi", 0);
 

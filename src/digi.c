@@ -167,6 +167,21 @@ static uint8_t find_call(uint8_t vias, const uint8_t *call, uint8_t ssid, bool u
     return NOT_FOUND;
 }
 
+/* This station already repeated the frame, so another copy would be a loop. */
+static bool mycall_used(uint8_t vias)
+{
+    uint8_t i;
+    uint8_t *p = via_ptr(0u);
+
+    for (i = 0u; i < vias; ++i) {
+        if ((p[6] & AX25_H) != 0u && call_eq(p, g_config.mycall, g_config.mycall_ssid)) {
+            return true;
+        }
+        p += AX25_ADDR;
+    }
+    return false;
+}
+
 static uint8_t find_alias(uint8_t vias)
 {
     uint8_t i;
@@ -273,29 +288,14 @@ static bool path_is_fresh(uint8_t vias)
     return true;
 }
 
-/* An unused n-N address counts as its remaining SSID. Any other unused address counts as one. */
+/* A configured n-N address counts as its remaining SSID. Anything else counts as one. */
 static uint8_t requested_hops(const uint8_t *ax)
 {
-    uint8_t i;
-    uint8_t digit = 0u;
-    uint8_t ssid;
-    bool saw = false;
+    uint8_t n;
+    uint8_t limit;
 
-    ssid = (uint8_t)((ax[6] >> 1) & 0x0Fu);
-    for (i = 0u; i < CALLSIGN_LEN; ++i) {
-        uint8_t c = (uint8_t)((ax[i] >> 1) & 0x7Fu);
-
-        if (c != (uint8_t)' ') {
-            saw = true;
-            digit = c;
-        }
-    }
-    if (saw && digit >= (uint8_t)'1' && digit <= (uint8_t)'7') {
-        uint8_t limit = (uint8_t)(digit - (uint8_t)'0');
-
-        if (ssid >= 1u && ssid <= limit) {
-            return ssid;
-        }
+    if (nn_match_any(ax, &n, &limit)) {
+        return n;
     }
     return 1u;
 }
@@ -394,6 +394,9 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
     if (used_hops(vias) >= g_config.maxhops) {
         return;
     }
+    if (mycall_used(vias)) {
+        return;
+    }
     mine = find_call(vias, g_config.mycall, g_config.mycall_ssid, true);
     if (mine != NOT_FOUND) {
         uint8_t *mine_at = via_ptr(mine);
@@ -402,9 +405,6 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
         mark_before(mine);
         mine_at[6] = (uint8_t)(mine_at[6] | AX25_H);
         send_work();
-        return;
-    }
-    if (find_call(vias, g_config.mycall, g_config.mycall_ssid, false) != NOT_FOUND) {
         return;
     }
     alias_at = find_alias(vias);

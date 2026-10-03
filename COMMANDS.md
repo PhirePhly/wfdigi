@@ -76,9 +76,9 @@ station originated is not repeated.
 The path is searched with preemption, in this order. `MYCALL` is tried first,
 anywhere in the path, including when earlier hops are already used. Every
 digipeater up through `MYCALL` is marked repeated. `DIRECTONLY` does not
-change that match. A path that already contains this station's callsign is
-left alone. A path that already has `MAXHOPS` repeated digipeaters is not
-repeated.
+change that match. If `MYCALL` is already marked repeated, the packet has
+looped and is left alone, even when `MYCALL` appears again later. A path that
+already has `MAXHOPS` repeated digipeaters is not repeated.
 
 If `MYCALL` is not in the path, the first unused alias is replaced with
 `MYCALL`, marked repeated, and every digipeater before it is marked repeated
@@ -268,12 +268,16 @@ The most digipeater hops a packet may have for this station to repeat it.
 The range is 1–8. The cold-boot default is 3. One n-N address is still at most
 7. Eight is the most digipeater addresses an AX.25 path can hold.
 
-Each digipeater that has already been repeated counts as one used hop. When
-that count is already `MAXHOPS` or more, the packet is not repeated.
+Each digipeater that has already been repeated counts as one used hop,
+including a used n-N address such as `WIDE5-5*`. When that count is already
+`MAXHOPS` or more, the packet is not repeated.
 
-An unused n-N address counts as its remaining hop count, and any other unused
-address counts as one. That is the hop request still ahead. A request equal
-to `MAXHOPS` is repeated normally: `WIDE2-1` in `AAA,BBB*,WIDE2-1` becomes
+An unused address that matches a configured n-N prefix counts as its remaining
+hop count. Any other unused address counts as one, including a call that looks
+like n-N for a prefix this station does not have. That is the hop request
+still ahead. A path with no `MYCALL`, alias, or n-N match is left alone. A
+request equal to `MAXHOPS` is repeated normally: `WIDE2-1` in `AAA,BBB*,WIDE2-1`
+becomes
 `AAA,BBB,MYCALL*`. A larger request, such as `WIDE5-5` when this setting is
 3, is quashed instead: every digipeater is marked repeated and `MYCALL` is
 appended, also marked repeated. The n-N hop count is not decremented in that
