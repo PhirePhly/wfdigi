@@ -14,13 +14,18 @@ typedef struct {
 static DupeSlot db[DUPE_SLOTS];
 static DupeSlot *db_end;
 
-/* Low 8 bits of the sum of the information-field bytes. Zero marks an empty slot. */
+/* Low 8 bits of the sum of the printable information-field bytes. Zero marks an empty slot. */
 static uint8_t info_sum(const uint8_t *info, uint16_t len)
 {
     uint8_t sum = 0u;
 
     while (len != 0u) {
-        sum = (uint8_t)(sum + *info);
+        uint8_t c = *info;
+
+        /* Skip padding such as a trailing CR so two copies of the same text match. */
+        if (c >= 0x20u && c <= 0x7Eu) {
+            sum = (uint8_t)(sum + c);
+        }
         ++info;
         --len;
     }

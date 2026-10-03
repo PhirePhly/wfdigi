@@ -117,7 +117,11 @@ Cold-boot defaults:
 
 Every transmission ends with 3 HDLC flags. The radio is unkeyed when nothing
 else is waiting. A frame already in the transmit queue follows those flags
-immediately, and `TXDELAY` is used only when the radio keys up.
+immediately, and `TXDELAY` is used only when the radio keys up. Half duplex
+waits until the channel is clear, then keys when a draw from 0 to 255 is
+less than or equal to `PPERSIST`. Otherwise it waits one `SLOTTIME` and
+draws again. Full duplex keys without that wait. A frame sent while the
+radio stays keyed does not draw again.
 
 At the callsign prompt, a config name alone prints the value stored in SRAM.
 `NAME VALUE` updates that value when it is in range. `DISPLAY` prints every
@@ -136,16 +140,17 @@ replaced by `MYCALL`. An n-N address is replaced by `MYCALL`, and the same
 n-N call is appended at the end with the SSID reduced by one when that SSID
 is still at least 1. `WIDE2-2` goes out as `MYCALL*,WIDE2-1`. `WIDE2-1` goes
 out as `MYCALL*`. `DIRECTONLY` limits alias and n-N repeats to a path that
-has not been used yet. `MAXHOPS` stops a path that asks for too many hops by
-marking it used and appending `MYCALL`.
+has not been used yet. A path that already has `MAXHOPS` repeated digipeaters
+is not repeated. A remaining hop request equal to `MAXHOPS` is repeated
+normally. A larger request is marked used and `MYCALL` is appended.
 
 The SCC interrupt controller runs in Z80 mode 2. Radio HDLC receive interrupts
 are enabled, and the terminal channel interrupts at 1200 Hz from the
 `/SYNCB` square wave. The terminal data path stays polled. Twelve interrupts
 queue one 10 ms tick, and 100 of those ticks queue one second. The last 250
 packets this station transmits are kept for 30 seconds, each as the source
-callsign and SSID, a one-byte sum of the information field, and the second
-it was sent. A sum of 0 is an empty slot. A digipeat of the same source and
+callsign and SSID, a one-byte sum of the printable characters in the
+information field, and the second it was sent. A sum of 0 is an empty slot. A digipeat of the same source and
 information field inside that window is skipped, and older entries are
 cleared when the list is scanned. The beacon countdown runs in those seconds, shortened by
 a random 0–31 seconds each time it is armed.

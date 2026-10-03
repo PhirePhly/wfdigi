@@ -75,9 +75,10 @@ station originated is not repeated.
 
 The path is searched with preemption, in this order. `MYCALL` is tried first,
 anywhere in the path, including when earlier hops are already used. Every
-digipeater up through `MYCALL` is marked repeated. `DIRECTONLY` and
-`MAXHOPS` do not change that match. A path that already contains this
-station's callsign is left alone.
+digipeater up through `MYCALL` is marked repeated. `DIRECTONLY` does not
+change that match. A path that already contains this station's callsign is
+left alone. A path that already has `MAXHOPS` repeated digipeaters is not
+repeated.
 
 If `MYCALL` is not in the path, the first unused alias is replaced with
 `MYCALL`, marked repeated, and every digipeater before it is marked repeated
@@ -88,8 +89,8 @@ end of the path when that count is still at least one. `WIDE2-2` becomes
 address stay where they were.
 
 Each packet this station transmits is kept in a list of 250. An entry holds
-the source callsign and SSID, a one-byte sum of the information field, and
-the second the packet was sent. A sum of 0 means the slot is empty, so a
+the source callsign and SSID, a one-byte sum of the printable characters in
+the information field, and the second the packet was sent. A sum of 0 means the slot is empty, so a
 calculated sum of 0 is stored as 1. The transmitted packet takes the first
 empty slot. Before a digipeat, the list is scanned by that sum, then the
 source callsign and the SSID. An entry 30 seconds old or older is cleared.
@@ -145,12 +146,15 @@ sends the closing flags, and starts that frame.
 The CSMA persistence threshold, 0–255. When the channel is free, the TNC
 draws a number from 0 to 255 and keys the transmitter if the draw is less
 than or equal to `PPERSIST`. A larger draw waits one `SLOTTIME` and tries
-again. The cold-boot default is 63.
+again. If carrier returns during that wait, the TNC waits for the channel
+to clear and then draws again. A frame already waiting while the radio stays
+keyed does not draw again. The cold-boot default is 63.
 
 ## SLOTTIME
 
 The channel-access slot used with `PPERSIST`, in 10 ms steps. The range is
-0–255, so 10 means 100 ms. The cold-boot default is 10.
+0–255, so 10 means 100 ms. A value of 0 draws again on the next service
+pass. The cold-boot default is 10.
 
 ## FULLDUP
 
@@ -262,13 +266,17 @@ accepted only with 0 minutes. The cold-boot default prints as
 
 The most digipeater hops a packet may have for this station to repeat it.
 The range is 1–7, which is the APRS n-N limit. The cold-boot default is 3.
-Each digipeater that has already been repeated counts as one consumed hop.
+
+Each digipeater that has already been repeated counts as one used hop. When
+that count is already `MAXHOPS` or more, the packet is not repeated.
+
 An unused n-N address counts as its remaining hop count, and any other unused
-address counts as one. When that sum exceeds this setting, and the path still
-asks for an alias or n-N prefix this station supports, every digipeater is
-marked repeated and `MYCALL` is appended, also marked repeated. The n-N hop
-count is not decremented in that case. A `MYCALL` match is repeated normally
-even when the sum exceeds this setting.
+address counts as one. That is the hop request still ahead. A request equal
+to `MAXHOPS` is repeated normally: `WIDE2-1` in `AAA,BBB*,WIDE2-1` becomes
+`AAA,BBB,MYCALL*`. A larger request, such as `WIDE5-5` when this setting is
+3, is killed instead: every digipeater is marked repeated and `MYCALL` is
+appended, also marked repeated. The n-N hop count is not decremented in that
+case.
 
 ## MYSYMBOL
 

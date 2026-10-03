@@ -14,6 +14,7 @@ __sfr __at (PORT_SCC_B_DATA) scc_b_data;
 typedef enum {
     TX_IDLE,
     TX_WAIT_DCD,
+    TX_WAIT_SLOT,
     TX_DELAY,
     TX_DATA,
     TX_WAIT_EMPTY,
@@ -437,6 +438,7 @@ static bool mycall_unset(void)
 }
 
 static void tx_key(void);
+static void tx_persist(void);
 
 static void tx_kick(void)
 {
@@ -457,7 +459,7 @@ static void tx_kick(void)
     }
     tx_i = 0u;
     if (g_config.fulldup != 0u || dcd_now == 0u) {
-        tx_key();
+        tx_persist();
     } else {
         tx_state = TX_WAIT_DCD;
     }
@@ -492,7 +494,6 @@ static void tx_continue(void)
 {
     uint8_t kind;
 
-    dupe_remember(tx_buf, tx_len);
     if (g_config.logging != 0u) {
         log_frame('T', tx_buf, tx_len);
     }
@@ -520,6 +521,7 @@ static void tx_key(void)
     if (g_config.fulldup == 0u && (radio_rr0() & RR0_DCD) != 0u) {
         dcd_now = 1u;
         hardware_irq_on();
+        timer_set(TIMER_SLOTTIME, 0u);
         tx_state = TX_WAIT_DCD;
         return;
     }
@@ -543,6 +545,27 @@ static void tx_key(void)
     }
 }
 
+/* The channel is free. Key when the draw wins; otherwise wait one slot. */
+static void tx_persist(void)
+{
+    if (g_config.fulldup != 0u) {
+        tx_key();
+        return;
+    }
+    if (dcd_now != 0u) {
+        timer_set(TIMER_SLOTTIME, 0u);
+        tx_state = TX_WAIT_DCD;
+        return;
+    }
+    prng_stir(timer_seconds());
+    if (prng_u8() <= g_config.persist) {
+        tx_key();
+        return;
+    }
+    tx_state = TX_WAIT_SLOT;
+    timer_set(TIMER_SLOTTIME, g_config.slottime);
+}
+
 static void tx_service(void)
 {
     if (keyed) {
@@ -551,7 +574,17 @@ static void tx_service(void)
     switch (tx_state) {
     case TX_WAIT_DCD:
         if (dcd_now == 0u || g_config.fulldup != 0u) {
-            tx_key();
+            tx_persist();
+        }
+        break;
+    case TX_WAIT_SLOT:
+        if (g_config.fulldup == 0u && dcd_now != 0u) {
+            timer_set(TIMER_SLOTTIME, 0u);
+            tx_state = TX_WAIT_DCD;
+            break;
+        }
+        if (g_config.slottime == 0u || timer_expired(TIMER_SLOTTIME)) {
+            tx_persist();
         }
         break;
     case TX_DELAY:

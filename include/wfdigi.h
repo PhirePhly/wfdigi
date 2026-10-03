@@ -89,6 +89,7 @@ typedef uint8_t bool;
 #define TIMER_TXTAIL 1u
 #define TIMER_TXWAIT 2u
 #define TIMER_STA 3u
+#define TIMER_SLOTTIME 4u
 #define TIMER_COUNT 8u
 /* STA stays lit for this many 10 ms ticks after a valid received frame. */
 #define STA_TICKS 40u

@@ -145,6 +145,8 @@ static bool append_mycall(uint8_t vias)
 
 static void send_work(void)
 {
+    /* Record before the modem finishes sending, so a second copy is caught. */
+    dupe_remember(work, work_len);
     (void)modem_send(PKTQ_AX25, work, work_len);
 }
 
@@ -271,7 +273,7 @@ static bool path_is_fresh(uint8_t vias)
     return true;
 }
 
-/* Used addresses count as one. An unused n-N address counts as its SSID. */
+/* An unused n-N address counts as its remaining SSID. Any other unused address counts as one. */
 static uint8_t requested_hops(const uint8_t *ax)
 {
     uint8_t i;
@@ -298,19 +300,37 @@ static uint8_t requested_hops(const uint8_t *ax)
     return 1u;
 }
 
-static uint8_t hop_total(uint8_t vias)
+static uint8_t used_hops(uint8_t vias)
 {
     uint8_t total = 0u;
     uint8_t i;
     uint8_t *p = via_ptr(0u);
 
     for (i = 0u; i < vias; ++i) {
-        uint8_t add = ((p[6] & AX25_H) != 0u) ? 1u : requested_hops(p);
-
-        if ((uint8_t)(255u - total) < add) {
-            return 255u;
+        if ((p[6] & AX25_H) != 0u && total != 255u) {
+            ++total;
         }
-        total = (uint8_t)(total + add);
+        p += AX25_ADDR;
+    }
+    return total;
+}
+
+static uint8_t pending_hops(uint8_t vias)
+{
+    uint8_t total = 0u;
+    uint8_t i;
+    uint8_t *p = via_ptr(0u);
+
+    for (i = 0u; i < vias; ++i) {
+        uint8_t add;
+
+        if ((p[6] & AX25_H) == 0u) {
+            add = requested_hops(p);
+            if ((uint8_t)(255u - total) < add) {
+                return 255u;
+            }
+            total = (uint8_t)(total + add);
+        }
         p += AX25_ADDR;
     }
     return total;
@@ -370,6 +390,10 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
     if (dupe_recent(work, work_len)) {
         return;
     }
+    /* MAXHOPS already-used digipeaters end the trip. Do not add another. */
+    if (used_hops(vias) >= g_config.maxhops) {
+        return;
+    }
     mine = find_call(vias, g_config.mycall, g_config.mycall_ssid, true);
     if (mine != NOT_FOUND) {
         uint8_t *mine_at = via_ptr(mine);
@@ -395,7 +419,8 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
     if (g_config.directonly != 0u && !path_is_fresh(vias)) {
         return;
     }
-    if (hop_total(vias) > g_config.maxhops) {
+    /* A request equal to MAXHOPS is repeated normally. Only a larger request is killed. */
+    if (pending_hops(vias) > g_config.maxhops) {
         mark_all(vias);
         if (append_mycall(vias)) {
             send_work();
