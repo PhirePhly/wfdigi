@@ -123,12 +123,11 @@ typedef struct {
     uint8_t beacon_every;
     uint8_t btext[BTEXT_LEN];
     /* One to four beacon paths. A blank call in a used slot is a direct
-     * beacon ("-"). Each beacon uses bpath_next, then advances it.
+     * beacon ("-"). The next slot is working RAM, not part of this image.
      */
     uint8_t bpath_count;
     uint8_t bpath[BPATH_SLOTS][CALLSIGN_LEN];
     uint8_t bpath_ssid[BPATH_SLOTS];
-    uint8_t bpath_next;
     /* Degrees and hundredths of a minute. Hemispheres are 'N'/'S' and 'E'/'W'.
      * 90 and 180 degrees are stored only with 0.00 minutes.
      */
@@ -288,6 +287,8 @@ uint8_t prng_u8(void);
 
 /* Seconds until the next beacon, already shortened by 0-31. Zero if beacons are off. */
 uint16_t beacon_next_wait(void);
+/* The beacon path cycle starts at the first path. */
+void beacon_path_reset(void);
 /* Build the position beacon and hand it to the modem. */
 bool beacon_send(void);
 

@@ -39,6 +39,7 @@ void firmware_boot(void)
     serial_puts("Copyright 2026 - Kenneth Finnegan\r\n");
     lamp_test();
     config_boot();
+    beacon_path_reset();
     timer_init();
     cli_start();
     modem_init();

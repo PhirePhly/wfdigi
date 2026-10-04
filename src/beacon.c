@@ -6,6 +6,12 @@
 #define BEACON_JITTER 15u
 
 static uint8_t frame[FRAME_MAX];
+static uint8_t bpath_next;
+
+void beacon_path_reset(void)
+{
+    bpath_next = 0u;
+}
 
 static bool call_blank(const uint8_t *call)
 {
@@ -85,16 +91,14 @@ static void advance_path(void)
     uint8_t next;
 
     if (count == 0u) {
-        g_config.bpath_next = 0u;
-        config_seal();
+        bpath_next = 0u;
         return;
     }
-    next = (uint8_t)(g_config.bpath_next + 1u);
+    next = (uint8_t)(bpath_next + 1u);
     if (next >= count) {
         next = 0u;
     }
-    g_config.bpath_next = next;
-    config_seal();
+    bpath_next = next;
 }
 
 bool beacon_send(void)
@@ -108,7 +112,7 @@ bool beacon_send(void)
     encode_call(&frame[n], tncid, 0u, 0x80u);
     n = (uint16_t)(n + 7u);
     if (g_config.bpath_count != 0u) {
-        slot = g_config.bpath_next;
+        slot = bpath_next;
         if (slot >= g_config.bpath_count) {
             slot = 0u;
         }

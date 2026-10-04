@@ -397,8 +397,6 @@ void config_boot(void)
     seal_live = false;
     if (config_crc_ok()) {
         serial_puts("Warm boot...\r\n");
-        g_config.bpath_next = 0u;
-        config_seal();
     } else {
         config_cold_boot();
     }
@@ -1018,7 +1016,7 @@ static bool store_bpath(const char *text)
         }
     }
     g_config.bpath_count = count;
-    g_config.bpath_next = 0u;
+    beacon_path_reset();
     note_config();
     return true;
 }
