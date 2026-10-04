@@ -49,10 +49,11 @@ in place of the original ROM. Connect a terminal at 9600 baud, 8 data bits, no
 parity, and one stop bit. There is no autobaud detection.
 
 Power the TNC on. The front-panel lamps walk once, then the terminal shows
-the banner and a callsign prompt:
+the banner and a callsign prompt. The version is `git describe --tags --always --dirty`
+from the build:
 
 ```
-Whiskey Fox Digi - version 0.1
+Whiskey Fox Digi - version <git-describe>
 Copyright 2026 - Kenneth Finnegan
 Cold boot...
 N0CALL>

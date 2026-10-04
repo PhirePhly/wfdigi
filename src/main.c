@@ -1,4 +1,11 @@
 #include "wfdigi.h"
+#include "version.h"
+
+#ifndef WFDIGI_VERSION
+#error WFDIGI_VERSION is injected by the Makefile
+#endif
+
+const char wfdigi_version[] = WFDIGI_VERSION;
 
 static void delay_spins(uint16_t spins)
 {
@@ -26,7 +33,9 @@ void firmware_boot(void)
     modem_quiesce();
     hardware_init();
     hardware_set_im2();
-    serial_puts("\r\n\r\nWhiskey Fox Digi - version 0.1\r\n");
+    serial_puts("\r\n\r\nWhiskey Fox Digi - version ");
+    serial_puts(wfdigi_version);
+    serial_puts("\r\n");
     serial_puts("Copyright 2026 - Kenneth Finnegan\r\n");
     lamp_test();
     config_boot();

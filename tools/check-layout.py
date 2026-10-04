@@ -34,9 +34,18 @@ def require(condition: bool, message: str) -> None:
         raise SystemExit(f"layout check failed: {message}")
 
 
+def load_version(path: Path) -> bytes:
+    match = re.search(r'(?m)^#define WFDIGI_VERSION "(.*)"\s*$', path.read_text())
+    require(match is not None, "WFDIGI_VERSION define missing")
+    value = match.group(1).encode("ascii").decode("unicode_escape").encode("ascii")
+    require(value, "WFDIGI_VERSION is empty")
+    return value
+
+
 def main() -> None:
-    if len(sys.argv) != 3:
-        raise SystemExit("usage: check-layout.py firmware.ihx firmware.map")
+    if len(sys.argv) != 4:
+        raise SystemExit("usage: check-layout.py firmware.ihx firmware.map version.h")
+    version = load_version(Path(sys.argv[3]))
     image = load_ihx(Path(sys.argv[1]))
     require(image, "ROM image is empty")
     require(max(image) < 0x8000, "ROM overlaps RAM at 0x8000")
@@ -58,15 +67,18 @@ def main() -> None:
     require(radio_tc == 62, "1200 baud DPLL time constant changed")
 
     rom = bytes(image.get(i, 0xFF) for i in range(max(image) + 1))
+    map_text = Path(sys.argv[2]).read_text()
     require(b"\xED\x5E" in rom, "IM 2 instruction not found")
     require(b"\xED\x4D" in rom, "RETI instruction not found")
     require(b"\xDB\xF8" in rom, "watchdog pet (IN A,0xF8) not found")
-    require(b"Whiskey Fox Digi - version 0.1\r\n" in rom, "boot banner missing from ROM")
+    require(b"Whiskey Fox Digi - version " in rom, "boot banner missing from ROM")
+    require(version + b"\x00" in rom, "WFDIGI_VERSION string missing from ROM")
+    version_sym = re.search(r"(?m)^\s*([0-9A-Fa-f]{8})\s+_wfdigi_version\b", map_text)
+    require(version_sym is not None, "wfdigi_version is not linked")
+    require(int(version_sym.group(1), 16) < 0x8000, "wfdigi_version is not in ROM")
     require(b"Copyright 2026 - Kenneth Finnegan\r\n" in rom, "copyright line missing from ROM")
     require(b"Cold boot...\r\n" in rom, "cold boot line missing from ROM")
     require(b"N0CALL" in rom, "default MYCALL missing from ROM")
-
-    map_text = Path(sys.argv[2]).read_text()
     require(re.search(r"00008000.*_g_config|_g_config.*00008000", map_text, re.IGNORECASE),
             "g_config is not fixed at 0x8000")
     # ld l,#tc ; ld a,#12  — the WR12 writes emitted for the two generators.

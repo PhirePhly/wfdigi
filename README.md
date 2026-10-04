@@ -80,10 +80,13 @@ need SDCC.
 2. A terminal set to 9600 8N1 receives:
 
     ```
-    Whiskey Fox Digi - version 0.1
+    Whiskey Fox Digi - version <git-describe>
     Copyright 2026 - Kenneth Finnegan
     Cold boot...
     ```
+
+   `<git-describe>` is the `git describe --tags --always --dirty` string from the
+   tree that built the ROM. The same text is the `wfdigi_version` string.
 
    A later reset with a matching configuration CRC prints `Warm boot...` instead
    and keeps the settings entered at the prompt.

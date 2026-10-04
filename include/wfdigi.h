@@ -154,6 +154,11 @@ _Static_assert(CONFIG_ADDR + sizeof(DigiConfig) + 2u <= 0x8100u,
 
 extern DigiConfig __at (CONFIG_ADDR) g_config;
 
+/* Revision from `git describe --tags --always --dirty` at build time.
+ * The boot banner prints this. Telemetry should use this same string.
+ */
+extern const char wfdigi_version[];
+
 void firmware_boot(void);
 
 void hardware_set_im2(void);
