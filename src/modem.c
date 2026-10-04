@@ -769,9 +769,11 @@ static void sta_service(void)
 
 static void count_drop(uint16_t *count)
 {
-    if (*count != 65535u) {
-        *count = (uint16_t)(*count + 1u);
+    if (*count == 65535u) {
+        serial_flush();
+        firmware_reset();
     }
+    *count = (uint16_t)(*count + 1u);
 }
 
 static void note_drop_r(void)

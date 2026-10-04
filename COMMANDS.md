@@ -79,7 +79,7 @@ Prints a snapshot of the packet engine:
 
 ```
 TIME 123
-DUPES 2
+DUPEDB 2
 RX 40
 TX 12
 !R 0
@@ -87,12 +87,15 @@ TX 12
 ```
 
 `TIME` is the 16-bit seconds counter from boot, the same counter a trace line
-prints. `DUPES` is how many of the 250 duplicate slots are occupied. An entry
+prints. `DUPEDB` is how many of the 250 duplicate slots are occupied. An entry
 that has aged out still counts until the next duplicate scan clears it. `RX`
-is how many CRC-good frames the radio has decoded since boot, and `TX` is how
-many frames this station has finished sending. Both keep counting while
-`TELEMETRY` is off. `!R` and `!Q` are how many times those drop codes have
-been printed since boot. Each is a 16-bit count that stops at 65535. The
+and `TX` are the frames counted since the previous telemetry report, the same
+numbers the next telemetry frame will send. Reading `ENGSTAT` does not move
+that baseline. Both counters are 16-bit and roll over; the printed value is
+the unsigned difference, so a rollover still counts the frames in the
+interval. They keep counting while `TELEMETRY` is off. `!R` and `!Q` are how
+many times those drop codes have been printed since boot. Each is a 16-bit
+count. Another drop after a counter reaches 65535 reboots the TNC. The
 counts are working RAM, not part of the battery configuration image, and
 every boot starts them at zero.
 
@@ -195,8 +198,9 @@ these lines.
 
 Sends APRS telemetry. Accepts `ON`, `OFF`, `1`, or `0`. The cold-boot default
 is `ON`. Changing it starts the schedule over. Received and transmitted
-frame counts keep running either way; `ENGSTAT` prints those totals. The
-counts are not stored in the battery image. Every boot starts them at zero.
+frame counts keep running either way; `ENGSTAT` prints the increase since
+the previous report. The counts are not stored in the battery image. Every
+boot starts them at zero.
 
 Once `MYCALL` is set, the next one-second timer service sends the first definition message. It is
 an APRS message addressed to this station:
@@ -226,8 +230,10 @@ Every 10 minutes a UI frame reports that slot. The digipeater path is
 T#000,<received>,<transmitted>,<drops>,0,0,00000000
 ```
 
-`<received>` and `<transmitted>` are how far those `ENGSTAT` counts have moved
-since the previous report. `<drops>` is how far the `!R` and `!Q`
+`<received>` and `<transmitted>` are the frames counted since the previous
+report. The counters are 16-bit and roll over. The value is their unsigned
+difference, so a rollover still counts the frames in that interval.
+`<drops>` is how far the `!R` and `!Q`
 counters have moved since the previous report. The sequence number runs from
 000 through 999. Nothing is queued while `MYCALL` is still `N0CALL`.
 

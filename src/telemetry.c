@@ -1,10 +1,11 @@
 #include "hardware.h"
 
 /* APRS telemetry. Received and transmitted totals live in working RAM, count
- * whether or not telemetry is on, and start over on every boot. A UI frame
- * every 10 minutes carries the increase since the previous report. TELPATH
- * is its digipeater; a blank path is sent direct. One definition message
- * goes out each hour: BITS, EQNS, PARM, then UNIT.
+ * whether or not telemetry is on, and start over on every boot. They are
+ * 16-bit and roll over. A UI frame every 10 minutes carries the unsigned
+ * difference since the previous report. TELPATH is its digipeater; a blank
+ * path is sent direct. One definition message goes out each hour: BITS,
+ * EQNS, PARM, then UNIT.
  */
 #define FRAME_MAX 128u
 #define AX25_UI 0x03u
@@ -201,14 +202,6 @@ static bool send_tel_def(void)
     return send_message(msg_unit, 0);
 }
 
-static uint16_t rise(uint16_t now, uint16_t then)
-{
-    if (now < then) {
-        return 0u;
-    }
-    return (uint16_t)(now - then);
-}
-
 static bool send_data(void)
 {
     uint16_t rx_now;
@@ -225,11 +218,11 @@ static bool send_data(void)
     rx_now = rx_count;
     hardware_irq_on();
     tx_now = tx_count;
-    rx = rise(rx_now, last_rx);
-    tx = rise(tx_now, last_tx);
+    rx = (uint16_t)(rx_now - last_rx);
+    tx = (uint16_t)(tx_now - last_tx);
     modem_drop_counts(&r, &q);
-    dr = rise(r, last_r);
-    dq = rise(q, last_q);
+    dr = (uint16_t)(r - last_r);
+    dq = (uint16_t)(q - last_q);
     if (dr > (uint16_t)(65535u - dq)) {
         drops = 65535u;
     } else {
@@ -272,26 +265,23 @@ static void tel_def_sent(void)
 
 void telemetry_note_rx(void)
 {
-    if (rx_count == 65535u) {
-        return;
-    }
     ++rx_count;
 }
 
 void telemetry_note_tx(void)
 {
-    if (tx_count == 65535u) {
-        return;
-    }
     ++tx_count;
 }
 
 void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted)
 {
+    uint16_t rx_now;
+
     hardware_irq_off();
-    *received = rx_count;
+    rx_now = rx_count;
     hardware_irq_restore();
-    *transmitted = tx_count;
+    *received = (uint16_t)(rx_now - last_rx);
+    *transmitted = (uint16_t)(tx_count - last_tx);
 }
 
 void telemetry_init(void)

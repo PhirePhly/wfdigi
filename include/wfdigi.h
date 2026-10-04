@@ -230,7 +230,7 @@ void modem_init(void);
 void modem_service(void);
 /* Seconds since boot, occupied duplicate slots, and the !R and !Q counts. */
 void engine_stat(void);
-/* !R and !Q counts since boot. Both stop at 65535. */
+/* !R and !Q counts since boot. Another drop at 65535 reboots. */
 void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops);
 #define PKTQ_AX25 0u
 #define PKTQ_BEACON 1u
@@ -295,7 +295,7 @@ bool beacon_send(void);
 void telemetry_note_rx(void);
 /* Count one frame that went out on the air. The count runs with telemetry off. */
 void telemetry_note_tx(void);
-/* Received and transmitted frames since boot. Each stops at 65535. */
+/* Increase since the previous telemetry report. Both counters roll over. */
 void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted);
 /* Zero the packet counts and arm the schedule from g_config.telemetry. */
 void telemetry_init(void);
