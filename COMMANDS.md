@@ -45,7 +45,7 @@ prints every setting as `NAME VALUE`, in the same form that setting command
 accepts. `HELP` prints where to read the documentation. `ENGSTAT` prints the
 packet-engine snapshot below. `REBOOT` starts the firmware over and keeps the
 stored settings. `RESET` clears the stored settings and then reboots, so the
-boot loads the defaults. Any of these followed by anything else prints `?`.
+boot loads the defaults. Any of these followed by anything else prints `Huh?`.
 
 ```
 N0CALL> MYCALL
@@ -320,7 +320,7 @@ the frame is queued.
 ## BSEND
 
 Queues one beacon immediately, the same way the beacon timer does when its
-countdown reaches zero. `BSEND` takes no value; extra text prints `?`. It
+countdown reaches zero. `BSEND` takes no value; extra text prints `Huh?`. It
 sends even when `BEACON` is 0. After the frame is queued, the countdown
 starts over from the current interval, including the random 0–31 second
 offset. A zero interval stays idle after that one beacon. If the transmit
@@ -333,7 +333,7 @@ Keys the radio and sends a Bell 202 calibration tone, then unkeys. It takes
 two arguments: `H`, `L`, or `D`, and a duration from 1 to 30 seconds.
 `CAL H 15` sends the high tone, 2200 Hz, for 15 seconds. `L` sends the low
 tone, 1200 Hz. `D` sends HDLC flags, which use both symbols. A missing or
-malformed argument prints `?`. A duration of 0 or above 30 prints
+malformed argument prints `Huh?`. A duration of 0 or above 30 prints
 `Bad config: CAL`. The transmitter must be idle; otherwise the TNC prints
 `Busy`. `MYCALL` still has to be set, or the TNC prints `ERR - Set Callsign`
 and does not key. `CAL` is not a stored setting and does not appear in

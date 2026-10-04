@@ -115,6 +115,11 @@ static void reject(const char *name)
     g_ok = false;
 }
 
+static void print_huh(void)
+{
+    serial_puts("Huh?\r\n");
+}
+
 static void clear_config(void)
 {
     uint8_t *raw = (uint8_t *)&g_config;
@@ -1145,7 +1150,7 @@ static void command_cal(char *value)
     uint8_t tone;
 
     if (value == 0 || value[0] == '\0' || value[1] != ' ') {
-        serial_puts("?\r\n");
+        print_huh();
         return;
     }
     mode = value[0];
@@ -1159,7 +1164,7 @@ static void command_cal(char *value)
     } else if (mode == 'D') {
         tone = CAL_BOTH;
     } else {
-        serial_puts("?\r\n");
+        print_huh();
         return;
     }
     i = 2u;
@@ -1219,7 +1224,7 @@ void config_command(char *line)
         if (value == 0) {
             serial_puts("Visit https://github.com/PhirePhly/wfdigi for documentation\r\n");
         } else {
-            serial_puts("?\r\n");
+            print_huh();
         }
         return;
     }
@@ -1227,7 +1232,7 @@ void config_command(char *line)
         if (value == 0) {
             command_display();
         } else {
-            serial_puts("?\r\n");
+            print_huh();
         }
         return;
     }
@@ -1235,7 +1240,7 @@ void config_command(char *line)
         if (value == 0) {
             engine_stat();
         } else {
-            serial_puts("?\r\n");
+            print_huh();
         }
         return;
     }
@@ -1244,7 +1249,7 @@ void config_command(char *line)
             serial_flush();
             firmware_reset();
         } else {
-            serial_puts("?\r\n");
+            print_huh();
         }
         return;
     }
@@ -1254,7 +1259,7 @@ void config_command(char *line)
             serial_flush();
             firmware_reset();
         } else {
-            serial_puts("?\r\n");
+            print_huh();
         }
         return;
     }
@@ -1375,7 +1380,7 @@ void config_command(char *line)
     }
     if (same_text(cmd, "BSEND")) {
         if (value != 0) {
-            serial_puts("?\r\n");
+            print_huh();
         } else if (!timer_beacon_now()) {
             serial_puts("Busy\r\n");
         }
@@ -1437,5 +1442,5 @@ void config_command(char *line)
         command_cal(value);
         return;
     }
-    serial_puts("Huh?\r\n");
+    print_huh();
 }

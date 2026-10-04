@@ -82,10 +82,10 @@ def main() -> None:
     require(b"N0CALL" in rom, "default MYCALL missing from ROM")
     require(re.search(r"00008000.*_g_config|_g_config.*00008000", map_text, re.IGNORECASE),
             "g_config is not fixed at 0x8000")
-    # ld l,#tc ; ld a,#12  — the WR12 writes emitted for the two generators.
-    require(bytes((0x2E, terminal_tc, 0x3E, 0x0C)) in rom,
+    # WR12 in the channel setup tables is the register number 0x0C followed by the time constant.
+    require(bytes((0x0C, terminal_tc)) in rom,
             "terminal WR12 is not programmed for 9600 baud")
-    require(bytes((0x2E, radio_tc, 0x3E, 0x0C)) in rom,
+    require(bytes((0x0C, radio_tc)) in rom,
             "radio WR12 is not programmed for the 1200 baud DPLL clock")
 
     print(f"ROM layout: PASS ({max(image) + 1} bytes address span)")

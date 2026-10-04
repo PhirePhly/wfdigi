@@ -35,57 +35,85 @@ static void scc_reset_delay(void)
     } while (spins != 0u);
 }
 
+/* Register, then value, in program order. WR5 is written twice: idle, then
+ * with the transmitter enabled. The shadow after the loop is that second value.
+ */
+static const uint8_t radio_setup[] = {
+    4, 0x20u,                                    /* HDLC, x1 clock */
+    3, 0xD8u,                                    /* 8-bit Rx, hunt, Rx CRC, Rx off */
+    5, (uint8_t)(0x60u | 0x01u),                 /* 8 bits, SDLC CRC, Tx CRC, RTS and DTR off */
+    6, 0x00u,
+    7, 0x7Eu,                                    /* HDLC flag */
+    10, 0xA0u,                                   /* NRZI, flag idle, CRC preset to ones */
+    11, 0x66u,                                   /* Rx clock DPLL, Tx clock /RTxC, /TRxC = BRG */
+    14, 0x02u,                                   /* BRG source is PCLK, generator off */
+    12, (uint8_t)RADIO_DPLL_TC,
+    13, 0x00u,
+    14, 0x83u,                                   /* DPLL source is the BRG, generator on */
+    14, 0xE3u,                                   /* DPLL NRZI */
+    14, 0x23u,                                   /* DPLL search */
+    3, 0xD9u,                                    /* enable the receiver */
+    5, (uint8_t)(0x60u | 0x01u | WR5_TX_ENABLE), /* enable Tx; RTS stays off so PTT is idle */
+    0, 0x80u,                                    /* reset Tx CRC; leave the underrun latch set */
+    0, 0x40u,                                    /* reset Rx CRC */
+    15, 0xD8u,                                   /* DCD, sync/hunt, underrun, break/abort */
+    0, 0x10u,                                    /* reset external/status, twice */
+    0, 0x10u,
+    1, 0x00u,                                    /* modem_init enables HDLC receive; TX IRQ is per frame */
+};
+
+static const uint8_t terminal_setup[] = {
+    4, 0x44u,                                    /* x16, one stop bit, no parity */
+    2, 0x00u,                                    /* IM2 vector low byte; I is 0x01 */
+    3, 0xC0u,                                    /* 8-bit Rx, receiver off while the BRG starts */
+    5, (uint8_t)(0x60u | WR5_RTS),               /* RTS on tells the host we are ready */
+    10, 0x00u,                                   /* NRZ */
+    11, 0x56u,                                   /* both clocks from the baud-rate generator */
+    14, 0x02u,                                   /* BRG source is PCLK, generator off */
+    12, (uint8_t)TERMINAL_BRG_TC,                /* 9600 baud */
+    13, 0x00u,
+    14, 0x03u,                                   /* enable the generator */
+    3, 0xC1u,                                    /* enable the receiver */
+    5, (uint8_t)(0x60u | WR5_RTS | WR5_TX_ENABLE),
+    15, 0x00u,
+    0, 0x10u,                                    /* reset external/status, twice */
+    0, 0x10u,
+    1, 0x00u,
+    9, 0x01u,                                    /* vector includes status; master interrupt stays off */
+};
+
+_Static_assert(sizeof(radio_setup) <= 255u && (sizeof(radio_setup) & 1u) == 0u,
+               "radio setup is register/value pairs");
+_Static_assert(sizeof(terminal_setup) <= 255u && (sizeof(terminal_setup) & 1u) == 0u,
+               "terminal setup is register/value pairs");
+
+static void load_setup(bool terminal, const uint8_t *setup, uint8_t n)
+{
+    uint8_t i = 0u;
+
+    while (i < n) {
+        uint8_t reg = setup[i];
+        uint8_t value = setup[(uint8_t)(i + 1u)];
+        if (terminal) {
+            terminal_reg(reg, value);
+        } else {
+            radio_reg(reg, value);
+        }
+        i = (uint8_t)(i + 2u);
+    }
+}
+
 static void init_radio(void)
 {
-    radio_wr5 = (uint8_t)(0x60u | 0x01u); /* 8 bits, SDLC CRC, Tx CRC, RTS and DTR off */
-
-    radio_reg(4, 0x20u);                         /* HDLC, x1 clock */
-    radio_reg(3, 0xD8u);                         /* 8-bit Rx, hunt, Rx CRC, Rx off */
-    radio_reg(5, radio_wr5);
-    radio_reg(6, 0x00u);
-    radio_reg(7, 0x7Eu);                         /* HDLC flag */
-    radio_reg(10, 0xA0u);                        /* NRZI, flag idle, CRC preset to ones */
-    radio_reg(11, 0x66u);                        /* Rx clock DPLL, Tx clock /RTxC, /TRxC = BRG */
-    radio_reg(14, 0x02u);                        /* BRG source is PCLK, generator off */
-    radio_reg(12, (uint8_t)RADIO_DPLL_TC);
-    radio_reg(13, 0x00u);
-    radio_reg(14, 0x83u);                        /* DPLL source is the BRG, generator on */
-    radio_reg(14, 0xE3u);                        /* DPLL NRZI */
-    radio_reg(14, 0x23u);                        /* DPLL search */
-    radio_reg(3, 0xD9u);                         /* enable the receiver */
-    radio_wr5 = (uint8_t)(radio_wr5 | WR5_TX_ENABLE);
-    radio_reg(5, radio_wr5);                     /* enable Tx; RTS stays off so PTT is idle */
-    radio_reg(0, 0x80u);                         /* reset Tx CRC; leave the underrun latch set */
-    radio_reg(0, 0x40u);                         /* reset Rx CRC */
-    radio_reg(15, 0xD8u);                        /* DCD, sync/hunt, underrun, break/abort */
-    radio_reg(0, 0x10u);                         /* reset external/status, twice */
-    radio_reg(0, 0x10u);
-    radio_reg(1, 0x00u);                         /* modem_init enables HDLC receive; TX IRQ is per frame */
+    load_setup(false, radio_setup, (uint8_t)sizeof(radio_setup));
+    radio_wr5 = (uint8_t)(0x60u | 0x01u | WR5_TX_ENABLE);
 }
 
 static void init_terminal(void)
 {
-    /* RTS on tells the host we are ready. DTR stays off so MC1 remains high. */
-    terminal_wr5 = (uint8_t)(0x60u | WR5_RTS);
-
-    terminal_reg(4, 0x44u);                      /* x16, one stop bit, no parity */
-    terminal_reg(2, 0x00u);                      /* IM2 vector low byte; I is 0x01 */
-    terminal_reg(3, 0xC0u);                      /* 8-bit Rx, receiver off while the BRG starts */
-    terminal_reg(5, terminal_wr5);
-    terminal_reg(10, 0x00u);                     /* NRZ */
-    terminal_reg(11, 0x56u);                     /* both clocks from the baud-rate generator */
-    terminal_reg(14, 0x02u);                     /* BRG source is PCLK, generator off */
-    terminal_reg(12, (uint8_t)TERMINAL_BRG_TC);  /* 9600 baud */
-    terminal_reg(13, 0x00u);
-    terminal_reg(14, 0x03u);                     /* enable the generator */
-    terminal_reg(3, 0xC1u);                      /* enable the receiver */
-    terminal_wr5 = (uint8_t)(terminal_wr5 | WR5_TX_ENABLE);
-    terminal_reg(5, terminal_wr5);
-    terminal_reg(15, 0x00u);
-    terminal_reg(0, 0x10u);
-    terminal_reg(0, 0x10u);
-    terminal_reg(1, 0x00u);
-    terminal_reg(9, 0x01u);                      /* vector includes status; master interrupt stays off */
+    load_setup(true, terminal_setup, (uint8_t)sizeof(terminal_setup));
+    /* DTR stays off so MC1 remains high. */
+    terminal_wr5 = (uint8_t)(0x60u | WR5_RTS | WR5_TX_ENABLE);
 }
 
 void hardware_irq_enable(void)
