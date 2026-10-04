@@ -218,9 +218,13 @@ void modem_isr_a_tx(void)
 
 void modem_isr_b_rx(void)
 {
+    uint8_t guard = 0u;
+
     scc_b_ctrl = 0x00u;
-    if ((scc_b_ctrl & RR0_RX_CHAR) != 0u) {
-        (void)scc_b_data;
+    while ((scc_b_ctrl & RR0_RX_CHAR) != 0u && guard < 4u) {
+        serial_rx_push(scc_b_data);
+        scc_b_ctrl = 0x00u;
+        ++guard;
     }
     scc_ius(0x38u);
 }
@@ -229,7 +233,7 @@ void modem_isr_b_special(void)
 {
     scc_b_ctrl = 0x00u;
     if ((scc_b_ctrl & RR0_RX_CHAR) != 0u) {
-        (void)scc_b_data;
+        serial_rx_push(scc_b_data);
     }
     scc_ius(0x30u);
     scc_ius(0x38u);
@@ -866,7 +870,7 @@ void engine_stat(void)
     telemetry_packet_counts(&received, &transmitted);
     serial_puts("TIME ");
     print_u16(timer_seconds());
-    serial_puts("\r\nDUPES ");
+    serial_puts("\r\nDUPEDB ");
     print_u16(dupe_count());
     serial_puts("\r\nRX ");
     print_u16(received);

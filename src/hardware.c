@@ -114,6 +114,22 @@ void hardware_init(void)
     hardware_lamps(LED_CMD);
 }
 
+void hardware_terminal_rts(bool ready)
+{
+    uint8_t next = terminal_wr5;
+
+    if (ready) {
+        next = (uint8_t)(next | WR5_RTS);
+    } else {
+        next = (uint8_t)(next & (uint8_t)~WR5_RTS);
+    }
+    if (next == terminal_wr5) {
+        return;
+    }
+    terminal_wr5 = next;
+    terminal_reg(5, next);
+}
+
 void hardware_ptt(bool keyed)
 {
     uint8_t next = radio_wr5;

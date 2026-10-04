@@ -43,6 +43,7 @@ void firmware_boot(void)
     cli_start();
     modem_init();
     telemetry_init();
+    serial_rx_init();
     hardware_irq_enable();
 
     for (;;) {

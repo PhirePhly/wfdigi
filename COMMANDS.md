@@ -1,6 +1,12 @@
 # Commands
 
 The terminal port is 9600 baud, 8 data bits, no parity, and one stop bit.
+The host's CTS must follow this TNC's RTS. Each received character is taken
+by an interrupt into a buffer. RTS turns off when that buffer is filling,
+and turns back on after the service loop has read those characters. A pasted
+`DISPLAY` listing needs that handshake. Without it, characters that arrive
+while a command is still printing are dropped once the buffer is full.
+
 After the lamp test the TNC prints a prompt of the callsign and waits for a
 line. A non-zero SSID is included, so SSID 0 is `N0CALL> ` and SSID 3 is
 `N0CALL-3> `. Changing `MYCALL` changes the next prompt.

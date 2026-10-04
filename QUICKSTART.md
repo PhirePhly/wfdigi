@@ -47,7 +47,8 @@ settings already stored in battery SRAM, which prints `Warm boot...`.
 
 Program `build/wfdigi.bin` into a 27C256 EPROM. Install that PROM in the PK-88
 in place of the original ROM. Connect a terminal at 9600 baud, 8 data bits, no
-parity, and one stop bit. There is no autobaud detection.
+parity, and one stop bit, with RTS/CTS hardware flow control. There is no
+autobaud detection.
 
 Power the TNC on. The front-panel lamps walk once, then the terminal shows
 the banner and a callsign prompt. The version is `git describe --tags --always --dirty`

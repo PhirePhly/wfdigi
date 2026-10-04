@@ -115,7 +115,7 @@ WR11 = `0x56`: receive and transmit clocks are the baud-rate generator, and `/TR
 |---|---|---|---|
 | 21 | `/DCDB` | input | Terminal `DCD`. The front-panel DCD lamp does not use this pin |
 | 22 | `/CTSB` | input | Terminal `CTS`, active low, in RR0 bit 5 |
-| 23 | `/RTSB` | output | Terminal `RTS`, WR5 bit 1 |
+| 23 | `/RTSB` | output | Terminal `RTS`, WR5 bit 1. On while the host may send; the receive interrupt drops it when the terminal buffer is filling |
 | 24 | `/DTR//REQB` | output | 7910 `MC1`, driven by WR5 bit 7. The pin is high when that bit is clear |
 | 25 | TxDB | output | Terminal transmit data to the RS-232 line driver |
 | 26 | `/TRxCB` | output | Baud-rate generator clock output |

@@ -25,7 +25,7 @@ static void arm_sync_interrupt(void)
     scc_b_ctrl = 0x10u; /* drop a stale external-status latch */
     scc_b_ctrl = 0x10u;
     scc_b_ctrl = 0x01u;
-    scc_b_ctrl = 0x01u; /* WR1: external/status interrupt */
+    scc_b_ctrl = 0x01u; /* WR1: external/status; serial_rx_init adds receive */
 }
 
 void timer_init(void)

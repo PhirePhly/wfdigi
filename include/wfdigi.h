@@ -178,6 +178,8 @@ void hardware_irq_restore(void);
 void hardware_watchdog_pet(void);
 /* Assert or release radio PTT. While keyed, each call also pets the watchdog. */
 void hardware_ptt(bool keyed);
+/* Terminal RTS. Ready means the host may send. The caller holds interrupts off. */
+void hardware_terminal_rts(bool ready);
 /* Select the calibration waveform. Packet HDLC is restored by hardware_cal_restore. */
 void hardware_cal_tone(uint8_t tone);
 void hardware_cal_restore(void);
@@ -191,6 +193,10 @@ void serial_putc(uint8_t byte);
 void serial_puts(const char *text);
 /* Wait until the last terminal byte has left the transmitter. */
 void serial_flush(void);
+/* Arm the terminal receive interrupt and start with RTS ready. */
+void serial_rx_init(void);
+/* Store one byte from the channel B receive interrupt. May drop RTS. */
+void serial_rx_push(uint8_t byte);
 /* Stores the decimal form in dest and returns how many bytes were stored.
  * width 0 omits leading spaces. width 1-5 space-pads on the left. dest holds
  * five bytes. There is no trailing NUL. Zero still stores a digit.

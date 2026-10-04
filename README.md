@@ -59,12 +59,12 @@ need SDCC.
   `0x0100`, and the watchdog strobe
 - `src/hardware.c`: SCC setup, the front-panel lamp latch, radio carrier detect, and PTT
 - `src/lamps.c`: which front-panel lamps are lit on each service pass
-- `src/serial.c`: polled terminal I/O
+- `src/serial.c`: terminal I/O, with a receive interrupt and RTS flow control
 - `src/pktq.c`: transmit queue of 31-byte blocks
 - `src/modem.c`: HDLC AX.25 receive and transmit on the radio channel
 - `src/digi.c`: path matching, header rewrite, and the transmit queue for repeats
 - `src/dupe.c`: the last 250 transmitted packets, used to skip a repeat
-- `src/util.c`: shared helpers, including the 32-bit xorshift
+- `src/util.c`: shared helper functions
 - `src/beacon.c`: APRS position beacon
 - `src/telemetry.c`: 10-minute packet counts and the hourly telemetry definitions
 - `src/timer.c`: 10 ms countdown timers, from the 1200 Hz `/SYNCB` square wave
@@ -73,7 +73,8 @@ need SDCC.
 - `src/config.c`: range checks and the SRAM image at `0x8000`
 - `src/main.c`: boot banner, lamp test, and the service loop
 - `src/interrupts.c`: mode-2 handlers. The radio channel interrupts for HDLC
-  receive and transmit, and the terminal channel interrupts on each `/SYNCB` edge
+  receive and transmit. The terminal channel interrupts on each received
+  character and on each `/SYNCB` edge
 
 ## What the current ROM does
 
@@ -180,8 +181,11 @@ matching address is left alone.
 
 The SCC interrupt controller runs in Z80 mode 2. Radio HDLC receive interrupts
 stay enabled, and the transmit-empty interrupt feeds each byte of a frame.
-The terminal channel interrupts at 1200 Hz from the `/SYNCB` square wave.
-The terminal data path stays polled. Twelve interrupts
+The terminal channel interrupts at 1200 Hz from the `/SYNCB` square wave,
+and also on each received character. Those characters wait in a buffer.
+RTS drops while the buffer is filling and rises after the service loop has
+taken them, so a pasted configuration can wait instead of overrunning the
+SCC. Twelve interrupts
 queue one 10 ms tick, and 100 of those ticks queue one second. The last 250
 packets this station transmits are kept for 30 seconds, each as the source
 callsign and SSID, a one-byte sum of the printable characters in the
