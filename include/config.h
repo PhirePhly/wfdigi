@@ -35,7 +35,7 @@
 #define CFG_ALIAS_3 ""
 #define CFG_ALIAS_3_SSID 0
 
-#define CFG_NNALIAS_0 ""
+#define CFG_NNALIAS_0 "WIDE"
 #define CFG_NNALIAS_1 ""
 #define CFG_NNALIAS_2 ""
 #define CFG_NNALIAS_3 ""

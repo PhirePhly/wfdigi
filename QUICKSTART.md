@@ -67,16 +67,14 @@ have gone out is discarded, and the TNC prints `ERR - Set Callsign`.
 Digipeating and beacons stay idle until `MYCALL` is changed. CMD then stays
 lit.
 
-At the prompt, set the callsign, position, beacon text, beacon interval, and
-one n-N prefix. The useful n-N setting is `NNALIAS0 WIDE`. Leave the plain
-alias slots off.
+At the prompt, set the callsign, position, beacon text, and beacon interval.
+`NNALIAS0` already defaults to `WIDE`; leave the plain alias slots off.
 
 ```
 MYCALL W6FOO
 MYLOC 37 23.45 N 122 01.23 W
 BTEXT Whiskey Fox Digi
 BEACON 10
-NNALIAS0 WIDE
 ```
 
 `BEACON 10` queues a position beacon every 10 minutes. `BEACON OFF` disables

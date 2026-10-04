@@ -123,7 +123,7 @@ Cold-boot defaults:
 | SLOTTIME | 10 (100 ms) | 0–255, in 10 ms steps |
 | FULLDUP | off | off or on |
 | ALIAS 0–3 | blank, disabled | an AX.25 call and SSID, or empty to disable that slot |
-| NNALIAS 0–3 | blank, disabled | an n-N prefix, or empty to disable that slot |
+| NNALIAS 0–3 | `WIDE`, then three blank slots | an n-N prefix, or empty to disable that slot |
 | BEACON | off | off, 1–60 minutes |
 | BTEXT | empty | printable ASCII, NUL terminated |
 | BPATH | `-` | 1–4 paths; a callsign, or `-` for no path |

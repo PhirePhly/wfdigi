@@ -46,6 +46,7 @@ def main() -> None:
     if len(sys.argv) != 4:
         raise SystemExit("usage: check-layout.py firmware.ihx firmware.map version.h")
     version = load_version(Path(sys.argv[3]))
+    print(f"Whiskey Fox Digi - version {version.decode('ascii')}")
     image = load_ihx(Path(sys.argv[1]))
     require(image, "ROM image is empty")
     require(max(image) < 0x8000, "ROM overlaps RAM at 0x8000")
