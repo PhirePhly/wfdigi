@@ -56,6 +56,14 @@ static uint8_t trace_pos;
 static volatile uint8_t dcd_now;
 static volatile uint8_t sta_arm;
 static volatile uint8_t rx_dropped;
+/* !R and !Q since this boot. These sit in compiler RAM, not the battery
+ * configuration image, and modem_init clears them on every boot.
+ * Each count stops at 65535.
+ */
+static uint16_t drop_r;
+static uint16_t drop_q;
+
+static void note_drop_r(void);
 
 static uint8_t radio_rr0(void)
 {
@@ -296,32 +304,15 @@ static void trace_puts(const char *text)
     }
 }
 
-static void trace_timestamp_digit(uint16_t *value, uint16_t divisor, bool *leading, bool last)
+static void trace_u16(uint16_t value, uint8_t width)
 {
-    uint8_t digit = 0u;
+    uint8_t text[5];
+    uint8_t n = format_u16(value, width, text);
+    uint8_t i;
 
-    while (*value >= divisor) {
-        *value = (uint16_t)(*value - divisor);
-        ++digit;
+    for (i = 0u; i < n; ++i) {
+        trace_char(text[i]);
     }
-    if (*leading && digit == 0u && !last) {
-        trace_char(' ');
-    } else {
-        trace_char((uint8_t)('0' + digit));
-        *leading = false;
-    }
-}
-
-static void trace_timestamp(void)
-{
-    uint16_t value = timer_seconds();
-    bool leading = true;
-
-    trace_timestamp_digit(&value, 10000u, &leading, false);
-    trace_timestamp_digit(&value, 1000u, &leading, false);
-    trace_timestamp_digit(&value, 100u, &leading, false);
-    trace_timestamp_digit(&value, 10u, &leading, false);
-    trace_timestamp_digit(&value, 1u, &leading, true);
 }
 
 static void trace_drain(void)
@@ -436,7 +427,8 @@ static void log_frame(char kind, const uint8_t *frame, uint16_t len)
     trace_puts("\r\n");
     trace_char((uint8_t)kind);
     trace_char(' ');
-    trace_timestamp();
+    /* Five characters, space-padded, so the packet text lines up. */
+    trace_u16(timer_seconds(), 5u);
     trace_char(' ');
     if (!print_tnc2(frame, len)) {
         for (i = 0u; i < len; ++i) {
@@ -501,7 +493,7 @@ static void service_rx(void)
     if (g_config.logging != 0u && trace_idle()) {
         log_frame('R', rx_buf[idx], n);
     } else if (g_config.logging != 0u) {
-        serial_puts("!R");
+        note_drop_r();
     }
     digi_ingress(rx_buf[idx], n);
     rx_ready = 0u;
@@ -768,6 +760,25 @@ static void sta_service(void)
     }
 }
 
+static void count_drop(uint16_t *count)
+{
+    if (*count != 65535u) {
+        *count = (uint16_t)(*count + 1u);
+    }
+}
+
+static void note_drop_r(void)
+{
+    serial_puts("!R");
+    count_drop(&drop_r);
+}
+
+static void note_drop_q(void)
+{
+    serial_puts("!Q");
+    count_drop(&drop_q);
+}
+
 static void drop_service(void)
 {
     uint8_t n;
@@ -777,7 +788,7 @@ static void drop_service(void)
     rx_dropped = 0u;
     hardware_irq_on();
     while (n != 0u) {
-        serial_puts("!R");
+        note_drop_r();
         --n;
     }
 }
@@ -797,7 +808,7 @@ bool modem_send(uint8_t kind, const uint8_t *frame, uint16_t len)
         return false;
     }
     if (!pktq_put(kind, frame, len)) {
-        serial_puts("!Q");
+        note_drop_q();
         return false;
     }
     tx_kick();
@@ -838,8 +849,23 @@ void modem_calibrate(uint8_t tone, uint8_t seconds)
     timer_cal_start(seconds);
 }
 
+void engine_stat(void)
+{
+    serial_puts("TIME ");
+    print_u16(timer_seconds());
+    serial_puts("\r\nDUPES ");
+    print_u16(dupe_count());
+    serial_puts("\r\n!R ");
+    print_u16(drop_r);
+    serial_puts("\r\n!Q ");
+    print_u16(drop_q);
+    serial_puts("\r\n");
+}
+
 void modem_init(void)
 {
+    drop_r = 0u;
+    drop_q = 0u;
     rx_fill = 0u;
     rx_reset();
     rx_ready = 0u;

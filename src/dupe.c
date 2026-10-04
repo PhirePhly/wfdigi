@@ -102,6 +102,20 @@ static bool frame_parts(const uint8_t *frame, uint16_t len, const uint8_t **src,
     return true;
 }
 
+uint16_t dupe_count(void)
+{
+    DupeSlot *slot = db;
+    uint16_t n = 0u;
+
+    while (slot != db_end) {
+        if (slot->sum != 0u) {
+            ++n;
+        }
+        ++slot;
+    }
+    return n;
+}
+
 void dupe_init(void)
 {
     DupeSlot *p = db;

@@ -1,7 +1,9 @@
 # Debug codes
 
 The terminal prints these when the firmware drops a frame. Each code is one
-event, with no carriage return after it.
+event, with no carriage return after it. Each print also adds one to a
+16-bit counter that stops at 65535. `ENGSTAT` prints those counters. They
+are cleared on every boot, including a warm boot.
 
 ## !R
 

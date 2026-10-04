@@ -495,6 +495,19 @@ static void judge(const char *name, const char *out)
     ++passed;
 }
 
+static void expect_dupe_count(const char *name, uint16_t want)
+{
+    uint16_t got = dupe_count();
+    char detail[80];
+
+    if (got != want) {
+        snprintf(detail, sizeof detail, "dupe count %u, want %u", (unsigned)got, (unsigned)want);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
+}
+
 static void check_keep(const char *name, const char *in, const char *out)
 {
     uint8_t frame[FRAME_CAP];
@@ -852,6 +865,23 @@ static void test_limits(void)
     check("payload bytes stay put", "N0SRC>APRS,WIDE2-2:AB:CD\\r", "N0SRC>APRS,WFDIGI*,WIDE2-1:AB:CD\\r");
 }
 
+static void test_dupe_count(void)
+{
+    setup();
+    set_nn(0, "WIDE");
+    expect_dupe_count("empty list", 0u);
+    check_keep("remember one", "N0SRC>APRS,WIDE1-1:Hi", "N0SRC>APRS,WFDIGI*:Hi");
+    expect_dupe_count("one packet", 1u);
+    check_keep("duplicate does not add a slot", "N0SRC>APRS,WIDE1-1:Hi", 0);
+    expect_dupe_count("still one packet", 1u);
+    check_keep("second station", "N0OTH>APRS,WIDE1-1:Hi", "N0OTH>APRS,WFDIGI*:Hi");
+    expect_dupe_count("two packets", 2u);
+    now = (uint16_t)(now + DUPE_WINDOW);
+    expect_dupe_count("aged entries stay until a scan", 2u);
+    dupe_init();
+    expect_dupe_count("init clears the list", 0u);
+}
+
 static void test_dupes(void)
 {
     int i;
@@ -953,6 +983,7 @@ int main(void)
     test_directonly();
     test_maxhops();
     test_limits();
+    test_dupe_count();
     test_dupes();
     if (failed != 0) {
         printf("digi tests: %d passed, %d failed\n", passed, failed);

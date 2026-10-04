@@ -34,10 +34,10 @@ command prints `Huh?`.
 The symbol `-` is used to represent an empty or null string. This can be used
 to disable some settings and express a empty value for other settings.
 
-`DISPLAY` and `HELP` take no value. `DISPLAY` prints every setting as
+`DISPLAY`, `HELP`, and `ENGSTAT` take no value. `DISPLAY` prints every setting as
 `NAME VALUE`, in the same form that setting command accepts. `HELP` prints
-where to read the documentation. Either command followed by anything else
-prints `?`.
+where to read the documentation. `ENGSTAT` prints the packet-engine
+snapshot below. Any of these followed by anything else prints `?`.
 
 ```
 N0CALL> MYCALL
@@ -64,6 +64,24 @@ Visit https://github.com/PhirePhly/wfdigi for documentation
 Prints every setting and its current value. A disabled alias or n-N prefix
 prints as `OFF`. An empty beacon text prints as `-`. A beacon interval of 0
 prints as `OFF`.
+
+## ENGSTAT
+
+Prints a snapshot of the packet engine:
+
+```
+TIME 123
+DUPES 2
+!R 0
+!Q 1
+```
+
+`TIME` is the 16-bit seconds counter from boot, the same counter a trace line
+prints. `DUPES` is how many of the 250 duplicate slots are occupied. An entry
+that has aged out still counts until the next duplicate scan clears it. `!R`
+and `!Q` are how many times those drop codes have been printed since boot.
+Each is a 16-bit count that stops at 65535. The counts are working RAM, not
+part of the battery configuration image, and every boot starts them at zero.
 
 ## MYCALL
 

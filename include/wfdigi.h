@@ -183,6 +183,13 @@ void lamps_service(void);
 
 void serial_putc(uint8_t byte);
 void serial_puts(const char *text);
+/* Stores the decimal form in dest and returns how many bytes were stored.
+ * width 0 omits leading spaces. width 1-5 space-pads on the left. dest holds
+ * five bytes. There is no trailing NUL. Zero still stores a digit.
+ */
+uint8_t format_u16(uint16_t value, uint8_t width, uint8_t *dest);
+/* Decimal on the terminal, with no leading zeros. Zero prints as 0. */
+void print_u16(uint16_t value);
 bool serial_getc(uint8_t *byte);
 /* Writes one byte when the terminal transmitter is idle. */
 bool serial_try_putc(uint8_t byte);
@@ -207,6 +214,8 @@ void cli_redraw(void);
 void modem_quiesce(void);
 void modem_init(void);
 void modem_service(void);
+/* Seconds since boot, occupied duplicate slots, and the !R and !Q counts. */
+void engine_stat(void);
 #define PKTQ_AX25 0u
 #define PKTQ_BEACON 1u
 
@@ -228,6 +237,8 @@ void dupe_init(void);
 void dupe_remember(const uint8_t *frame, uint16_t len);
 /* True when this source and information field were sent less than DUPE_WINDOW seconds ago. */
 bool dupe_recent(const uint8_t *frame, uint16_t len);
+/* Occupied duplicate slots. An aged entry stays until the next scan clears it. */
+uint16_t dupe_count(void);
 bool modem_keyed(void);
 bool modem_dcd(void);
 /* Key and send one calibration tone for the given number of seconds. */

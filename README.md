@@ -96,7 +96,7 @@ need SDCC.
    left clear and reported as `Bad config: NAME`. The image is marked valid
    only when every parameter passes. A CRC-16 is then stored in the next two
    bytes. Warm boot checks that CRC, keeps the image, and still starts the
-   timers, modem, packet queue, and duplicate list from zero. The beacon path
+   timers, modem, packet queue, duplicate list, and drop counters from zero. The beacon path
    index starts over at the first path.
 4. The eight front-panel lamps walk once. CMD then stays lit, unless `MYCALL`
    is still `N0CALL`, in which case CMD blinks at 2 Hz until the callsign is
@@ -141,7 +141,9 @@ radio stays keyed does not draw again.
 
 At the callsign prompt, a config name alone prints the value stored in SRAM.
 `NAME VALUE` updates that value when it is in range. `DISPLAY` prints every
-setting. `HELP` prints where to read the documentation. Unknown commands
+setting. `HELP` prints where to read the documentation. `ENGSTAT` prints
+the seconds counter, how many duplicate slots are occupied, and the `!R` and
+`!Q` counts since boot. Unknown commands
 print `Huh?`; lines longer than 79 characters print
 `Too long?`. [COMMANDS.md](COMMANDS.md) describes the line editor and the
 meaning of each command.

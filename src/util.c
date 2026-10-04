@@ -1,5 +1,47 @@
 #include "wfdigi.h"
 
+static const uint16_t u16_place[5] = {10000u, 1000u, 100u, 10u, 1u};
+
+uint8_t format_u16(uint16_t value, uint8_t width, uint8_t *dest)
+{
+    bool leading = true;
+    uint8_t n = 0u;
+    uint8_t i;
+
+    for (i = 0u; i < 5u; ++i) {
+        uint16_t place = u16_place[i];
+        uint8_t digit = 0u;
+        bool last = i == 4u;
+
+        while (value >= place) {
+            value = (uint16_t)(value - place);
+            ++digit;
+        }
+        if (leading && digit == 0u && !last) {
+            if (width != 0u && (uint8_t)(5u - i) <= width) {
+                dest[n] = ' ';
+                ++n;
+            }
+        } else {
+            dest[n] = (uint8_t)('0' + digit);
+            ++n;
+            leading = false;
+        }
+    }
+    return n;
+}
+
+void print_u16(uint16_t value)
+{
+    uint8_t text[5];
+    uint8_t n = format_u16(value, 0u, text);
+    uint8_t i;
+
+    for (i = 0u; i < n; ++i) {
+        serial_putc(text[i]);
+    }
+}
+
 /* 32-bit xorshift (13, 17, 5), kept in two 16-bit halves. The top byte is the
  * result: the low bits of this generator are the weaker ones. State zero is
  * stuck, so a draw from zero reloads the seed.

@@ -410,28 +410,6 @@ static bool is_off(const char *text)
     return same_text(text, "OFF") || same_text(text, "-");
 }
 
-static void print_u8(uint8_t value)
-{
-    uint8_t hundreds = 0u;
-    uint8_t tens = 0u;
-
-    while (value >= 100u) {
-        value = (uint8_t)(value - 100u);
-        ++hundreds;
-    }
-    while (value >= 10u) {
-        value = (uint8_t)(value - 10u);
-        ++tens;
-    }
-    if (hundreds != 0u) {
-        serial_putc((uint8_t)('0' + hundreds));
-    }
-    if (hundreds != 0u || tens != 0u) {
-        serial_putc((uint8_t)('0' + tens));
-    }
-    serial_putc((uint8_t)('0' + value));
-}
-
 static bool accum_digit(uint8_t *value, uint8_t digit, uint8_t max)
 {
     uint8_t times8;
@@ -492,7 +470,7 @@ static void show_call(const uint8_t *call, uint8_t ssid)
         serial_putc(call[i]);
     }
     serial_putc('-');
-    print_u8(ssid);
+    print_u16(ssid);
     serial_puts("\r\n");
 }
 
@@ -936,7 +914,7 @@ static void print_path(const uint8_t *call, uint8_t ssid)
         serial_putc(call[i]);
     }
     serial_putc('-');
-    print_u8(ssid);
+    print_u16(ssid);
 }
 
 static void show_bpath(void)
@@ -1032,7 +1010,7 @@ static void show_number(const char *name, uint8_t value)
 {
     serial_puts(name);
     serial_putc(' ');
-    print_u8(value);
+    print_u16(value);
     serial_puts("\r\n");
 }
 
@@ -1041,7 +1019,7 @@ static void show_beacon(void)
     if (g_config.beacon_every == 0u) {
         serial_puts("OFF\r\n");
     } else {
-        print_u8(g_config.beacon_every);
+        print_u16(g_config.beacon_every);
         serial_puts("\r\n");
     }
 }
@@ -1184,6 +1162,14 @@ void config_command(char *line)
         }
         return;
     }
+    if (same_text(cmd, "ENGSTAT")) {
+        if (value == 0) {
+            engine_stat();
+        } else {
+            serial_puts("?\r\n");
+        }
+        return;
+    }
     if (same_text(cmd, "MYCALL")) {
         command_call("MYCALL", value, g_config.mycall, &g_config.mycall_ssid, false);
         return;
@@ -1214,30 +1200,30 @@ void config_command(char *line)
     }
     if (same_text(cmd, "TXDELAY")) {
         if (value == 0) {
-            print_u8(g_config.txdelay);
+            print_u16(g_config.txdelay);
             serial_puts("\r\n");
         } else if (set_number("TXDELAY", value, TXDELAY_MIN, TXDELAY_MAX, &g_config.txdelay)) {
-            print_u8(g_config.txdelay);
+            print_u16(g_config.txdelay);
             serial_puts("\r\n");
         }
         return;
     }
     if (same_text(cmd, "PPERSIST")) {
         if (value == 0) {
-            print_u8(g_config.persist);
+            print_u16(g_config.persist);
             serial_puts("\r\n");
         } else if (set_number("PPERSIST", value, PERSIST_MIN, PERSIST_MAX, &g_config.persist)) {
-            print_u8(g_config.persist);
+            print_u16(g_config.persist);
             serial_puts("\r\n");
         }
         return;
     }
     if (same_text(cmd, "SLOTTIME")) {
         if (value == 0) {
-            print_u8(g_config.slottime);
+            print_u16(g_config.slottime);
             serial_puts("\r\n");
         } else if (set_number("SLOTTIME", value, SLOTTIME_MIN, SLOTTIME_MAX, &g_config.slottime)) {
-            print_u8(g_config.slottime);
+            print_u16(g_config.slottime);
             serial_puts("\r\n");
         }
         return;
@@ -1326,10 +1312,10 @@ void config_command(char *line)
     }
     if (same_text(cmd, "MAXHOPS")) {
         if (value == 0) {
-            print_u8(g_config.maxhops);
+            print_u16(g_config.maxhops);
             serial_puts("\r\n");
         } else if (set_number("MAXHOPS", value, MAXHOPS_MIN, MAXHOPS_MAX, &g_config.maxhops)) {
-            print_u8(g_config.maxhops);
+            print_u16(g_config.maxhops);
             serial_puts("\r\n");
         }
         return;
