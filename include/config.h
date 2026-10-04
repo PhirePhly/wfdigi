@@ -13,6 +13,7 @@
  * BPATH is one to four beacon paths. "-" is a beacon with no path.
  * LOGGING is 1 to print radio traffic, or 0 to stay quiet.
  * TELEMETRY is 1 to send 10-minute counts and hourly definition messages.
+ * TELPATH is the one digipeater path for those frames. "-" sends them direct.
  */
 
 #define CFG_MYCALL "N0CALL"
@@ -22,6 +23,7 @@
 #define CFG_DIRECTONLY 0
 #define CFG_LOGGING 1
 #define CFG_TELEMETRY 1
+#define CFG_TELPATH "-"
 
 #define CFG_TXDELAY 30
 #define CFG_PPERSIST 63

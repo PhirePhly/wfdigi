@@ -81,8 +81,9 @@ BEACON 10
 `BEACON 10` queues a position beacon every 10 minutes. `BEACON OFF` disables
 it. `WIDE` matches `WIDE2-2`, `WIDE1-1`, and the other n-N forms of that
 prefix. `DIGIPEAT` and `TELEMETRY` are already on. With telemetry on, a
-direct report goes out every 10 minutes, and one definition message goes out
-each hour. The first of those is the `BITS` message, sent on the next
-second after `MYCALL` is set.
+report goes out every 10 minutes, and one definition message goes out each
+hour. `TELPATH` defaults to direct, so those frames do not request a
+digipeater. The first definition message is the `BITS` message, sent once
+`MYCALL` is set.
 
 `DISPLAY` prints the stored settings. The next prompt uses the new callsign.

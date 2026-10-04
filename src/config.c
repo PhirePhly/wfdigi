@@ -334,6 +334,7 @@ static bool store_btext(const uint8_t *text)
 static bool store_myloc(const char *text);
 static bool store_symbol(const char *text);
 static bool store_bpath(const char *text);
+static bool store_telpath(const char *text);
 static void load_btext(void)
 {
     uint8_t raw[BTEXT_LEN];
@@ -365,6 +366,7 @@ static void config_cold_boot(void)
     store_u8("DIRECTONLY", (uint8_t)CFG_DIRECTONLY, 0u, 1u, &g_config.directonly);
     store_u8("LOGGING", (uint8_t)CFG_LOGGING, 0u, 1u, &g_config.logging);
     store_u8("TELEMETRY", (uint8_t)CFG_TELEMETRY, 0u, 1u, &g_config.telemetry);
+    store_telpath(CFG_TELPATH);
     store_u8("TXDELAY", (uint8_t)CFG_TXDELAY, TXDELAY_MIN, TXDELAY_MAX, &g_config.txdelay);
     store_u8("PPERSIST", (uint8_t)CFG_PPERSIST, PERSIST_MIN, PERSIST_MAX, &g_config.persist);
     store_u8("SLOTTIME", (uint8_t)CFG_SLOTTIME, SLOTTIME_MIN, SLOTTIME_MAX, &g_config.slottime);
@@ -1021,6 +1023,56 @@ static bool store_bpath(const char *text)
     return true;
 }
 
+static void show_telpath(void)
+{
+    print_path(g_config.telpath, g_config.telpath_ssid);
+    serial_puts("\r\n");
+}
+
+static bool store_telpath(const char *text)
+{
+    char token[CALLSIGN_LEN + 4u];
+    char body[CALLSIGN_LEN + 1u];
+    uint8_t raw[CALLSIGN_LEN];
+    uint8_t n = 0u;
+    uint8_t ssid = 0u;
+    uint8_t i;
+
+    while (text[n] != '\0' && text[n] != ' ') {
+        if (n + 1u >= (uint8_t)sizeof(token)) {
+            reject("TELPATH");
+            return false;
+        }
+        token[n] = text[n];
+        ++n;
+    }
+    token[n] = '\0';
+    if (text[n] != '\0') {
+        reject("TELPATH");
+        return false;
+    }
+    if (n == 1u && token[0] == '-') {
+        pad_call(raw, "");
+        ssid = 0u;
+    } else {
+        if (!parse_call(token, body, &ssid)) {
+            reject("TELPATH");
+            return false;
+        }
+        pad_call(raw, body);
+        if (!callsign_ok(raw)) {
+            reject("TELPATH");
+            return false;
+        }
+    }
+    for (i = 0u; i < CALLSIGN_LEN; ++i) {
+        g_config.telpath[i] = raw[i];
+    }
+    g_config.telpath_ssid = ssid;
+    note_config();
+    return true;
+}
+
 static void show_number(const char *name, uint8_t value)
 {
     serial_puts(name);
@@ -1051,6 +1103,8 @@ static void command_display(void)
     show_flag(g_config.logging);
     serial_puts("TELEMETRY ");
     show_flag(g_config.telemetry);
+    serial_puts("TELPATH ");
+    show_telpath();
     show_number("TXDELAY", g_config.txdelay);
     show_number("PPERSIST", g_config.persist);
     show_number("SLOTTIME", g_config.slottime);
@@ -1240,6 +1294,14 @@ void config_command(char *line)
         } else if (set_flag("TELEMETRY", value, &g_config.telemetry)) {
             telemetry_restart();
             show_flag(g_config.telemetry);
+        }
+        return;
+    }
+    if (same_text(cmd, "TELPATH")) {
+        if (value == 0) {
+            show_telpath();
+        } else if (store_telpath(value)) {
+            show_telpath();
         }
         return;
     }

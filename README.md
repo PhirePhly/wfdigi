@@ -120,6 +120,7 @@ Cold-boot defaults:
 | DIRECTONLY | off | off or on |
 | LOGGING | on | off or on |
 | TELEMETRY | on | off or on |
+| TELPATH | `-` | one callsign, or `-` for no path |
 | TXDELAY | 30 (300 ms) | 0–120, in 10 ms steps |
 | PPERSIST | 63 | 0–255 |
 | SLOTTIME | 10 (100 ms) | 0–255, in 10 ms steps |

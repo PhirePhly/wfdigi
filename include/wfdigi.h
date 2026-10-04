@@ -146,6 +146,9 @@ typedef struct {
     uint8_t symbol_code;
     uint8_t logging;
     uint8_t telemetry;
+    /* A blank call is a direct telemetry frame ("-"). */
+    uint8_t telpath[CALLSIGN_LEN];
+    uint8_t telpath_ssid;
     uint8_t valid;
 } DigiConfig;
 

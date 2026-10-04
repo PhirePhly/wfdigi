@@ -213,7 +213,8 @@ message follows every hour, in this order: `BITS`, `EQNS`, `PARM`, `UNIT`.
 shown on a graph as packets per minute. The third channel is the drop count
 unchanged.
 
-Every 10 minutes a direct UI frame reports that slot:
+Every 10 minutes a UI frame reports that slot. The digipeater path is
+`TELPATH`, and the hourly definition messages use that same path:
 
 ```
 T#000,<received>,<transmitted>,<drops>,0,0,00000000
@@ -223,6 +224,13 @@ T#000,<received>,<transmitted>,<drops>,0,0,00000000
 since the previous report. `<drops>` is how far the `!R` and `!Q`
 counters have moved since the previous report. The sequence number runs from
 000 through 999. Nothing is queued while `MYCALL` is still `N0CALL`.
+
+## TELPATH
+
+The digipeater path used by telemetry. Enter one AX.25 callsign, in the same
+form as `MYCALL`, or `-` for a direct frame with no path. A second path is
+rejected. The cold-boot default is `-`, so the 10-minute report and the
+hourly definition messages do not request a digipeater.
 
 ## TXDELAY
 
@@ -291,7 +299,7 @@ on the transmit queue, then arms the next interval. The queue holds many
 frames in 31-byte blocks, so a beacon does not wait for the radio to go
 idle. If the queue is full, it tries again on the next second.
 
-The frame is `MYCALL` to `APZWFD`, then the current `BPATH` entry, with an
+The frame is `MYCALL` to `APWFDP`, then the current `BPATH` entry, with an
 APRS position report: `!` latitude, symbol table, longitude, symbol code,
 then `BTEXT`. Latitude is `DDMM.hh` and longitude is `DDDMM.hh`. An empty
 `BPATH` entry is sent with no digipeater, and the path advances only after

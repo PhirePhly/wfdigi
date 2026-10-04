@@ -1,9 +1,10 @@
 #include "hardware.h"
 
 /* APRS telemetry. Received and transmitted totals live in working RAM, count
- * whether or not telemetry is on, and start over on every boot. A direct UI
- * frame every 10 minutes carries the increase since the previous report.
- * One definition message goes out each hour: BITS, EQNS, PARM, then UNIT.
+ * whether or not telemetry is on, and start over on every boot. A UI frame
+ * every 10 minutes carries the increase since the previous report. TELPATH
+ * is its digipeater; a blank path is sent direct. One definition message
+ * goes out each hour: BITS, EQNS, PARM, then UNIT.
  */
 #define FRAME_MAX 128u
 #define AX25_UI 0x03u
@@ -93,14 +94,32 @@ static void put_seq(uint16_t value)
     put_byte((uint8_t)('0' + (uint8_t)value));
 }
 
+static bool call_blank(const uint8_t *call)
+{
+    uint8_t i;
+
+    for (i = 0u; i < CALLSIGN_LEN; ++i) {
+        if (call[i] != (uint8_t)' ') {
+            return false;
+        }
+    }
+    return true;
+}
+
 static void start_frame(void)
 {
+    bool via = !call_blank(g_config.telpath);
+
     frame_n = 0u;
     frame_ok = true;
     encode_call(&frame[0], tncid, 0u, 0x80u);
     frame_n = 7u;
-    encode_call(&frame[7], g_config.mycall, g_config.mycall_ssid, 0x01u);
+    encode_call(&frame[7], g_config.mycall, g_config.mycall_ssid, via ? 0u : 0x01u);
     frame_n = 14u;
+    if (via) {
+        encode_call(&frame[14], g_config.telpath, g_config.telpath_ssid, 0x01u);
+        frame_n = 21u;
+    }
     put_byte(AX25_UI);
     put_byte(AX25_PID);
 }
