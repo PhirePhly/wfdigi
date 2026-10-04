@@ -125,6 +125,19 @@ static void clear_config(void)
     }
 }
 
+/* The image, its CRC, and the padding up to compiler RAM at 0x8100. */
+_Static_assert(CONFIG_ADDR + 0x100u == 0x8100u, "config page is the 256 bytes below compiler RAM");
+
+static void wipe_config_page(void)
+{
+    uint8_t *raw = (uint8_t *)CONFIG_ADDR;
+    uint16_t i;
+
+    for (i = 0u; i < 0x100u; ++i) {
+        raw[i] = 0u;
+    }
+}
+
 static bool callsign_ok(const uint8_t *call)
 {
     uint8_t i;
@@ -344,7 +357,6 @@ static void config_cold_boot(void)
 {
     serial_puts("Cold boot...\r\n");
     g_ok = true;
-    seal_live = false;
     clear_config();
 
     store_call("MYCALL", CFG_MYCALL, (uint8_t)CFG_MYCALL_SSID, g_config.mycall,
@@ -1186,7 +1198,7 @@ void config_command(char *line)
     }
     if (same_text(cmd, "RESET")) {
         if (value == 0) {
-            config_cold_boot();
+            wipe_config_page();
             serial_flush();
             firmware_reset();
         } else {

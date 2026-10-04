@@ -38,8 +38,8 @@ to disable some settings and express a empty value for other settings.
 prints every setting as `NAME VALUE`, in the same form that setting command
 accepts. `HELP` prints where to read the documentation. `ENGSTAT` prints the
 packet-engine snapshot below. `REBOOT` starts the firmware over and keeps the
-stored settings. `RESET` loads the defaults and then reboots. Any
-of these followed by anything else prints `?`.
+stored settings. `RESET` clears the stored settings and then reboots, so the
+boot loads the defaults. Any of these followed by anything else prints `?`.
 
 ```
 N0CALL> MYCALL
@@ -100,9 +100,9 @@ path index starts over at the first path.
 
 ## RESET
 
-Loads the defaults from `include/config.h` into battery SRAM, then does what
-`REBOOT` does. The command prints `Cold boot...` while those defaults are
-stored. The restart prints `Warm boot...` because that image has a valid CRC.
+Zeros the configuration page in battery SRAM, then does what `REBOOT` does.
+The checksum no longer matches, so the boot prints `Cold boot...` and copies
+the defaults from `include/config.h`.
 
 ## MYCALL
 

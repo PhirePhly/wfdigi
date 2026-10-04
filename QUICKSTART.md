@@ -39,10 +39,9 @@ with `0xFF`.
 
 Those defaults are used when the TNC prints `Cold boot...`. That is the first
 time this firmware runs, and any later reset whose configuration checksum does
-not match. `RESET` loads these defaults, prints `Cold boot...`, and then
-reboots. That restart prints `Warm boot...` because the new image has a valid
-CRC. `REBOOT` starts over and keeps the settings already stored in battery
-SRAM.
+not match. `RESET` zeros the stored image and reboots, which prints
+`Cold boot...` and loads these defaults. `REBOOT` starts over and keeps the
+settings already stored in battery SRAM, which prints `Warm boot...`.
 
 ## Program the PK-88
 
