@@ -145,6 +145,7 @@ typedef struct {
     uint8_t symbol_table;
     uint8_t symbol_code;
     uint8_t logging;
+    uint8_t telemetry;
     uint8_t valid;
 } DigiConfig;
 
@@ -216,6 +217,8 @@ void modem_init(void);
 void modem_service(void);
 /* Seconds since boot, occupied duplicate slots, and the !R and !Q counts. */
 void engine_stat(void);
+/* !R and !Q counts since boot. Both stop at 65535. */
+void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops);
 #define PKTQ_AX25 0u
 #define PKTQ_BEACON 1u
 
@@ -263,7 +266,7 @@ bool timer_in_dupe_window(uint16_t heard_at);
 void timer_beacon_restart(void);
 /* Queue one beacon now and arm the next interval. False if the queue did not accept it. */
 bool timer_beacon_now(void);
-/* Count down in on_second, then modem_cal_stop runs. */
+/* Count down in tock_on_second, then modem_cal_stop runs. */
 void timer_cal_start(uint8_t seconds);
 
 void prng_init(void);
@@ -274,6 +277,19 @@ uint8_t prng_u8(void);
 uint16_t beacon_next_wait(void);
 /* Build the position beacon and hand it to the modem. */
 bool beacon_send(void);
+
+/* Count one CRC-good received frame. The count runs with telemetry off. */
+void telemetry_note_rx(void);
+/* Count one frame that went out on the air. The count runs with telemetry off. */
+void telemetry_note_tx(void);
+/* Received and transmitted frames since boot. Each stops at 65535. */
+void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted);
+/* Zero the packet counts and arm the schedule from g_config.telemetry. */
+void telemetry_init(void);
+/* Start the telemetry schedule over. The packet counts keep running. */
+void telemetry_restart(void);
+/* One-second service for the 10-minute report and the hourly definition message. */
+void telemetry_second(void);
 
 uint8_t cli_pending_len(void);
 char cli_pending_char(uint8_t index);

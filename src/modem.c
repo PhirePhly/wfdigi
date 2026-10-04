@@ -56,12 +56,10 @@ static uint8_t trace_pos;
 static volatile uint8_t dcd_now;
 static volatile uint8_t sta_arm;
 static volatile uint8_t rx_dropped;
-/* !R and !Q since this boot. These sit in compiler RAM, not the battery
- * configuration image, and modem_init clears them on every boot.
- * Each count stops at 65535.
- */
-static uint16_t drop_r;
-static uint16_t drop_q;
+
+// !R and !Q since this boot. Adverse Drop counters
+static uint16_t drop_r; // Adverse drops due to Rx Overruns
+static uint16_t drop_q; // Adverse drops due to Tx queue overflows
 
 static void note_drop_r(void);
 
@@ -122,6 +120,7 @@ static void rx_take(uint8_t data, uint8_t rr1)
         (rr1 & RR1_RESIDUE) == RR1_RESIDUE_OK && rx_len >= 2u) {
         uint16_t n = (uint16_t)(rx_len - 2u);
         if (n >= AX25_MIN) {
+            telemetry_note_rx();
             sta_arm = 1u;
             if (rx_ready == 0u) {
                 rx_done = rx_fill;
@@ -588,8 +587,11 @@ static void tx_release(bool abort)
 static void tx_unkey(bool sent)
 {
     tx_release(!sent);
-    if (sent && g_config.logging != 0u) {
-        log_frame('T', tx_buf, tx_len);
+    if (sent) {
+        telemetry_note_tx();
+        if (g_config.logging != 0u) {
+            log_frame('T', tx_buf, tx_len);
+        }
     }
     tx_kick();
 }
@@ -601,6 +603,7 @@ static void tx_continue(void)
 {
     uint8_t kind;
 
+    telemetry_note_tx();
     if (g_config.logging != 0u) {
         log_frame('T', tx_buf, tx_len);
     }
@@ -849,12 +852,26 @@ void modem_calibrate(uint8_t tone, uint8_t seconds)
     timer_cal_start(seconds);
 }
 
+void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops)
+{
+    *frame_drops = drop_r;
+    *queue_drops = drop_q;
+}
+
 void engine_stat(void)
 {
+    uint16_t received;
+    uint16_t transmitted;
+
+    telemetry_packet_counts(&received, &transmitted);
     serial_puts("TIME ");
     print_u16(timer_seconds());
     serial_puts("\r\nDUPES ");
     print_u16(dupe_count());
+    serial_puts("\r\nRX ");
+    print_u16(received);
+    serial_puts("\r\nTX ");
+    print_u16(transmitted);
     serial_puts("\r\n!R ");
     print_u16(drop_r);
     serial_puts("\r\n!Q ");

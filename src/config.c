@@ -28,6 +28,7 @@ _Static_assert(CFG_MAXHOPS >= MAXHOPS_MIN && CFG_MAXHOPS <= MAXHOPS_MAX, "MAXHOP
 _Static_assert(sizeof(CFG_MYLOC) <= 32u, "MYLOC default is too long");
 _Static_assert(sizeof(CFG_MYSYMBOL) == 3u, "MYSYMBOL must be two characters");
 _Static_assert(CFG_LOGGING <= 1u, "LOGGING must be 0 or 1");
+_Static_assert(CFG_TELEMETRY <= 1u, "TELEMETRY must be 0 or 1");
 
 DigiConfig __at (CONFIG_ADDR) g_config;
 
@@ -350,6 +351,7 @@ static void config_cold_boot(void)
     store_u8("DIGIPEAT", (uint8_t)CFG_DIGIPEAT, 0u, 1u, &g_config.digipeat);
     store_u8("DIRECTONLY", (uint8_t)CFG_DIRECTONLY, 0u, 1u, &g_config.directonly);
     store_u8("LOGGING", (uint8_t)CFG_LOGGING, 0u, 1u, &g_config.logging);
+    store_u8("TELEMETRY", (uint8_t)CFG_TELEMETRY, 0u, 1u, &g_config.telemetry);
     store_u8("TXDELAY", (uint8_t)CFG_TXDELAY, TXDELAY_MIN, TXDELAY_MAX, &g_config.txdelay);
     store_u8("PPERSIST", (uint8_t)CFG_PPERSIST, PERSIST_MIN, PERSIST_MAX, &g_config.persist);
     store_u8("SLOTTIME", (uint8_t)CFG_SLOTTIME, SLOTTIME_MIN, SLOTTIME_MAX, &g_config.slottime);
@@ -1034,6 +1036,8 @@ static void command_display(void)
     show_flag(g_config.directonly);
     serial_puts("LOGGING ");
     show_flag(g_config.logging);
+    serial_puts("TELEMETRY ");
+    show_flag(g_config.telemetry);
     show_number("TXDELAY", g_config.txdelay);
     show_number("PPERSIST", g_config.persist);
     show_number("SLOTTIME", g_config.slottime);
@@ -1195,6 +1199,15 @@ void config_command(char *line)
             show_flag(g_config.logging);
         } else if (set_flag("LOGGING", value, &g_config.logging)) {
             show_flag(g_config.logging);
+        }
+        return;
+    }
+    if (same_text(cmd, "TELEMETRY")) {
+        if (value == 0) {
+            show_flag(g_config.telemetry);
+        } else if (set_flag("TELEMETRY", value, &g_config.telemetry)) {
+            telemetry_restart();
+            show_flag(g_config.telemetry);
         }
         return;
     }

@@ -88,7 +88,7 @@ bool timer_expired(uint8_t slot)
     return true;
 }
 
-static void tick(void)
+static void tick_on_10ms(void)
 {
     uint16_t *count = left;
     uint8_t i;
@@ -113,7 +113,7 @@ static void tick(void)
     }
 }
 
-static void on_second(void)
+static void tock_on_second(void)
 {
     ++clock_sec;
     if (cal_left != 0u) {
@@ -122,6 +122,7 @@ static void on_second(void)
             modem_cal_stop();
         }
     }
+    telemetry_second();
     if (g_config.beacon_every == 0u) {
         return;
     }
@@ -181,11 +182,11 @@ void timer_service(void)
     pending = 0u;
     hardware_irq_restore();
     while (n != 0u) {
-        tick();
+        tick_on_10ms();
         --n;
     }
     while (seconds_pending != 0u) {
-        on_second();
+        tock_on_second();
         --seconds_pending;
     }
 }

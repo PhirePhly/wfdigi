@@ -66,6 +66,7 @@ need SDCC.
 - `src/dupe.c`: the last 250 transmitted packets, used to skip a repeat
 - `src/util.c`: shared helpers, including the 32-bit xorshift
 - `src/beacon.c`: APRS position beacon
+- `src/telemetry.c`: 10-minute packet counts and the hourly telemetry definitions
 - `src/timer.c`: 10 ms countdown timers, from the 1200 Hz `/SYNCB` square wave
 - `src/cli.c`: callsign line editor. SSID 0 is omitted from the prompt
 - `include/config.h`: cold-boot defaults. Edit this file and run `make`
@@ -96,7 +97,7 @@ need SDCC.
    left clear and reported as `Bad config: NAME`. The image is marked valid
    only when every parameter passes. A CRC-16 is then stored in the next two
    bytes. Warm boot checks that CRC, keeps the image, and still starts the
-   timers, modem, packet queue, duplicate list, and drop counters from zero. The beacon path
+   timers, modem, packet queue, duplicate list, drop counters, and received and transmitted frame counts from zero. The beacon path
    index starts over at the first path.
 4. The eight front-panel lamps walk once. CMD then stays lit, unless `MYCALL`
    is still `N0CALL`, in which case CMD blinks at 2 Hz until the callsign is
@@ -118,6 +119,7 @@ Cold-boot defaults:
 | DIGIPEAT | on | off or on |
 | DIRECTONLY | off | off or on |
 | LOGGING | on | off or on |
+| TELEMETRY | on | off or on |
 | TXDELAY | 30 (300 ms) | 0–120, in 10 ms steps |
 | PPERSIST | 63 | 0–255 |
 | SLOTTIME | 10 (100 ms) | 0–255, in 10 ms steps |
@@ -142,8 +144,8 @@ radio stays keyed does not draw again.
 At the callsign prompt, a config name alone prints the value stored in SRAM.
 `NAME VALUE` updates that value when it is in range. `DISPLAY` prints every
 setting. `HELP` prints where to read the documentation. `ENGSTAT` prints
-the seconds counter, how many duplicate slots are occupied, and the `!R` and
-`!Q` counts since boot. Unknown commands
+the seconds counter, how many duplicate slots are occupied, the received and
+transmitted frame counts, and the `!R` and `!Q` counts since boot. Unknown commands
 print `Huh?`; lines longer than 79 characters print
 `Too long?`. [COMMANDS.md](COMMANDS.md) describes the line editor and the
 meaning of each command.

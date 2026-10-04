@@ -72,16 +72,21 @@ Prints a snapshot of the packet engine:
 ```
 TIME 123
 DUPES 2
+RX 40
+TX 12
 !R 0
 !Q 1
 ```
 
 `TIME` is the 16-bit seconds counter from boot, the same counter a trace line
 prints. `DUPES` is how many of the 250 duplicate slots are occupied. An entry
-that has aged out still counts until the next duplicate scan clears it. `!R`
-and `!Q` are how many times those drop codes have been printed since boot.
-Each is a 16-bit count that stops at 65535. The counts are working RAM, not
-part of the battery configuration image, and every boot starts them at zero.
+that has aged out still counts until the next duplicate scan clears it. `RX`
+is how many CRC-good frames the radio has decoded since boot, and `TX` is how
+many frames this station has finished sending. Both keep counting while
+`TELEMETRY` is off. `!R` and `!Q` are how many times those drop codes have
+been printed since boot. Each is a 16-bit count that stops at 65535. The
+counts are working RAM, not part of the battery configuration image, and
+every boot starts them at zero.
 
 ## MYCALL
 
@@ -163,6 +168,45 @@ so it stays on one line. A CRC-good frame that is not AX.25 is printed as
 hexadecimal instead. A valid frame discarded before it can be printed is
 reported as `!R`. `LOGGING OFF` keeps the modem running and suppresses
 these lines.
+
+## TELEMETRY
+
+Sends APRS telemetry. Accepts `ON`, `OFF`, `1`, or `0`. The cold-boot default
+is `ON`. Changing it starts the schedule over. Received and transmitted
+frame counts keep running either way; `ENGSTAT` prints those totals. The
+counts are not stored in the battery image. Every boot starts them at zero.
+
+Once `MYCALL` is set, the next one-second timer service sends the first definition message. It is
+an APRS message addressed to this station:
+
+```
+:W6FOO    :BITS.11111111,WFDIGI <version>
+```
+
+The addressee is the callsign padded to nine characters. A non-zero SSID is
+included. `<version>` is the same string as the boot banner. One definition
+message follows every hour, in this order: `BITS`, `EQNS`, `PARM`, `UNIT`.
+
+```
+:W6FOO    :EQNS.0,0.1,0,0,0.1,0,0,1,0,0,1,0,0,1,0
+:W6FOO    :PARM.ReceivePkts,TransmitPks,AdverseDrops,,
+:W6FOO    :UNIT.pkts/min,pkts/min,count,,
+```
+
+`EQNS` divides the first two channels by 10, so a 10-minute packet count is
+shown on a graph as packets per minute. The third channel is the drop count
+unchanged.
+
+Every 10 minutes a direct UI frame reports that slot:
+
+```
+T#000,<received>,<transmitted>,<drops>,0,0,00000000
+```
+
+`<received>` and `<transmitted>` are how far those `ENGSTAT` counts have moved
+since the previous report. `<drops>` is how far the `!R` and `!Q`
+counters have moved since the previous report. The sequence number runs from
+000 through 999. Nothing is queued while `MYCALL` is still `N0CALL`.
 
 ## TXDELAY
 

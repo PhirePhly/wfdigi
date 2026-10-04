@@ -1,7 +1,4 @@
-#include "wfdigi.h"
-
-/* Experimental APRS destination for this firmware. APZ is the experimental range. */
-static const uint8_t tncid[CALLSIGN_LEN] = {'A', 'P', 'Z', 'W', 'F', 'D'};
+#include "hardware.h"
 
 #define FRAME_MAX 128u
 #define AX25_UI 0x03u

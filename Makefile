@@ -10,9 +10,9 @@ CPPFLAGS := -Iinclude -I$(BUILD)
 SDCCFLAGS := -mz80 --std-c11 --opt-code-speed --max-allocs-per-node 10000 $(CPPFLAGS)
 LDFLAGS := -mz80 --nostdlib --no-std-crt0 --code-loc 0x0120 --data-loc 0x8100
 
-C_SOURCES := src/hardware.c src/lamps.c src/serial.c src/config.c src/cli.c src/util.c src/pktq.c src/beacon.c src/timer.c src/modem.c src/digi.c src/dupe.c src/interrupts.c src/main.c
+C_SOURCES := src/hardware.c src/lamps.c src/serial.c src/config.c src/cli.c src/util.c src/pktq.c src/beacon.c src/telemetry.c src/timer.c src/modem.c src/digi.c src/dupe.c src/interrupts.c src/main.c
 ASM_SOURCES := src/startup.s src/isr_stubs.s
-HEADERS := include/wfdigi.h include/config.h
+HEADERS := include/wfdigi.h include/config.h include/hardware.h
 C_OBJECTS := $(patsubst src/%.c,$(BUILD)/%.rel,$(C_SOURCES))
 ASM_OBJECTS := $(patsubst src/%.s,$(BUILD)/%.rel,$(ASM_SOURCES))
 OBJECTS := $(ASM_OBJECTS) $(C_OBJECTS)

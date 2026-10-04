@@ -42,6 +42,7 @@ void firmware_boot(void)
     timer_init();
     cli_start();
     modem_init();
+    telemetry_init();
     hardware_irq_enable();
 
     for (;;) {

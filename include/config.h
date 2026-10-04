@@ -12,6 +12,7 @@
  * MYSYMBOL is two characters: a table or overlay, then the symbol code.
  * BPATH is one to four beacon paths. "-" is a beacon with no path.
  * LOGGING is 1 to print radio traffic, or 0 to stay quiet.
+ * TELEMETRY is 1 to send 10-minute counts and hourly definition messages.
  */
 
 #define CFG_MYCALL "N0CALL"
@@ -20,6 +21,7 @@
 #define CFG_DIGIPEAT 1
 #define CFG_DIRECTONLY 0
 #define CFG_LOGGING 1
+#define CFG_TELEMETRY 1
 
 #define CFG_TXDELAY 30
 #define CFG_PPERSIST 63
