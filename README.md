@@ -145,7 +145,9 @@ At the callsign prompt, a config name alone prints the value stored in SRAM.
 `NAME VALUE` updates that value when it is in range. `DISPLAY` prints every
 setting. `HELP` prints where to read the documentation. `ENGSTAT` prints
 the seconds counter, how many duplicate slots are occupied, the received and
-transmitted frame counts, and the `!R` and `!Q` counts since boot. Unknown commands
+transmitted frame counts, and the `!R` and `!Q` counts since boot. `REBOOT`
+starts the firmware over and keeps the stored settings. `RESET` loads the
+defaults into battery SRAM and then reboots. Unknown commands
 print `Huh?`; lines longer than 79 characters print
 `Too long?`. [COMMANDS.md](COMMANDS.md) describes the line editor and the
 meaning of each command.

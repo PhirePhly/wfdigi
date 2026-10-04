@@ -38,6 +38,18 @@ void serial_puts(const char *text)
     }
 }
 
+void serial_flush(void)
+{
+    for (;;) {
+        if (modem_keyed()) {
+            hardware_watchdog_pet();
+        }
+        if ((scc_b_rr0() & RR0_TX_EMPTY) != 0u) {
+            return;
+        }
+    }
+}
+
 bool serial_try_putc(uint8_t byte)
 {
     if ((scc_b_rr0() & RR0_TX_EMPTY) == 0u) {

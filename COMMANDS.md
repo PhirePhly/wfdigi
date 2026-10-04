@@ -34,10 +34,12 @@ command prints `Huh?`.
 The symbol `-` is used to represent an empty or null string. This can be used
 to disable some settings and express a empty value for other settings.
 
-`DISPLAY`, `HELP`, and `ENGSTAT` take no value. `DISPLAY` prints every setting as
-`NAME VALUE`, in the same form that setting command accepts. `HELP` prints
-where to read the documentation. `ENGSTAT` prints the packet-engine
-snapshot below. Any of these followed by anything else prints `?`.
+`DISPLAY`, `HELP`, `ENGSTAT`, `REBOOT`, and `RESET` take no value. `DISPLAY`
+prints every setting as `NAME VALUE`, in the same form that setting command
+accepts. `HELP` prints where to read the documentation. `ENGSTAT` prints the
+packet-engine snapshot below. `REBOOT` starts the firmware over and keeps the
+stored settings. `RESET` loads the defaults and then reboots. Any
+of these followed by anything else prints `?`.
 
 ```
 N0CALL> MYCALL
@@ -87,6 +89,20 @@ many frames this station has finished sending. Both keep counting while
 been printed since boot. Each is a 16-bit count that stops at 65535. The
 counts are working RAM, not part of the battery configuration image, and
 every boot starts them at zero.
+
+## REBOOT
+
+Starts the firmware from the reset vector, the same path as a hardware reset.
+Battery SRAM is kept. A matching configuration CRC prints `Warm boot...` and
+the settings stay. The timers, modem, packet queue, duplicate list, drop
+counters, and received and transmitted frame counts start at zero. The beacon
+path index starts over at the first path.
+
+## RESET
+
+Loads the defaults from `include/config.h` into battery SRAM, then does what
+`REBOOT` does. The command prints `Cold boot...` while those defaults are
+stored. The restart prints `Warm boot...` because that image has a valid CRC.
 
 ## MYCALL
 

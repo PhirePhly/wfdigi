@@ -1,6 +1,7 @@
 	.module startup
 
 	.globl _firmware_boot
+	.globl _firmware_reset
 	.globl _hardware_set_im2
 	.globl _hardware_irq_off
 	.globl _hardware_irq_on
@@ -36,6 +37,10 @@ im2_vectors:
 	.dw _isr_a_special_stub
 
 	.area _CODE
+
+_firmware_reset:
+	di
+	jp 0x0000
 
 _hardware_set_im2:
 	ld a,#0x01

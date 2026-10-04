@@ -161,6 +161,8 @@ extern DigiConfig __at (CONFIG_ADDR) g_config;
 extern const char wfdigi_version[];
 
 void firmware_boot(void);
+/* Enter the reset vector. Interrupts stop and the stack is discarded. */
+void firmware_reset(void);
 
 void hardware_set_im2(void);
 void hardware_irq_off(void);
@@ -184,6 +186,8 @@ void lamps_service(void);
 
 void serial_putc(uint8_t byte);
 void serial_puts(const char *text);
+/* Wait until the last terminal byte has left the transmitter. */
+void serial_flush(void);
 /* Stores the decimal form in dest and returns how many bytes were stored.
  * width 0 omits leading spaces. width 1-5 space-pads on the left. dest holds
  * five bytes. There is no trailing NUL. Zero still stores a digit.

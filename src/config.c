@@ -344,6 +344,7 @@ static void config_cold_boot(void)
 {
     serial_puts("Cold boot...\r\n");
     g_ok = true;
+    seal_live = false;
     clear_config();
 
     store_call("MYCALL", CFG_MYCALL, (uint8_t)CFG_MYCALL_SSID, g_config.mycall,
@@ -1169,6 +1170,25 @@ void config_command(char *line)
     if (same_text(cmd, "ENGSTAT")) {
         if (value == 0) {
             engine_stat();
+        } else {
+            serial_puts("?\r\n");
+        }
+        return;
+    }
+    if (same_text(cmd, "REBOOT")) {
+        if (value == 0) {
+            serial_flush();
+            firmware_reset();
+        } else {
+            serial_puts("?\r\n");
+        }
+        return;
+    }
+    if (same_text(cmd, "RESET")) {
+        if (value == 0) {
+            config_cold_boot();
+            serial_flush();
+            firmware_reset();
         } else {
             serial_puts("?\r\n");
         }
