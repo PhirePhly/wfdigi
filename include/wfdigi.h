@@ -110,7 +110,7 @@ typedef struct {
     uint8_t txdelay;
     uint8_t persist;
     uint8_t slottime;
-    uint8_t fulldup;
+    uint8_t fullduplex;
     /* A blank call disables that slot. */
     uint8_t alias[ALIAS_COUNT][CALLSIGN_LEN];
     uint8_t alias_ssid[ALIAS_COUNT];

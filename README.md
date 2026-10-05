@@ -1,4 +1,4 @@
-# Whiskey Fox Digi
+# Whiskey Fox Digi 🥃🦊📻
 
 Standalone APRS digipeater firmware for the AEA PK-88 packet TNC. It is a
 clean rewrite in C for the SDCC Z80 compiler, in the same spirit as UIDIGI on
@@ -125,7 +125,7 @@ Cold-boot defaults:
 | TXDELAY | 30 (300 ms) | 0–120, in 10 ms steps |
 | PPERSIST | 63 | 0–255 |
 | SLOTTIME | 10 (100 ms) | 0–255, in 10 ms steps |
-| FULLDUP | off | off or on |
+| FULLDUPLEX | off | off or on |
 | ALIAS 0–3 | blank, disabled | an AX.25 call and SSID, or empty to disable that slot |
 | NNALIAS 0–3 | `WIDE`, then three blank slots | an n-N prefix, or empty to disable that slot |
 | BEACON | off | off, 1–60 minutes |

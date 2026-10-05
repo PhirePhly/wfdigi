@@ -28,7 +28,7 @@
 #define CFG_TXDELAY 30
 #define CFG_PPERSIST 63
 #define CFG_SLOTTIME 10
-#define CFG_FULLDUP 0
+#define CFG_FULLDUPLEX 0
 
 #define CFG_ALIAS_0 ""
 #define CFG_ALIAS_0_SSID 0

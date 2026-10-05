@@ -5,6 +5,13 @@ Build the image, program it into a 27C256, install it in the TNC, and talk to th
 [COMMANDS.md](COMMANDS.md) is the command reference.
 [HARDWARE.md](HARDWARE.md) is the board reference.
 
+It is possible to use the generic pre-build binary, but this relys on the battery
+backed SRAM for all of the digipeater configuration settings which you configure
+via the serial console command line interface. 
+It is also possible, and encouraged, to burn a custom build of WFDIGI with your 
+desired settings baked in as the cold boot defaults so if your digipeater ever
+loses its SRAM for some reason it can come back up in a working state.
+
 ## Build tools
 
 The firmware is built with SDCC 4.6.0. `sdcc`, `sdasz80`, and `makebin` must
@@ -50,9 +57,9 @@ in place of the original ROM. Connect a terminal at 9600 baud, 8 data bits, no
 parity, and one stop bit, with RTS/CTS hardware flow control. There is no
 autobaud detection.
 
-Power the TNC on. The front-panel lamps walk once, then the terminal shows
-the banner and a callsign prompt. The version is `git describe --tags --always --dirty`
-from the build:
+Power the TNC on. The front-panel lamps walk once to show they all work and you're
+running WFDIGI firmware, then the terminal shows the banner and a callsign prompt.
+The version is `git describe --tags --always --dirty` from the build:
 
 ```
 Whiskey Fox Digi - version <git-describe>
@@ -64,13 +71,16 @@ N0CALL>
 ## Set the station up
 
 The shipped callsign is `N0CALL`. The transmitter will not key while that
-callsign is still set, and the CMD lamp blinks at 2 Hz. A frame that would
-have gone out is discarded, and the TNC prints `ERR - Set Callsign`.
-Digipeating and beacons stay idle until `MYCALL` is changed. CMD then stays
-lit.
+callsign is still set, and the CMD lamp blinks at 2 Hz indicating there is
+a transmitter interlock enabled preventing us from keying the radio.
+A frame that would have gone out is discarded, and the TNC prints 
+`ERR - Set Callsign`.
+Digipeating and beacons stay idle until `MYCALL` is changed.
+CMD then stays lit.
 
 At the prompt, set the callsign, position, beacon text, and beacon interval.
-`NNALIAS0` already defaults to `WIDE`; leave the plain alias slots off.
+`NNALIAS0` already defaults to `WIDE`, but any additional NNALIASes or ALIASes
+should be configued if so desired.
 
 ```
 MYCALL W6FOO
@@ -83,8 +93,13 @@ BEACON 10
 it. `WIDE` matches `WIDE2-2`, `WIDE1-1`, and the other n-N forms of that
 prefix. `DIGIPEAT` and `TELEMETRY` are already on. With telemetry on, a
 report goes out every 10 minutes, and one definition message goes out each
-hour. `TELPATH` defaults to direct, so those frames do not request a
-digipeater. The first definition message is the `BITS` message, sent once
-`MYCALL` is set.
+hour.
+`TELPATH` configures the AX.25 path for telemetry packets separately from 
+`BPATH` and defaults to direct, so those frames do not request a digipeater.
+The first definition message is the `BITS` message, sent once `MYCALL` is set.
 
-`DISPLAY` prints the stored settings. The next prompt uses the new callsign.
+`DISPLAY` prints the stored settings. If you ever want to fully back up your
+digipeater settings, save the output of `DISPLAY` and paste it back into the
+digipeater to restore.
+Note that pasting an entire configuration into WFDIGI relies heavily on hardware
+flow control since the Z80 cannot keep up with input at 9600 baud.

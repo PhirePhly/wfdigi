@@ -26,9 +26,10 @@ typedef enum {
  */
 #define WR1_HDLC 0x11u
 #define WR1_HDLC_TX 0x13u
-/* SCC byte and CRC should finish well inside 40 ms. Three flags are 20 ms. */
+/* No progress for this long means the byte pump stalled. */
 #define TX_WAIT_TICKS 4u
-#define TX_TAIL_TICKS 2u
+/* EOM is the start of the CRC. Sixteen CRC bits plus three flags is 33 ms. */
+#define TX_TAIL_TICKS 4u
 #define TRACE_MAX 254u
 
 static uint8_t rx_buf[2][AX25_MAX];
@@ -95,7 +96,7 @@ static void rx_reset(void)
 static void rx_take(uint8_t data, uint8_t rr1)
 {
     /* Half duplex: the receiver hears this station. Discard that audio. */
-    if (keyed && g_config.fulldup == 0u) {
+    if (keyed && g_config.fullduplex == 0u) {
         if ((rr1 & (RR1_END_FRAME | RR1_OVERRUN)) != 0u) {
             rx_reset();
             radio_cmd(0x30u);
@@ -567,7 +568,7 @@ static void tx_kick(void)
         return;
     }
     tx_i = 0u;
-    if (g_config.fulldup != 0u || dcd_now == 0u) {
+    if (g_config.fullduplex != 0u || dcd_now == 0u) {
         tx_persist();
     } else {
         tx_state = TX_WAIT_DCD;
@@ -630,7 +631,7 @@ static void tx_key(void)
 {
     hardware_irq_off();
     /* Sample the pin, not the shadow: carrier may have returned since the last edge. */
-    if (g_config.fulldup == 0u && (radio_rr0() & RR0_DCD) != 0u) {
+    if (g_config.fullduplex == 0u && (radio_rr0() & RR0_DCD) != 0u) {
         dcd_now = 1u;
         hardware_irq_on();
         timer_set(TIMER_SLOTTIME, 0u);
@@ -659,7 +660,7 @@ static void tx_key(void)
 /* The channel is free. Key when the draw wins; otherwise wait one slot. */
 static void tx_persist(void)
 {
-    if (g_config.fulldup != 0u) {
+    if (g_config.fullduplex != 0u) {
         tx_key();
         return;
     }
@@ -689,12 +690,12 @@ static void tx_service(void)
     hardware_irq_on();
     switch (state) {
     case TX_WAIT_DCD:
-        if (dcd_now == 0u || g_config.fulldup != 0u) {
+        if (dcd_now == 0u || g_config.fullduplex != 0u) {
             tx_persist();
         }
         break;
     case TX_WAIT_SLOT:
-        if (g_config.fulldup == 0u && dcd_now != 0u) {
+        if (g_config.fullduplex == 0u && dcd_now != 0u) {
             timer_set(TIMER_SLOTTIME, 0u);
             tx_state = TX_WAIT_DCD;
             break;

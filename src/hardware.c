@@ -44,7 +44,7 @@ static const uint8_t radio_setup[] = {
     5, (uint8_t)(0x60u | 0x01u),                 /* 8 bits, SDLC CRC, Tx CRC, RTS and DTR off */
     6, 0x00u,
     7, 0x7Eu,                                    /* HDLC flag */
-    10, 0xA0u,                                   /* NRZI, flag idle, CRC preset to ones */
+    10, 0xA8u,                                   /* NRZI, mark idle, CRC preset to ones */
     11, 0x66u,                                   /* Rx clock DPLL, Tx clock /RTxC, /TRxC = BRG */
     14, 0x02u,                                   /* BRG source is PCLK, generator off */
     12, (uint8_t)RADIO_DPLL_TC,
@@ -54,6 +54,7 @@ static const uint8_t radio_setup[] = {
     14, 0x23u,                                   /* DPLL search */
     3, 0xD9u,                                    /* enable the receiver */
     5, (uint8_t)(0x60u | 0x01u | WR5_TX_ENABLE), /* enable Tx; RTS stays off so PTT is idle */
+    10, 0xA0u,                                   /* clear mark idle so the shift register sends flags */
     0, 0x80u,                                    /* reset Tx CRC; leave the underrun latch set */
     0, 0x40u,                                    /* reset Rx CRC */
     15, 0xD8u,                                   /* DCD, sync/hunt, underrun, break/abort */

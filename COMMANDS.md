@@ -269,7 +269,7 @@ The channel-access slot used with `PPERSIST`, in 10 ms steps. The range is
 0–255, so 10 means 100 ms. A value of 0 draws again on the next service
 pass. The cold-boot default is 10.
 
-## FULLDUP
+## FULLDUPLEX
 
 Selects full duplex. Accepts `ON`, `OFF`, `1`, or `0`. When it is on, the
 TNC transmits without waiting for a clear channel. When it is off, transmit
