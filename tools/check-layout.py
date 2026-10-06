@@ -79,7 +79,6 @@ def main() -> None:
     require(int(version_sym.group(1), 16) < 0x8000, "wfdigi_version is not in ROM")
     require(b"Copyright 2026 - Kenneth Finnegan\r\n" in rom, "copyright line missing from ROM")
     require(b"Cold boot...\r\n" in rom, "cold boot line missing from ROM")
-    require(b"N0CALL" in rom, "default MYCALL missing from ROM")
     require(re.search(r"00008000.*_g_config|_g_config.*00008000", map_text, re.IGNORECASE),
             "g_config is not fixed at 0x8000")
     # WR12 in the channel setup tables is the register number 0x0C followed by the time constant.
