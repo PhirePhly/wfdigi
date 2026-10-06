@@ -413,10 +413,7 @@ static bool same_text(const char *text, const char *word)
     uint8_t i = 0u;
 
     while (word[i] != '\0') {
-        char c = text[i];
-        if (c >= 'a' && c <= 'z') {
-            c = (char)(c - ('a' - 'A'));
-        }
+        char c = (char)letter_to_upper((uint8_t)text[i]);
         if (c != word[i]) {
             return false;
         }
@@ -524,9 +521,7 @@ static void show_btext(void)
 static void upper_inplace(char *text)
 {
     while (*text != '\0') {
-        if (*text >= 'a' && *text <= 'z') {
-            *text = (char)(*text - ('a' - 'A'));
-        }
+        *text = (char)letter_to_upper((uint8_t)*text);
         ++text;
     }
 }
@@ -767,9 +762,7 @@ static bool parse_hemi(const char **text, uint8_t *out, char pos, char neg)
 {
     char c = **text;
 
-    if (c >= 'a' && c <= 'z') {
-        c = (char)(c - ('a' - 'A'));
-    }
+    c = (char)letter_to_upper((uint8_t)c);
     if (c != pos && c != neg) {
         return false;
     }
@@ -906,9 +899,7 @@ static bool store_symbol(const char *text)
     }
     table = (uint8_t)text[0];
     code = (uint8_t)text[1];
-    if (table >= 'a' && table <= 'z') {
-        table = (uint8_t)(table - ('a' - 'A'));
-    }
+    table = letter_to_upper(table);
     if (!symbol_ok(table, code)) {
         reject("MYSYMBOL");
         return false;
@@ -1156,9 +1147,7 @@ static void command_cal(char *value)
         return;
     }
     mode = value[0];
-    if (mode >= 'a' && mode <= 'z') {
-        mode = (char)(mode - ('a' - 'A'));
-    }
+    mode = (char)letter_to_upper((uint8_t)mode);
     if (mode == 'H') {
         tone = CAL_HIGH;
     } else if (mode == 'L') {
@@ -1195,9 +1184,7 @@ void config_command(char *line)
     }
     cmd = &line[i];
     while (line[i] != '\0' && line[i] != ' ') {
-        if (line[i] >= 'a' && line[i] <= 'z') {
-            line[i] = (char)(line[i] - ('a' - 'A'));
-        }
+        line[i] = (char)letter_to_upper((uint8_t)line[i]);
         ++i;
     }
     if (line[i] == ' ') {

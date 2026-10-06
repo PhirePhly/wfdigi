@@ -203,6 +203,8 @@ void serial_rx_push(uint8_t byte);
 uint8_t format_u16(uint16_t value, uint8_t width, uint8_t *dest);
 /* Decimal on the terminal, with no leading zeros. Zero prints as 0. */
 void print_u16(uint16_t value);
+/* A lowercase letter becomes uppercase. Any other byte is returned unchanged. */
+uint8_t letter_to_upper(uint8_t c);
 bool serial_getc(uint8_t *byte);
 /* Writes one byte when the terminal transmitter is idle. */
 bool serial_try_putc(uint8_t byte);

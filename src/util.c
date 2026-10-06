@@ -42,6 +42,14 @@ void print_u16(uint16_t value)
     }
 }
 
+uint8_t letter_to_upper(uint8_t c)
+{
+    if (c >= (uint8_t)'a' && c <= (uint8_t)'z') {
+        c = (uint8_t)(c - (uint8_t)('a' - 'A'));
+    }
+    return c;
+}
+
 /* 32-bit xorshift (13, 17, 5), kept in two 16-bit halves. The top byte is the
  * result: the low bits of this generator are the weaker ones. State zero is
  * stuck, so a draw from zero reloads the seed.
