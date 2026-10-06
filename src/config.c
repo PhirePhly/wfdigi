@@ -1098,21 +1098,26 @@ static void command_display(void)
 {
     serial_puts("MYCALL ");
     show_call(g_config.mycall, g_config.mycall_ssid);
-    serial_puts("DIGIPEAT ");
-    show_flag(g_config.digipeat);
-    serial_puts("DIRECTONLY ");
-    show_flag(g_config.directonly);
-    serial_puts("LOGGING ");
-    show_flag(g_config.logging);
+    serial_puts("MYLOC ");
+    show_myloc();
+    serial_puts("MYSYMBOL ");
+    show_symbol();
+    serial_puts("BEACON ");
+    show_beacon();
+    serial_puts("BTEXT ");
+    show_btext();
+    serial_puts("BPATH ");
+    show_bpath();
     serial_puts("TELEMETRY ");
     show_flag(g_config.telemetry);
     serial_puts("TELPATH ");
     show_telpath();
-    show_number("TXDELAY", g_config.txdelay);
-    show_number("PPERSIST", g_config.persist);
-    show_number("SLOTTIME", g_config.slottime);
-    serial_puts("FULLDUPLEX ");
-    show_flag(g_config.fullduplex);
+
+    serial_puts("DIGIPEAT ");
+    show_flag(g_config.digipeat);
+    show_number("MAXHOPS", g_config.maxhops);
+    serial_puts("DIRECTONLY ");
+    show_flag(g_config.directonly);
     serial_puts("ALIAS0 ");
     show_call(g_config.alias[0], g_config.alias_ssid[0]);
     serial_puts("ALIAS1 ");
@@ -1129,17 +1134,14 @@ static void command_display(void)
     show_prefix(g_config.nnalias[2]);
     serial_puts("NNALIAS3 ");
     show_prefix(g_config.nnalias[3]);
-    serial_puts("BEACON ");
-    show_beacon();
-    serial_puts("BTEXT ");
-    show_btext();
-    serial_puts("BPATH ");
-    show_bpath();
-    serial_puts("MYLOC ");
-    show_myloc();
-    show_number("MAXHOPS", g_config.maxhops);
-    serial_puts("MYSYMBOL ");
-    show_symbol();
+
+    serial_puts("LOGGING ");
+    show_flag(g_config.logging);
+    show_number("TXDELAY", g_config.txdelay);
+    show_number("PPERSIST", g_config.persist);
+    show_number("SLOTTIME", g_config.slottime);
+    serial_puts("FULLDUPLEX ");
+    show_flag(g_config.fullduplex);
 }
 
 static void command_cal(char *value)
