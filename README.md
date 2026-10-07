@@ -1,30 +1,37 @@
 # Whiskey Fox Digi 🥃🦊📻
 
-Standalone APRS digipeater firmware for the AEA PK-88 packet TNC. It is a
-clean rewrite in C for the SDCC Z80 compiler, in the same spirit as UIDIGI on
-the TAPR TNC-2: the board comes up as a digipeater, without the original
-terminal command set.
+Standalone Feature-rich APRS digipeater firmware for the AEA PK-88 packet TNC.
+It is a clean rewrite separate from the OEM AEA firmware, in the same spirit
+as the UIDIGI firmware which was a drop-in replacement for the TAPR TNC-2.
 
-The image in the tree today brings up the board and the radio modem. It loads
-the digipeater configuration into SRAM, talks to a terminal at 9600 baud, and
-sends and receives AX.25. With `BEACON` set it queues a position beacon. With
-`DIGIPEAT` on, a received frame whose path matches this station is rewritten
-and queued for transmit.
+It being a stand-alone digipeater means that this software is intended to be run
+on a TNC without a supporting computer and strictly only support digipeating.
+Default settings are able to be baked into a custom firmware build to protect
+against an SRAM battery backup failure, but all digipeater settings are possible
+to be modified via the local serial terminal on the TNC.
+
+Installation is by physically removing the 27C256 ROM in the IC15 socket and
+burning a new EPROM with the WFDIGI firmware to install in the TNC.
+It is likely that 29C256 FLASH ROMs would be usable as replacements if one
+lacked a UV ROM eraser, but this has been untested and unqualified.
+When booting the new firmware, you should expect to see all of the LEDs on
+the front panel to scan in a line, then `CMD` will start blinking if the
+transmitter interlock is preventing the station from transmitting.
 
 ## Hardware target
+
+An unmodified AEA PK-88 TNC connected to a radio with no host computer and
+our replacement firmware installed in the IC15 socket.
 
 - Z80 at 4.9152 MHz
 - 32 KiB EPROM at `0x0000` and 32 KiB battery-backed SRAM at `0x8000`
 - Z8530 channel A (HDLC, 7910 Bell 202 modem) at `0xF2`/`0xF3`
 - Z8530 channel B (asynchronous RS-232 terminal) at `0xF0`/`0xF1`
-- Front-panel LED latch at `0xF4`, watchdog pet at `0xF8`
-
-[HARDWARE.md](HARDWARE.md) is the board reference: memory map, SCC wiring,
-register values, LED bits, the 7910 mode straps, and the watchdog.
+- Front-panel LED latch at `0xF4`, TX watchdog pet at `0xF8`
 
 The terminal port is fixed at 9600 baud, 8 data bits, no parity, and one stop
 bit. There is no autobaud detection. The radio channel is initialized for
-1200 baud AX.25: HDLC, NRZI, and equalized Bell 202, with PTT held off.
+1200 baud AX.25: HDLC, NRZI, and equalized Bell 202.
 
 ## Build
 
@@ -45,13 +52,9 @@ Build products are placed in `build/`:
 `DI` / `LD SP,0`, an incomplete mode-2 vector table, or a baud-rate constant
 other than 9600 on the terminal and the 1200 baud DPLL clock on the radio.
 
-```sh
-make clean
-```
-
-`make test` compiles the digipeater, packet queue, and duplicate list on the host and checks
-alias, n-N, `DIRECTONLY`, `VISCOUS`, `MAXHOPS`, and duplicate suppression. It does not
-need SDCC.
+`make test` compiles the digipeater, packet queue, and duplicate list on the
+host run test fixture and checks alias, n-N, `DIRECTONLY`, `VISCOUS`, `MAXHOPS`,
+and duplicate suppression. It does not need SDCC or a Z80 to run the tests.
 
 ## Firmware organization
 
@@ -182,24 +185,12 @@ when `MAXHOPS` is 2. When the path already
 holds eight digipeaters, `MYCALL` replaces the last one. A path with no
 matching address is left alone.
 
-`VISCOUS X Y` enables `DIRECTONLY` and holds a selected direct repeat for a
+`VISCOUS X Y` enables `DIRECTONLY` and holds digipeated packets for a
 random `X` through `Y` seconds. A copy heard through another digipeater during
 that delay suppresses the queued repeat. Otherwise the frame moves to the
-transmit queue when its delay expires. `VISCOUS OFF` restores immediate
-digipeating and turns `DIRECTONLY` off. `DIRECTONLY OFF` turns `VISCOUS` off.
-
-The SCC interrupt controller runs in Z80 mode 2. Radio HDLC receive interrupts
-stay enabled, and the transmit-empty interrupt feeds each byte of a frame.
-The terminal channel interrupts at 1200 Hz from the `/SYNCB` square wave,
-and also on each received character. Those characters wait in a buffer.
-RTS drops while the buffer is filling and rises after the service loop has
-taken them, so a pasted configuration can wait instead of overrunning the
-SCC. Twelve interrupts
-queue one 10 ms tick, and 100 of those ticks queue one second. The last 250
-packets this station transmits are kept for 30 seconds, each as the source
-callsign and SSID, a one-byte sum of the printable characters in the
-information field, and the second it was sent. While `VISCOUS` is enabled,
-copies received through another digipeater are kept there too. A sum of 0 is an empty slot. A digipeat of the same source and
-information field inside that window is skipped, and older entries are
-cleared when the list is scanned. The beacon countdown runs in those seconds, shortened by
-a random 0–31 seconds each time it is armed.
+transmit queue when its delay expires. Viscous digipeating is purely a first
+hop fill-in digipeater concept, so `DIRECTONLY` is required for viscous
+digipeating to be enabled. When enabled, a viscous digipeater very effectively
+increases low-level digipeater coverage while not increasing congestion when it
+is observed that higher level / other digipeaters have already successfully picked
+up the same packet.
