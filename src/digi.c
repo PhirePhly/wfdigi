@@ -295,25 +295,15 @@ static uint8_t find_nn(uint8_t vias, uint8_t *remain)
     return NOT_FOUND;
 }
 
-/* DIRECTONLY: no H bit yet, and every configured n-N via is still n == N. */
+/* DIRECTONLY: the first digipeater has not been repeated yet. A later
+ * WIDE2-1 is still direct when the sender wrote it that way.
+ */
 static bool path_is_fresh(uint8_t vias)
 {
-    uint8_t i;
-    uint8_t *p = via_ptr(0u);
-
-    for (i = 0u; i < vias; ++i) {
-        uint8_t n;
-        uint8_t limit;
-
-        if ((p[6] & AX25_H) != 0u) {
-            return false;
-        }
-        if (nn_match_any(p, &n, &limit) && n != limit) {
-            return false;
-        }
-        p += AX25_ADDR;
+    if (vias == 0u) {
+        return false;
     }
-    return true;
+    return (via_ptr(0u)[6] & AX25_H) == 0u;
 }
 
 /* A configured n-N address counts as its remaining SSID. Anything else counts as one. */

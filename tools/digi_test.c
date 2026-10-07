@@ -782,16 +782,19 @@ static void test_directonly(void)
     g_config.directonly = 1u;
     check("DIRECTONLY blocks a used hop", "N0SRC>APRS,AAA*,WIDE2-2:Hi", 0);
     check("DIRECTONLY blocks a used alias", "N0SRC>APRS,AAA*,TEMP:Hi", 0);
-    check("DIRECTONLY blocks a partly used n-N", "N0SRC>APRS,WIDE2-1:Hi", 0);
+    check("WIDE2-1 is direct when it is the first hop", "N0SRC>APRS,WIDE2-1:Hi", "N0SRC>APRS,WFDIGI*:Hi");
     check("complete n-N is still fresh", "N0SRC>APRS,WIDE2-2:Hi", "N0SRC>APRS,WFDIGI*,WIDE2-1:Hi");
-    check("a later incomplete n-N makes the path used", "N0SRC>APRS,WIDE2-2,WIDE2-1:Hi", 0);
+    check("WIDE1-1,WIDE2-1 is direct", "N0SRC>APRS,WIDE1-1,WIDE2-1:Hi", "N0SRC>APRS,WFDIGI*,WIDE2-1:Hi");
+    check("a later WIDE2-1 does not make the path used", "N0SRC>APRS,WIDE2-2,WIDE2-1:Hi",
+          "N0SRC>APRS,WFDIGI*,WIDE2-1,WIDE2-1:Hi");
     check("unused ordinary hops are still fresh", "N0SRC>APRS,TEMP,AAA:Hi", "N0SRC>APRS,WFDIGI*,AAA:Hi");
     check("complete n-N then an alias", "N0SRC>APRS,WIDE2-2,TEMP:Hi", "N0SRC>APRS,WIDE2-2*,WFDIGI*:Hi");
-    check("incomplete n-N blocks a later alias", "N0SRC>APRS,WIDE2-1,TEMP:Hi", 0);
+    check("WIDE2-1 still reaches a later alias", "N0SRC>APRS,WIDE2-1,TEMP:Hi", "N0SRC>APRS,WIDE2-1*,WFDIGI*:Hi");
     check("unconfigured call does not count as a used n-N", "N0SRC>APRS,RELAY2-1,TEMP:Hi",
           "N0SRC>APRS,RELAY2-1*,WFDIGI*:Hi");
     set_nn(1, "RELAY");
-    check("configured incomplete n-N blocks a later alias", "N0SRC>APRS,RELAY2-1,TEMP:Hi", 0);
+    check("RELAY2-1 is direct when it is the first hop", "N0SRC>APRS,RELAY2-1,TEMP:Hi",
+          "N0SRC>APRS,RELAY2-1*,WFDIGI*:Hi");
     check("DIRECTONLY does not block MYCALL", "N0SRC>APRS,AAA*,BBB*,WFDIGI:Hi", "N0SRC>APRS,AAA*,BBB*,WFDIGI*:Hi");
 }
 

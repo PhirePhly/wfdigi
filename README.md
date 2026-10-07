@@ -168,8 +168,9 @@ is taken first and every hop through it is marked repeated. A path in which
 replaced by `MYCALL`. An n-N address is replaced by `MYCALL`, and the same
 n-N call is appended at the end with the SSID reduced by one when that SSID
 is still at least 1. `WIDE2-2` goes out as `MYCALL*,WIDE2-1`. `WIDE2-1` goes
-out as `MYCALL*`. `DIRECTONLY` limits alias and n-N repeats to a path that
-has not been used yet. A path that already has `MAXHOPS` repeated digipeaters
+out as `MYCALL*`. `DIRECTONLY` limits alias and n-N repeats to a path whose
+first digipeater has not been repeated yet. `WIDE1-1,WIDE2-1` still qualifies.
+A path that already has `MAXHOPS` repeated digipeaters
 is not repeated. An unused address counts as one hop unless it matches a
 configured n-N prefix, in which case it counts as the remaining hop count. A
 used digipeater counts as one hop. The hop total is those used hops plus the

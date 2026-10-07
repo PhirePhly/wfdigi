@@ -163,11 +163,10 @@ Accepts `ON`, `OFF`, `1`, or `0`. The cold-boot default is `OFF`. Turning it
 off also turns `VISCOUS` off.
 
 When it is on, a packet is repeated for an alias or a matching n-N prefix
-only if no digipeater address has the has-been-repeated bit set, and every
-via that matches a configured n-N prefix still has its remaining hop count
-equal to its hop limit. `WIDE2-2` is complete. `WIDE2-1` is not. A packet
-addressed to `MYCALL` is repeated even when earlier hops have already been
-used.
+only when the first digipeater address does not have the has-been-repeated
+bit set. `WIDE1-1,WIDE2-1` is still direct. A later reduced n-N address does
+not by itself make the path used. A packet addressed to `MYCALL` is repeated
+even when the first hop has already been used.
 
 ## VISCOUS
 
@@ -184,8 +183,8 @@ same source and information field, the queued frame is discarded. Otherwise
 it moves to the transmit queue and is due `10 - X` seconds later.
 
 While VISCOUS is enabled, every received packet whose path is not direct is
-remembered in the duplicate database. A path is direct when no address is
-marked repeated and every configured n-N address still has `n == N`.
+remembered in the duplicate database. A path is direct when its first
+digipeater address is not marked repeated.
 
 ## LOGGING
 

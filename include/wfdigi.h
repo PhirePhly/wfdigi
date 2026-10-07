@@ -105,7 +105,7 @@ typedef struct {
     uint8_t mycall[CALLSIGN_LEN];
     uint8_t mycall_ssid;
     uint8_t digipeat;
-    /* When set, alias and n-N repeats require an unused path. MYCALL does not. */
+    /* When set, alias and n-N repeats require an unused first hop. MYCALL does not. */
     uint8_t directonly;
     /* Both zero disables viscous delay. Otherwise 1 <= min <= max <= 9 seconds. */
     uint8_t viscous_min;
