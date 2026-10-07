@@ -703,6 +703,7 @@ static void test_nnalias(void)
         {"first unused n-N, reduced call goes last", "N0SRC>APRS,TRACE2-2,WIDE1-1:Hi",
          "N0SRC>APRS,WFDIGI*,WIDE1-1,TRACE2-1:Hi"},
         {"fourth n-N slot", "N0SRC>APRS,QST1-1:Hi", "N0SRC>APRS,WFDIGI*:Hi"},
+        {"We dont match longer vias", "N0SRC>APRS,WIDE3G-3:Hi", 0},
         {"full path quash replaces the last via", "N0SRC>APRS,WIDE2-2,A,B,C,D,E,F,G:Hi",
          "N0SRC>APRS,WIDE2-1*,A*,B*,C*,D*,E*,F*,WFDIGI*:Hi"},
     };
