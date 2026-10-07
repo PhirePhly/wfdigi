@@ -327,6 +327,8 @@ bool beacon_send(void);
 void telemetry_note_rx(void);
 /* Count one frame that went out on the air. The count runs with telemetry off. */
 void telemetry_note_tx(void);
+/* Count one viscous repeat suppressed by a copy heard from another station. */
+void telemetry_note_viscous(void);
 /* Increase since the previous telemetry report. Both counters roll over. */
 void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted);
 /* Zero the packet counts and arm the schedule from g_config.telemetry. */

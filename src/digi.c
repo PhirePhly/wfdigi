@@ -511,6 +511,7 @@ void digi_service(void)
             (void)modem_send(work, work_len,
                              (uint16_t)(TX_EXPIRE_SECONDS - g_config.viscous_min));
         } else {
+            telemetry_note_viscous();
             modem_log_viscous(work, work_len);
         }
     }

@@ -27,6 +27,7 @@ static uint16_t tx_len_at[TX_KEEP];
 static uint16_t tx_expire_at[TX_KEEP];
 static int tx_count;
 static int viscous_log_count;
+static int viscous_note_count;
 static uint8_t random_draw[8];
 static uint8_t random_count;
 static uint8_t random_at;
@@ -82,6 +83,11 @@ bool modem_queue_viscous(const uint8_t *frame, uint16_t len, uint16_t expire)
     return pktq_put(PKTQ_VISCOUS, frame, len, expire);
 }
 
+void telemetry_note_viscous(void)
+{
+    ++viscous_note_count;
+}
+
 void modem_log_viscous(const uint8_t *frame, uint16_t len)
 {
     (void)frame;
@@ -135,6 +141,7 @@ static void setup(void)
     pktq_init();
     tx_count = 0;
     viscous_log_count = 0;
+    viscous_note_count = 0;
     random_count = 0u;
     random_at = 0u;
 }
@@ -1070,6 +1077,11 @@ static void test_viscous(void)
     judge("VISCOUS suppresses a repeated copy", 0);
     if (viscous_log_count != 1) {
         fail("VISCOUS logs a suppressed repeat", "missing V trace");
+    } else {
+        ++passed;
+    }
+    if (viscous_note_count != 1) {
+        fail("VISCOUS counts a suppressed repeat", "missing telemetry count");
     } else {
         ++passed;
     }

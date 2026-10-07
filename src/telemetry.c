@@ -14,9 +14,9 @@
 #define SLOT_SECONDS 600u
 #define TELEMETRY_DEF_INTERVAL 3600u
 
-static const char msg_eqns[] = "EQNS.0,0.1,0,0,0.1,0,0,1,0,0,1,0,0,1,0";
-static const char msg_parm[] = "PARM.ReceivePkts,TransmitPks,AdverseDrops,,";
-static const char msg_unit[] = "UNIT.pkts/min,pkts/min,count,,";
+static const char msg_eqns[] = "EQNS.0,0.1,0,0,0.1,0,0,1,0,0,0.1,0,0,1,0";
+static const char msg_parm[] = "PARM.ReceivePkts,TransmitPks,AdverseDrops,ViscousDrops,";
+static const char msg_unit[] = "UNIT.pkts/min,pkts/min,count,pkts/min,";
 
 _Static_assert(sizeof(msg_eqns) - 1u <= MSG_MAX, "EQNS message is too long");
 _Static_assert(sizeof(msg_parm) - 1u <= MSG_MAX, "PARM message is too long");
@@ -33,6 +33,8 @@ static uint16_t last_tx;
 static uint16_t last_r;
 static uint16_t last_q;
 static uint16_t last_s;
+static uint16_t viscous_count;
+static uint16_t last_v;
 static uint16_t seq;
 static uint8_t def_kind;
 static uint8_t def_due;
@@ -216,6 +218,7 @@ static bool send_data(void)
     uint16_t dq;
     uint16_t ds;
     uint16_t drops;
+    uint16_t viscous;
 
     hardware_irq_off();
     rx_now = rx_count;
@@ -238,6 +241,7 @@ static bool send_data(void)
     } else {
         drops = (uint16_t)(drops + ds);
     }
+    viscous = (uint16_t)(viscous_count - last_v);
 
     start_frame();
     put_byte((uint8_t)'T');
@@ -249,7 +253,9 @@ static bool send_data(void)
     put_u16(tx);
     put_byte((uint8_t)',');
     put_u16(drops);
-    put_text(",0,0,00000000");
+    put_byte((uint8_t)',');
+    put_u16(viscous);
+    put_text(",0,00000000");
     if (!send_frame()) {
         return false;
     }
@@ -259,6 +265,7 @@ static bool send_data(void)
     last_r = r;
     last_q = q;
     last_s = s;
+    last_v = viscous_count;
     if (seq >= 999u) {
         seq = 0u;
     } else {
@@ -284,6 +291,11 @@ void telemetry_note_tx(void)
     ++tx_count;
 }
 
+void telemetry_note_viscous(void)
+{
+    ++viscous_count;
+}
+
 void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted)
 {
     uint16_t rx_now;
@@ -306,6 +318,8 @@ void telemetry_init(void)
     last_r = 0u;
     last_q = 0u;
     last_s = 0u;
+    viscous_count = 0u;
+    last_v = 0u;
     seq = 0u;
     def_kind = 0u;
     tel_def_left = 0u;
@@ -332,6 +346,7 @@ void telemetry_restart(void)
     last_r = r;
     last_q = q;
     last_s = s;
+    last_v = viscous_count;
     seq = 0u;
     def_kind = 0u;
     tel_def_left = 0u;

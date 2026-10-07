@@ -236,24 +236,26 @@ included. `<version>` is the same string as the boot banner. One definition
 message follows every hour, in this order: `BITS`, `EQNS`, `PARM`, `UNIT`.
 
 ```
-:W6FOO    :EQNS.0,0.1,0,0,0.1,0,0,1,0,0,1,0,0,1,0
-:W6FOO    :PARM.ReceivePkts,TransmitPks,AdverseDrops,,
-:W6FOO    :UNIT.pkts/min,pkts/min,count,,
+:W6FOO    :EQNS.0,0.1,0,0,0.1,0,0,1,0,0,0.1,0,0,1,0
+:W6FOO    :PARM.ReceivePkts,TransmitPks,AdverseDrops,ViscousDrops,
+:W6FOO    :UNIT.pkts/min,pkts/min,count,pkts/min,
 ```
 
-`EQNS` divides the first two channels by 10, so a 10-minute packet count is
-shown on a graph as packets per minute. The third channel is the drop count
-unchanged.
+`EQNS` divides the received, transmitted, and viscous channels by 10, so a
+10-minute packet count is shown on a graph as packets per minute. The adverse
+drop channel is unchanged.
 
 Every 10 minutes a UI frame reports that slot. The digipeater path is
 `TELPATH`, and the hourly definition messages use that same path:
 
 ```
-T#000,<received>,<transmitted>,<drops>,0,0,00000000
+T#000,<received>,<transmitted>,<drops>,<viscous>,0,00000000
 ```
 
-`<received>` and `<transmitted>` are the frames counted since the previous
-report. The counters are 16-bit and roll over. The value is their unsigned
+`<received>`, `<transmitted>`, and `<viscous>` are the frames counted since
+the previous report. `<viscous>` counts a delayed repeat discarded because
+another station had already repeated the same source and information field.
+The counters are 16-bit and roll over. The value is their unsigned
 difference, so a rollover still counts the frames in that interval.
 `<drops>` is how far the `!R`, `!Q`, and `!S`
 counters have moved since the previous report. The sequence number runs from
