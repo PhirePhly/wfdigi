@@ -14,6 +14,8 @@
  * LOGGING is 1 to print radio traffic, or 0 to stay quiet.
  * TELEMETRY is 1 to send 10-minute counts and hourly definition messages.
  * TELPATH is the one digipeater path for those frames. "-" sends them direct.
+ * VISCOUS is off when both limits are 0. Otherwise both are 1 through 9,
+ * and the minimum cannot be greater than the maximum.
  */
 
 #define CFG_MYCALL "N0CALL"
@@ -21,6 +23,8 @@
 
 #define CFG_DIGIPEAT 1
 #define CFG_DIRECTONLY 0
+#define CFG_VISCOUS_MIN 0
+#define CFG_VISCOUS_MAX 0
 #define CFG_LOGGING 1
 #define CFG_TELEMETRY 1
 #define CFG_TELPATH "-"

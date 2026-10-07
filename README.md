@@ -49,8 +49,8 @@ other than 9600 on the terminal and the 1200 baud DPLL clock on the radio.
 make clean
 ```
 
-`make test` compiles the digipeater and duplicate list on the host and checks
-alias, n-N, `DIRECTONLY`, `MAXHOPS`, and duplicate suppression. It does not
+`make test` compiles the digipeater, packet queue, and duplicate list on the host and checks
+alias, n-N, `DIRECTONLY`, `VISCOUS`, `MAXHOPS`, and duplicate suppression. It does not
 need SDCC.
 
 ## Firmware organization
@@ -105,6 +105,7 @@ need SDCC.
    changed. The DCD lamp
    follows radio carrier. STA lights for 400 ms after each valid received frame.
    MULT lights while another frame is waiting in the transmit queue.
+   CON lights while a frame is waiting in the viscous queue.
    The serial port then presents the callsign as the prompt, omitting SSID 0.
 5. The foreground loop is one service pass: the 10 ms timers, the modem, the
    lamps, and one terminal character. The `/SYNCB` interrupt runs at 1200 Hz,
@@ -119,6 +120,7 @@ Cold-boot defaults:
 | MYCALL | `N0CALL-0` | AX.25 call, SSID 0–15 |
 | DIGIPEAT | on | off or on |
 | DIRECTONLY | off | off or on |
+| VISCOUS | off | off, or minimum and maximum seconds from 1–9 |
 | LOGGING | on | off or on |
 | TELEMETRY | on | off or on |
 | TELPATH | `-` | one callsign, or `-` for no path |
@@ -179,6 +181,12 @@ when `MAXHOPS` is 2. When the path already
 holds eight digipeaters, `MYCALL` replaces the last one. A path with no
 matching address is left alone.
 
+`VISCOUS X Y` enables `DIRECTONLY` and holds a selected direct repeat for a
+random `X` through `Y` seconds. A copy heard through another digipeater during
+that delay suppresses the queued repeat. Otherwise the frame moves to the
+transmit queue when its delay expires. `VISCOUS OFF` restores immediate
+digipeating and turns `DIRECTONLY` off. `DIRECTONLY OFF` turns `VISCOUS` off.
+
 The SCC interrupt controller runs in Z80 mode 2. Radio HDLC receive interrupts
 stay enabled, and the transmit-empty interrupt feeds each byte of a frame.
 The terminal channel interrupts at 1200 Hz from the `/SYNCB` square wave,
@@ -189,7 +197,8 @@ SCC. Twelve interrupts
 queue one 10 ms tick, and 100 of those ticks queue one second. The last 250
 packets this station transmits are kept for 30 seconds, each as the source
 callsign and SSID, a one-byte sum of the printable characters in the
-information field, and the second it was sent. A sum of 0 is an empty slot. A digipeat of the same source and
+information field, and the second it was sent. While `VISCOUS` is enabled,
+copies received through another digipeater are kept there too. A sum of 0 is an empty slot. A digipeat of the same source and
 information field inside that window is skipped, and older entries are
 cleared when the list is scanned. The beacon countdown runs in those seconds, shortened by
 a random 0–31 seconds each time it is armed.

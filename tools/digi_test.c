@@ -24,7 +24,12 @@ DigiConfig g_config;
 static uint16_t now;
 static uint8_t tx_frame[TX_KEEP][FRAME_CAP];
 static uint16_t tx_len_at[TX_KEEP];
+static uint16_t tx_expire_at[TX_KEEP];
 static int tx_count;
+static int viscous_log_count;
+static uint8_t random_draw[8];
+static uint8_t random_count;
+static uint8_t random_at;
 static int passed;
 static int failed;
 
@@ -38,7 +43,23 @@ bool timer_in_dupe_window(uint16_t heard_at)
     return (uint16_t)(now - heard_at) < DUPE_WINDOW;
 }
 
-bool modem_send(const uint8_t *frame, uint16_t len)
+void prng_stir(uint16_t extra)
+{
+    (void)extra;
+}
+
+uint8_t prng_u8(void)
+{
+    if (random_at < random_count) {
+        uint8_t value = random_draw[random_at];
+
+        ++random_at;
+        return value;
+    }
+    return 0u;
+}
+
+bool modem_send(const uint8_t *frame, uint16_t len, uint16_t expires_in)
 {
     uint16_t i;
 
@@ -50,9 +71,24 @@ bool modem_send(const uint8_t *frame, uint16_t len)
             tx_frame[tx_count][i] = frame[i];
         }
         tx_len_at[tx_count] = len;
+        tx_expire_at[tx_count] = (uint16_t)(now + expires_in);
     }
     ++tx_count;
     return true;
+}
+
+bool modem_queue_viscous(const uint8_t *frame, uint16_t len, uint16_t expire)
+{
+    return pktq_put(PKTQ_VISCOUS, frame, len, expire);
+}
+
+void modem_log_viscous(const uint8_t *frame, uint16_t len)
+{
+    (void)frame;
+    (void)len;
+    if (g_config.logging != 0u) {
+        ++viscous_log_count;
+    }
 }
 
 static void blank(uint8_t *call)
@@ -83,6 +119,7 @@ static void setup(void)
     g_config.mycall_ssid = 0u;
     g_config.digipeat = 1u;
     g_config.directonly = 0u;
+    g_config.logging = 1u;
     g_config.maxhops = 3u;
     for (a = 0u; a < ALIAS_COUNT; ++a) {
         blank(g_config.alias[a]);
@@ -95,7 +132,11 @@ static void setup(void)
     }
     now = 1000u;
     dupe_init();
+    pktq_init();
     tx_count = 0;
+    viscous_log_count = 0;
+    random_count = 0u;
+    random_at = 0u;
 }
 
 static void set_alias(uint8_t slot, const char *text, uint8_t ssid)
@@ -963,6 +1004,98 @@ static void test_dupes(void)
     check_keep("a cleared new packet can repeat", "SNEW>APRS,WIDE1-1:NEW", "SNEW>APRS,WFDIGI*:NEW");
 }
 
+static bool ingress_text(const char *text)
+{
+    uint8_t frame[FRAME_CAP];
+    uint16_t len = 0u;
+
+    if (encode(text, frame, &len) != 0) {
+        return false;
+    }
+    digi_ingress(frame, len);
+    return true;
+}
+
+static void expect_expire(const char *name, uint16_t want)
+{
+    char detail[80];
+
+    if (tx_count != 1 || tx_expire_at[0] != want) {
+        snprintf(detail, sizeof detail, "expiry %u, want %u",
+                 tx_count == 1 ? (unsigned)tx_expire_at[0] : 0u, (unsigned)want);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
+}
+
+static void test_viscous(void)
+{
+    setup();
+    set_nn(0, "WIDE");
+    g_config.directonly = 1u;
+    g_config.viscous_min = 3u;
+    g_config.viscous_max = 5u;
+    random_draw[0] = 0u;
+    random_count = 1u;
+    if (!ingress_text("N0SRC>APRS,WIDE2-2:Delay")) {
+        fail("VISCOUS queues direct packet", "could not build frame");
+        return;
+    }
+    judge("VISCOUS waits before transmit", 0);
+    now = 1002u;
+    digi_service();
+    judge("VISCOUS still waits before expiry", 0);
+    now = 1003u;
+    digi_service();
+    judge("VISCOUS promotes at expiry", "N0SRC>APRS,WFDIGI*,WIDE2-1:Delay");
+    expect_expire("VISCOUS preserves stale deadline", 1010u);
+
+    setup();
+    set_nn(0, "WIDE");
+    g_config.directonly = 1u;
+    g_config.viscous_min = 3u;
+    g_config.viscous_max = 3u;
+    if (!ingress_text("N0SRC>APRS,WIDE2-2:Suppressed")) {
+        fail("VISCOUS suppression original", "could not build frame");
+        return;
+    }
+    now = 1001u;
+    if (!ingress_text("N0SRC>APRS,OTHER*,WIDE2-1:Suppressed")) {
+        fail("VISCOUS suppression copy", "could not build frame");
+        return;
+    }
+    now = 1003u;
+    digi_service();
+    judge("VISCOUS suppresses a repeated copy", 0);
+    if (viscous_log_count != 1) {
+        fail("VISCOUS logs a suppressed repeat", "missing V trace");
+    } else {
+        ++passed;
+    }
+
+    setup();
+    set_nn(0, "WIDE");
+    g_config.directonly = 1u;
+    g_config.viscous_min = 1u;
+    g_config.viscous_max = 9u;
+    random_draw[0] = 8u;
+    random_draw[1] = 0u;
+    random_count = 2u;
+    if (!ingress_text("N0ONE>APRS,WIDE1-1:Late") ||
+        !ingress_text("N0TWO>APRS,WIDE1-1:Early")) {
+        fail("VISCOUS expiry ordering", "could not build frame");
+        return;
+    }
+    now = 1001u;
+    digi_service();
+    judge("VISCOUS earliest expiry goes first", "N0TWO>APRS,WFDIGI*:Early");
+    tx_count = 0;
+    now = 1009u;
+    digi_service();
+    judge("VISCOUS later expiry follows", "N0ONE>APRS,WFDIGI*:Late");
+}
+
 int main(void)
 {
     test_roundtrip();
@@ -975,6 +1108,7 @@ int main(void)
     test_limits();
     test_dupe_count();
     test_dupes();
+    test_viscous();
     if (failed != 0) {
         printf("digi tests: %d passed, %d failed\n", passed, failed);
         return 1;

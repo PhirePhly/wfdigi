@@ -107,6 +107,9 @@ typedef struct {
     uint8_t digipeat;
     /* When set, alias and n-N repeats require an unused path. MYCALL does not. */
     uint8_t directonly;
+    /* Both zero disables viscous delay. Otherwise 1 <= min <= max <= 9 seconds. */
+    uint8_t viscous_min;
+    uint8_t viscous_max;
     uint8_t txdelay;
     uint8_t persist;
     uint8_t slottime;
@@ -246,6 +249,8 @@ uint16_t pktq_expire_in(uint16_t seconds);
 bool pktq_expired(uint16_t expire);
 /* True while this queue holds a frame. */
 bool pktq_pending(uint8_t queue);
+/* Read the first slot's expiry without removing it. */
+bool pktq_peek_expire(uint8_t queue, uint16_t *expire);
 /* Copy a frame into 31-byte blocks on one queue, in expiry order. expire is
  * the due second. A frame that is due with or after the last slot is appended.
  * False when the queue id is unknown, or the pool or that 16-deep ring is full.
@@ -256,13 +261,22 @@ bool pktq_put(uint8_t queue, const uint8_t *data, uint16_t len, uint16_t expire)
  */
 bool pktq_take(uint8_t queue, uint8_t *dest, uint16_t dest_max, uint16_t *len, uint16_t *expire);
 
-/* Queue one AX.25 frame on the transmit queue, without the CRC. The slot is due
- * 10 seconds later. The modem sends it when the radio is free, or counts !S if
- * that second has already been reached.
+/* A transmit frame is stale this many seconds after it is queued. */
+#define TX_EXPIRE_SECONDS 10u
+
+/* Queue one AX.25 frame on the transmit queue, without the CRC. expires_in is
+ * how many seconds until the slot is due. The modem sends it when the radio
+ * is free, or counts !S if that second has already been reached.
  */
-bool modem_send(const uint8_t *frame, uint16_t len);
+bool modem_send(const uint8_t *frame, uint16_t len, uint16_t expires_in);
+/* Queue a viscous frame without kicking the transmitter. */
+bool modem_queue_viscous(const uint8_t *frame, uint16_t len, uint16_t expire);
+/* Log a viscous repeat suppressed by a copy heard from another station. */
+void modem_log_viscous(const uint8_t *frame, uint16_t len);
 /* Repeat a received frame when DIGIPEAT is on and the path matches this station. */
 void digi_ingress(const uint8_t *frame, uint16_t len);
+/* Promote due viscous frames or suppress them when another copy was heard. */
+void digi_service(void);
 /* Clear the recently-sent list. Call before any packet is transmitted. */
 void dupe_init(void);
 /* Remember a frame that has gone out on the air. */

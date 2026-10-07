@@ -6,6 +6,10 @@ _Static_assert(sizeof(CFG_MYCALL) <= CALLSIGN_LEN + 1u, "MYCALL is longer than 6
 _Static_assert(CFG_MYCALL_SSID <= SSID_MAX, "MYCALL SSID is above 15");
 _Static_assert(CFG_DIGIPEAT <= 1u, "DIGIPEAT must be 0 or 1");
 _Static_assert(CFG_DIRECTONLY <= 1u, "DIRECTONLY must be 0 or 1");
+_Static_assert((CFG_VISCOUS_MIN == 0 && CFG_VISCOUS_MAX == 0) ||
+               (CFG_VISCOUS_MIN >= 1 && CFG_VISCOUS_MIN <= CFG_VISCOUS_MAX &&
+                CFG_VISCOUS_MAX <= 9),
+               "VISCOUS must be off or satisfy 1 <= X <= Y <= 9");
 _Static_assert(CFG_TXDELAY >= TXDELAY_MIN && CFG_TXDELAY <= TXDELAY_MAX, "TXDELAY is out of range");
 _Static_assert(CFG_PPERSIST >= PERSIST_MIN && CFG_PPERSIST <= PERSIST_MAX, "PPERSIST is out of range");
 _Static_assert(CFG_SLOTTIME >= SLOTTIME_MIN && CFG_SLOTTIME <= SLOTTIME_MAX, "SLOTTIME is out of range");
@@ -369,6 +373,12 @@ static void config_cold_boot(void)
                &g_config.mycall_ssid);
     store_u8("DIGIPEAT", (uint8_t)CFG_DIGIPEAT, 0u, 1u, &g_config.digipeat);
     store_u8("DIRECTONLY", (uint8_t)CFG_DIRECTONLY, 0u, 1u, &g_config.directonly);
+    store_u8("VISCOUS", (uint8_t)CFG_VISCOUS_MIN, 0u, 9u, &g_config.viscous_min);
+    store_u8("VISCOUS", (uint8_t)CFG_VISCOUS_MAX, 0u, 9u, &g_config.viscous_max);
+    if (g_config.viscous_min != 0u) {
+        g_config.directonly = 1u;
+        note_config();
+    }
     store_u8("LOGGING", (uint8_t)CFG_LOGGING, 0u, 1u, &g_config.logging);
     store_u8("TELEMETRY", (uint8_t)CFG_TELEMETRY, 0u, 1u, &g_config.telemetry);
     store_telpath(CFG_TELPATH);
@@ -594,6 +604,61 @@ static bool set_number(const char *name, const char *value, uint8_t min, uint8_t
     *dest = number;
     note_config();
     return true;
+}
+
+static void show_viscous(void)
+{
+    if (g_config.viscous_min == 0u) {
+        serial_puts("OFF\r\n");
+        return;
+    }
+    print_u16(g_config.viscous_min);
+    serial_putc(' ');
+    print_u16(g_config.viscous_max);
+    serial_puts("\r\n");
+}
+
+static void command_viscous(char *value)
+{
+    char *high_text;
+    uint8_t low;
+    uint8_t high;
+
+    if (value == 0) {
+        show_viscous();
+        return;
+    }
+    if (is_off(value)) {
+        g_config.viscous_min = 0u;
+        g_config.viscous_max = 0u;
+        g_config.directonly = 0u;
+        note_config();
+        show_viscous();
+        return;
+    }
+    high_text = value;
+    while (*high_text != '\0' && *high_text != ' ') {
+        ++high_text;
+    }
+    if (*high_text == '\0') {
+        reject("VISCOUS");
+        return;
+    }
+    *high_text = '\0';
+    ++high_text;
+    while (*high_text == ' ') {
+        ++high_text;
+    }
+    if (*high_text == '\0' || !parse_u8(value, &low, 9u) ||
+        !parse_u8(high_text, &high, 9u) || low == 0u || low > high) {
+        reject("VISCOUS");
+        return;
+    }
+    g_config.viscous_min = low;
+    g_config.viscous_max = high;
+    g_config.directonly = 1u;
+    note_config();
+    show_viscous();
 }
 
 static void command_call(const char *name, char *value, uint8_t *call, uint8_t *ssid, bool alias)
@@ -1109,6 +1174,8 @@ static void command_display(void)
     show_number("MAXHOPS", g_config.maxhops);
     serial_puts("DIRECTONLY ");
     show_flag(g_config.directonly);
+    serial_puts("VISCOUS ");
+    show_viscous();
     serial_puts("ALIAS0 ");
     show_call(g_config.alias[0], g_config.alias_ssid[0]);
     serial_puts("ALIAS1 ");
@@ -1268,8 +1335,17 @@ void config_command(char *line)
         if (value == 0) {
             show_flag(g_config.directonly);
         } else if (set_flag("DIRECTONLY", value, &g_config.directonly)) {
+            if (g_config.directonly == 0u) {
+                g_config.viscous_min = 0u;
+                g_config.viscous_max = 0u;
+                note_config();
+            }
             show_flag(g_config.directonly);
         }
+        return;
+    }
+    if (same_text(cmd, "VISCOUS")) {
+        command_viscous(value);
         return;
     }
     if (same_text(cmd, "LOGGING")) {

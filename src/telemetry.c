@@ -165,7 +165,7 @@ static bool send_frame(void)
     if (!frame_ok || frame_n < 16u) {
         return false;
     }
-    return modem_send(frame, frame_n);
+    return modem_send(frame, frame_n, TX_EXPIRE_SECONDS);
 }
 
 static bool send_message(const char *text, const char *extra)

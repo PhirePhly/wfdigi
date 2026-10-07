@@ -159,7 +159,8 @@ is still inside the window, the oldest entry is replaced.
 ## DIRECTONLY
 
 Limits alias and n-N digipeating to a path that has not been used yet.
-Accepts `ON`, `OFF`, `1`, or `0`. The cold-boot default is `OFF`.
+Accepts `ON`, `OFF`, `1`, or `0`. The cold-boot default is `OFF`. Turning it
+off also turns `VISCOUS` off.
 
 When it is on, a packet is repeated for an alias or a matching n-N prefix
 only if no digipeater address has the has-been-repeated bit set, and every
@@ -167,6 +168,24 @@ via that matches a configured n-N prefix still has its remaining hop count
 equal to its hop limit. `WIDE2-2` is complete. `WIDE2-1` is not. A packet
 addressed to `MYCALL` is repeated even when earlier hops have already been
 used.
+
+## VISCOUS
+
+`VISCOUS X Y` delays a digipeat by a random whole number of seconds from
+`X` through `Y`, inclusive. Both values must be 1–9 and `X` cannot be greater
+than `Y`. Applying the command turns `DIRECTONLY` on. `VISCOUS OFF`
+disables the delay and turns `DIRECTONLY` off. `DIRECTONLY OFF` also turns
+this delay off. The cold-boot default is `OFF`.
+
+When a direct packet is selected for digipeating, its rewritten frame enters
+the viscous queue instead of the transmit queue. At its selected second, the
+firmware checks the duplicate database. If another station has repeated the
+same source and information field, the queued frame is discarded. Otherwise
+it moves to the transmit queue and is due `10 - X` seconds later.
+
+While VISCOUS is enabled, every received packet whose path is not direct is
+remembered in the duplicate database. A path is direct when no address is
+marked repeated and every configured n-N address still has `n == N`.
 
 ## LOGGING
 
@@ -182,7 +201,9 @@ R   123 N0CALL>APRS,WIDE1-1:Hello
 A frame whose source callsign has no printable character is printed the same
 way with `D` in place of `R`, and it is not digipeated. Six spaces and an
 SSID, which would have been shown as `-7`, is one such source. A sent frame
-uses the same layout with `T` in place of `R`. The timestamp is
+uses the same layout with `T` in place of `R`. A viscous frame suppressed
+because another station repeated it uses `V`; this shows what this station
+would otherwise have transmitted. The timestamp is
 the rolling 16-bit seconds counter, printed right-aligned in five characters
 so packet text stays aligned. Each trace starts and ends with a new line, and
 the callsign prompt is redrawn under it, including any characters already

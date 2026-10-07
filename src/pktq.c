@@ -169,6 +169,15 @@ bool pktq_pending(uint8_t queue)
     return q_count[queue] != 0u;
 }
 
+bool pktq_peek_expire(uint8_t queue, uint16_t *expire)
+{
+    if (!queue_ok(queue) || expire == 0 || q_count[queue] == 0u) {
+        return false;
+    }
+    *expire = slot_expire[queue][q_head[queue]];
+    return true;
+}
+
 bool pktq_put(uint8_t queue, const uint8_t *data, uint16_t len, uint16_t expire)
 {
     uint8_t head = BLOCK_END;

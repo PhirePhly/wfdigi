@@ -15,10 +15,9 @@ still draining, the new frame is dropped and the TNC prints `!R`.
 
 ## !Q
 
-A frame was not copied into the transmit queue. That queue holds 16 frames.
-The transmit and viscous queues share one pool of 31-byte blocks. Either the
-pool or the transmit ring was full, so the frame is not transmitted and the
-TNC prints `!Q`.
+A frame was not copied into a packet queue. The transmit and viscous queues
+each hold 16 frames and share one pool of 31-byte blocks. The pool or the
+selected ring was full, so the frame is dropped and the TNC prints `!Q`.
 
 ## !S
 

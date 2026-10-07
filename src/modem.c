@@ -30,8 +30,6 @@ typedef enum {
 #define TX_WAIT_TICKS 4u
 /* EOM is the start of the CRC. Sixteen CRC bits plus three flags is 33 ms. */
 #define TX_TAIL_TICKS 4u
-/* A transmit frame still queued this long after it was accepted is stale. */
-#define TX_EXPIRE_SECONDS 10u
 #define TRACE_MAX 254u
 
 static uint8_t rx_buf[2][AX25_MAX];
@@ -580,6 +578,7 @@ static void tx_kick(void)
     }
     if (tx_interlock) {
         serial_puts("ERR - Set Callsign\r\n");
+        // Flush any additional frames in the queue
         while (tx_take()) {
         }
         return;
@@ -832,17 +831,36 @@ void modem_service(void)
     tx_service();
 }
 
-bool modem_send(const uint8_t *frame, uint16_t len)
+bool modem_send(const uint8_t *frame, uint16_t len, uint16_t expires_in)
 {
     if (frame == 0 || len < AX25_MIN || len > AX25_MAX) {
         return false;
     }
-    if (!pktq_put(PKTQ_TX, frame, len, pktq_expire_in(TX_EXPIRE_SECONDS))) {
+    if (!pktq_put(PKTQ_TX, frame, len, pktq_expire_in(expires_in))) {
         note_drop_q();
         return false;
     }
     tx_kick();
     return true;
+}
+
+bool modem_queue_viscous(const uint8_t *frame, uint16_t len, uint16_t expire)
+{
+    if (frame == 0 || len < AX25_MIN || len > AX25_MAX) {
+        return false;
+    }
+    if (!pktq_put(PKTQ_VISCOUS, frame, len, expire)) {
+        note_drop_q();
+        return false;
+    }
+    return true;
+}
+
+void modem_log_viscous(const uint8_t *frame, uint16_t len)
+{
+    if (g_config.logging != 0u) {
+        log_frame('V', frame, len);
+    }
 }
 
 void modem_cal_stop(void)

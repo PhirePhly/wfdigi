@@ -68,8 +68,8 @@ layout: $(BUILD)/$(PROJECT).ihx $(BUILD)/version.h
 test: $(BUILD)/digi_test
 	./$(BUILD)/digi_test
 
-$(BUILD)/digi_test: src/digi.c src/dupe.c tools/digi_test.c include/wfdigi.h tools/host_prefix.h | $(BUILD)
-	$(HOSTCC) $(HOSTCFLAGS) -o $@ src/digi.c src/dupe.c tools/digi_test.c
+$(BUILD)/digi_test: src/digi.c src/dupe.c src/pktq.c tools/digi_test.c include/wfdigi.h tools/host_prefix.h | $(BUILD)
+	$(HOSTCC) $(HOSTCFLAGS) -o $@ src/digi.c src/dupe.c src/pktq.c tools/digi_test.c
 
 clean:
 	rm -rf $(BUILD)

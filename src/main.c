@@ -51,6 +51,7 @@ void firmware_boot(void)
         check_tx_interlock();
         timer_service();
         modem_service();
+        digi_service();
         lamps_service();
 
         if (serial_getc(&byte)) {

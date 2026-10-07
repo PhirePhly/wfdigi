@@ -8,6 +8,12 @@ Time is in 10 ms ticks. Twelve interrupts of the 1200 Hz `/SYNCB` input are one 
 
 `tx_state` starts at `TX_IDLE` from `modem_init`. `modem_send` queues a frame on the transmit queue and calls `tx_kick`, which leaves idle only when a frame is actually taken. A transmission already in progress stays there; that queue holds the new frame until the channel returns to idle, or until `TX_TAIL` takes the next frame without unkeying.
 
+With `VISCOUS X Y` enabled, `digi_ingress` first puts a selected repeat in the
+viscous queue. `digi_service` waits for its ordered expiry, discards it when
+the duplicate database contains a copy heard through another digipeater and
+logs that suppressed frame as `V`, or moves it to the transmit queue due
+`10 - X` seconds later. Only that promotion enters this transmitter state machine.
+
 PTT (`keyed`) is on from `tx_key` until `tx_release`. Calibration keys on its own and does not pass through the data states.
 
 ```mermaid

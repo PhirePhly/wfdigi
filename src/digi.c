@@ -12,6 +12,28 @@
 static uint8_t work[FRAME_MAX];
 static uint16_t work_len;
 
+/* Uniform draw in [low, high]. The limits are 1..9, so repeated subtraction
+ * avoids pulling a division helper into the firmware.
+ */
+static uint8_t random_seconds(uint8_t low, uint8_t high)
+{
+    uint8_t span = (uint8_t)(high - low + 1u);
+    uint16_t limit = span;
+    uint8_t draw;
+
+    while ((uint16_t)(limit + span) <= 256u) {
+        limit = (uint16_t)(limit + span);
+    }
+    prng_stir(timer_seconds());
+    do {
+        draw = prng_u8();
+    } while ((uint16_t)draw >= limit);
+    while (draw >= span) {
+        draw = (uint8_t)(draw - span);
+    }
+    return (uint8_t)(low + draw);
+}
+
 static bool call_eq(const uint8_t *ax, const uint8_t *call, uint8_t ssid)
 {
     uint8_t i;
@@ -145,9 +167,15 @@ static bool append_mycall(uint8_t vias)
 
 static void send_work(void)
 {
+    if (g_config.viscous_min != 0u) {
+        uint8_t delay = random_seconds(g_config.viscous_min, g_config.viscous_max);
+
+        (void)modem_queue_viscous(work, work_len, pktq_expire_in(delay));
+        return;
+    }
     /* Record before the modem finishes sending, so a second copy is caught. */
     dupe_remember(work, work_len);
-    (void)modem_send(work, work_len);
+    (void)modem_send(work, work_len, TX_EXPIRE_SECONDS);
 }
 
 /* First matching via. unused_only skips addresses that already have the H bit. */
@@ -392,10 +420,8 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
     uint8_t remain;
     uint8_t used;
     uint8_t ahead;
+    bool direct;
 
-    if (g_config.digipeat == 0u) {
-        return;
-    }
     if (!load_frame(frame, len, &vias) || vias == 0u) {
         return;
     }
@@ -404,6 +430,17 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
         return;
     }
     if (dupe_recent(work, work_len)) {
+        return;
+    }
+    direct = path_is_fresh(vias);
+    if (g_config.viscous_min != 0u && !direct) {
+        /* Only a copy heard after the original direct packet should suppress
+         * the delayed repeat.
+         */
+        dupe_remember(work, work_len);
+        return;
+    }
+    if (g_config.digipeat == 0u) {
         return;
     }
     /* MAXHOPS already-used digipeaters end the trip. Do not add another. */
@@ -433,7 +470,7 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
             return;
         }
     }
-    if (g_config.directonly != 0u && !path_is_fresh(vias)) {
+    if (g_config.directonly != 0u && !direct) {
         return;
     }
     /* Used hops plus the request still ahead. Equal to MAXHOPS is repeated. */
@@ -459,4 +496,22 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
         return;
     }
     rewrite_nn(nn_at, vias, remain);
+}
+
+void digi_service(void)
+{
+    uint16_t expire;
+
+    while (pktq_peek_expire(PKTQ_VISCOUS, &expire) && pktq_expired(expire)) {
+        if (!pktq_take(PKTQ_VISCOUS, work, FRAME_MAX, &work_len, &expire)) {
+            return;
+        }
+        if (!dupe_recent(work, work_len)) {
+            dupe_remember(work, work_len);
+            (void)modem_send(work, work_len,
+                             (uint16_t)(TX_EXPIRE_SECONDS - g_config.viscous_min));
+        } else {
+            modem_log_viscous(work, work_len);
+        }
+    }
 }

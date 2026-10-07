@@ -96,6 +96,13 @@ report goes out every 10 minutes, and one definition message goes out each
 hour.
 `TELPATH` configures the AX.25 path for telemetry packets separately from 
 `BPATH` and defaults to direct, so those frames do not request a digipeater.
+
+`VISCOUS 3 7` is an optional delayed-repeat mode. It enables `DIRECTONLY`,
+waits a random 3–7 seconds before repeating a direct packet, and suppresses
+that repeat if another digipeater's copy is heard first. `VISCOUS OFF`
+restores immediate digipeating and turns `DIRECTONLY` off. `DIRECTONLY OFF`
+turns `VISCOUS` off.
+
 The first definition message is the `BITS` message, sent once `MYCALL` is set.
 
 `DISPLAY` prints the stored settings. If you ever want to fully back up your

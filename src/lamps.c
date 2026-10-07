@@ -20,5 +20,8 @@ void lamps_service(void)
     if (pktq_pending(PKTQ_TX)) {
         lamps = (uint8_t)(lamps | LED_MULT);
     }
+    if (pktq_pending(PKTQ_VISCOUS)) {
+        lamps = (uint8_t)(lamps | LED_CON);
+    }
     hardware_lamps(lamps);
 }
