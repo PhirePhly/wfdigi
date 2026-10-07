@@ -84,6 +84,7 @@ RX 40
 TX 12
 !R 0
 !Q 1
+!S 0
 ```
 
 `TIME` is the 16-bit seconds counter from boot, the same counter a trace line
@@ -93,7 +94,7 @@ and `TX` are the frames counted since the previous telemetry report, the same
 numbers the next telemetry frame will send. Reading `ENGSTAT` does not move
 that baseline. Both counters are 16-bit and roll over; the printed value is
 the unsigned difference, so a rollover still counts the frames in the
-interval. They keep counting while `TELEMETRY` is off. `!R` and `!Q` are how
+interval. They keep counting while `TELEMETRY` is off. `!R`, `!Q`, and `!S` are how
 many times those drop codes have been printed since boot. Each is a 16-bit
 count. Another drop after a counter reaches 65535 reboots the TNC. The
 counts are working RAM, not part of the battery configuration image, and
@@ -233,7 +234,7 @@ T#000,<received>,<transmitted>,<drops>,0,0,00000000
 `<received>` and `<transmitted>` are the frames counted since the previous
 report. The counters are 16-bit and roll over. The value is their unsigned
 difference, so a rollover still counts the frames in that interval.
-`<drops>` is how far the `!R` and `!Q`
+`<drops>` is how far the `!R`, `!Q`, and `!S`
 counters have moved since the previous report. The sequence number runs from
 000 through 999. Nothing is queued while `MYCALL` is still `N0CALL`.
 

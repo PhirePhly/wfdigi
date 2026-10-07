@@ -32,6 +32,7 @@ static uint16_t last_rx;
 static uint16_t last_tx;
 static uint16_t last_r;
 static uint16_t last_q;
+static uint16_t last_s;
 static uint16_t seq;
 static uint8_t def_kind;
 static uint8_t def_due;
@@ -164,7 +165,7 @@ static bool send_frame(void)
     if (!frame_ok || frame_n < 16u) {
         return false;
     }
-    return modem_send(PKTQ_BEACON, frame, frame_n);
+    return modem_send(frame, frame_n);
 }
 
 static bool send_message(const char *text, const char *extra)
@@ -210,8 +211,10 @@ static bool send_data(void)
     uint16_t tx;
     uint16_t r;
     uint16_t q;
+    uint16_t s;
     uint16_t dr;
     uint16_t dq;
+    uint16_t ds;
     uint16_t drops;
 
     hardware_irq_off();
@@ -220,13 +223,20 @@ static bool send_data(void)
     tx_now = tx_count;
     rx = (uint16_t)(rx_now - last_rx);
     tx = (uint16_t)(tx_now - last_tx);
-    modem_drop_counts(&r, &q);
+    modem_drop_counts(&r, &q, &s);
     dr = (uint16_t)(r - last_r);
     dq = (uint16_t)(q - last_q);
-    if (dr > (uint16_t)(65535u - dq)) {
+    ds = (uint16_t)(s - last_s);
+    drops = dr;
+    if (dq > (uint16_t)(65535u - drops)) {
         drops = 65535u;
     } else {
-        drops = (uint16_t)(dr + dq);
+        drops = (uint16_t)(drops + dq);
+    }
+    if (ds > (uint16_t)(65535u - drops)) {
+        drops = 65535u;
+    } else {
+        drops = (uint16_t)(drops + ds);
     }
 
     start_frame();
@@ -248,6 +258,7 @@ static bool send_data(void)
     last_tx = tx_now;
     last_r = r;
     last_q = q;
+    last_s = s;
     if (seq >= 999u) {
         seq = 0u;
     } else {
@@ -294,6 +305,7 @@ void telemetry_init(void)
     last_tx = 0u;
     last_r = 0u;
     last_q = 0u;
+    last_s = 0u;
     seq = 0u;
     def_kind = 0u;
     tel_def_left = 0u;
@@ -310,14 +322,16 @@ void telemetry_restart(void)
 {
     uint16_t r;
     uint16_t q;
+    uint16_t s;
 
     hardware_irq_off();
     last_rx = rx_count;
     hardware_irq_restore();
     last_tx = tx_count;
-    modem_drop_counts(&r, &q);
+    modem_drop_counts(&r, &q, &s);
     last_r = r;
     last_q = q;
+    last_s = s;
     seq = 0u;
     def_kind = 0u;
     tel_def_left = 0u;

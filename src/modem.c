@@ -30,6 +30,8 @@ typedef enum {
 #define TX_WAIT_TICKS 4u
 /* EOM is the start of the CRC. Sixteen CRC bits plus three flags is 33 ms. */
 #define TX_TAIL_TICKS 4u
+/* A transmit frame still queued this long after it was accepted is stale. */
+#define TX_EXPIRE_SECONDS 10u
 #define TRACE_MAX 254u
 
 static uint8_t rx_buf[2][AX25_MAX];
@@ -58,11 +60,13 @@ static volatile uint8_t dcd_now;
 static volatile uint8_t sta_arm;
 static volatile uint8_t rx_dropped;
 
-// !R and !Q since this boot. Adverse Drop counters
+// !R, !Q, and !S since this boot. Adverse Drop counters
 static uint16_t drop_r; // Adverse drops due to Rx Overruns
 static uint16_t drop_q; // Adverse drops due to Tx queue overflows
+static uint16_t drop_s; // Adverse drops due to stale transmit frames
 
 static void note_drop_r(void);
+static void note_drop_s(void);
 
 static uint8_t radio_rr0(void)
 {
@@ -550,20 +554,33 @@ static void tx_start_data(void)
     timer_set(TIMER_TXWAIT, TX_WAIT_TICKS);
 }
 
+/* Take the next transmit frame that is still inside its 10 second window.
+ * A frame whose expiry second has been reached is discarded and counted as !S.
+ */
+static bool tx_take(void)
+{
+    uint16_t expire;
+
+    while (pktq_take(PKTQ_TX, tx_buf, AX25_MAX, &tx_len, &expire)) {
+        if (!pktq_expired(expire)) {
+            return true;
+        }
+        note_drop_s();
+    }
+    return false;
+}
+
 static void tx_kick(void)
 {
-    uint8_t kind;
-
     if (tx_state != TX_IDLE) {
         return;
     }
-    if (!pktq_take(&kind, tx_buf, AX25_MAX, &tx_len)) {
+    if (!tx_take()) {
         return;
     }
-    (void)kind;
     if (tx_interlock) {
         serial_puts("ERR - Set Callsign\r\n");
-        while (pktq_take(&kind, tx_buf, AX25_MAX, &tx_len)) {
+        while (tx_take()) {
         }
         return;
     }
@@ -606,24 +623,21 @@ static void tx_unkey(bool sent)
  */
 static void tx_continue(void)
 {
-    uint8_t kind;
-
     telemetry_note_tx();
     if (g_config.logging != 0u) {
         log_frame('T', tx_buf, tx_len);
     }
     if (tx_interlock) {
         serial_puts("ERR - Set Callsign\r\n");
-        while (pktq_take(&kind, tx_buf, AX25_MAX, &tx_len)) {
+        while (tx_take()) {
         }
         tx_release(false);
         return;
     }
-    if (!pktq_take(&kind, tx_buf, AX25_MAX, &tx_len)) {
+    if (!tx_take()) {
         tx_release(false);
         return;
     }
-    (void)kind;
     tx_start_data();
 }
 
@@ -789,6 +803,12 @@ static void note_drop_q(void)
     count_drop(&drop_q);
 }
 
+static void note_drop_s(void)
+{
+    serial_puts("!S");
+    count_drop(&drop_s);
+}
+
 static void drop_service(void)
 {
     uint8_t n;
@@ -812,12 +832,12 @@ void modem_service(void)
     tx_service();
 }
 
-bool modem_send(uint8_t kind, const uint8_t *frame, uint16_t len)
+bool modem_send(const uint8_t *frame, uint16_t len)
 {
     if (frame == 0 || len < AX25_MIN || len > AX25_MAX) {
         return false;
     }
-    if (!pktq_put(kind, frame, len)) {
+    if (!pktq_put(PKTQ_TX, frame, len, pktq_expire_in(TX_EXPIRE_SECONDS))) {
         note_drop_q();
         return false;
     }
@@ -859,10 +879,11 @@ void modem_calibrate(uint8_t tone, uint8_t seconds)
     timer_cal_start(seconds);
 }
 
-void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops)
+void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops, uint16_t *stale_drops)
 {
     *frame_drops = drop_r;
     *queue_drops = drop_q;
+    *stale_drops = drop_s;
 }
 
 void engine_stat(void)
@@ -883,6 +904,8 @@ void engine_stat(void)
     print_u16(drop_r);
     serial_puts("\r\n!Q ");
     print_u16(drop_q);
+    serial_puts("\r\n!S ");
+    print_u16(drop_s);
     serial_puts("\r\n");
 }
 
@@ -890,6 +913,7 @@ void modem_init(void)
 {
     drop_r = 0u;
     drop_q = 0u;
+    drop_s = 0u;
     rx_fill = 0u;
     rx_reset();
     rx_ready = 0u;

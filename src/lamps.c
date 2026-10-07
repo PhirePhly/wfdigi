@@ -17,7 +17,7 @@ void lamps_service(void)
     if (timer_running(TIMER_STA)) {
         lamps = (uint8_t)(lamps | LED_STA);
     }
-    if (pktq_pending()) {
+    if (pktq_pending(PKTQ_TX)) {
         lamps = (uint8_t)(lamps | LED_MULT);
     }
     hardware_lamps(lamps);

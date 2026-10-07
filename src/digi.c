@@ -147,7 +147,7 @@ static void send_work(void)
 {
     /* Record before the modem finishes sending, so a second copy is caught. */
     dupe_remember(work, work_len);
-    (void)modem_send(PKTQ_AX25, work, work_len);
+    (void)modem_send(work, work_len);
 }
 
 /* First matching via. unused_only skips addresses that already have the H bit. */

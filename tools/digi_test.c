@@ -25,7 +25,6 @@ static uint16_t now;
 static uint8_t tx_frame[TX_KEEP][FRAME_CAP];
 static uint16_t tx_len_at[TX_KEEP];
 static int tx_count;
-static int tx_bad_kind;
 static int passed;
 static int failed;
 
@@ -39,14 +38,12 @@ bool timer_in_dupe_window(uint16_t heard_at)
     return (uint16_t)(now - heard_at) < DUPE_WINDOW;
 }
 
-bool modem_send(uint8_t kind, const uint8_t *frame, uint16_t len)
+bool modem_send(const uint8_t *frame, uint16_t len)
 {
     uint16_t i;
 
-    if (kind != PKTQ_AX25 || frame == 0 || len > FRAME_CAP) {
-        tx_bad_kind = 1;
-        ++tx_count;
-        return true;
+    if (frame == 0 || len > FRAME_CAP) {
+        return false;
     }
     if (tx_count < TX_KEEP) {
         for (i = 0u; i < len; ++i) {
@@ -99,7 +96,6 @@ static void setup(void)
     now = 1000u;
     dupe_init();
     tx_count = 0;
-    tx_bad_kind = 0;
 }
 
 static void set_alias(uint8_t slot, const char *text, uint8_t ssid)
@@ -459,10 +455,6 @@ static void judge(const char *name, const char *out)
     char got[TEXT_CAP];
     char detail[TEXT_CAP + 80];
 
-    if (tx_bad_kind) {
-        fail(name, "transmit was not an AX.25 frame");
-        return;
-    }
     if (out == 0) {
         if (tx_count != 0) {
             got[0] = '\0';
@@ -514,7 +506,6 @@ static void check_keep(const char *name, const char *in, const char *out)
     uint16_t len = 0u;
 
     tx_count = 0;
-    tx_bad_kind = 0;
     if (encode(in, frame, &len) != 0) {
         fail(name, "could not build the test frame");
         return;
@@ -531,7 +522,6 @@ static void check_len(const char *name, const char *in, uint16_t want_len, const
 
     dupe_init();
     tx_count = 0;
-    tx_bad_kind = 0;
     if (encode(in, frame, &len) != 0) {
         fail(name, "could not build the test frame");
         return;
@@ -612,7 +602,6 @@ static void check_raw_short(const uint8_t *frame)
 {
     dupe_init();
     tx_count = 0;
-    tx_bad_kind = 0;
     digi_ingress(frame, 10u);
     judge("truncated frame", 0);
 }

@@ -6,7 +6,7 @@ Time is in 10 ms ticks. Twelve interrupts of the 1200 Hz `/SYNCB` input are one 
 
 ## Transmitter
 
-`tx_state` starts at `TX_IDLE` from `modem_init`. `modem_send` queues a frame and calls `tx_kick`, which leaves idle only when a frame is actually taken. A transmission already in progress stays there; the queue holds the new frame until the channel returns to idle, or until `TX_TAIL` takes the next frame without unkeying.
+`tx_state` starts at `TX_IDLE` from `modem_init`. `modem_send` queues a frame on the transmit queue and calls `tx_kick`, which leaves idle only when a frame is actually taken. A transmission already in progress stays there; that queue holds the new frame until the channel returns to idle, or until `TX_TAIL` takes the next frame without unkeying.
 
 PTT (`keyed`) is on from `tx_key` until `tx_release`. Calibration keys on its own and does not pass through the data states.
 
@@ -47,7 +47,7 @@ stateDiagram-v2
 
 The radio is unkeyed and no frame is in the SCC. This is the only state that accepts a new frame from `tx_kick`, and the only state that accepts `CAL`.
 
-`tx_kick` takes one frame off the queue. With the callsign unset it prints `ERR - Set Callsign`, throws away every queued frame, and stays idle. Otherwise:
+`tx_kick` takes one frame off the transmit queue. A frame whose expiry second has been reached is discarded, counted as `!S`, and the next frame is taken. With the callsign unset it prints `ERR - Set Callsign`, throws away every frame still in that queue, and stays idle. Otherwise:
 
 | Condition | Next |
 |---|---|
@@ -107,12 +107,12 @@ The channel A external-status interrupt records the bit only while `tx_eom_watch
 
 The CRC transmission has started. The tail is 40 ms from that instant: 16 CRC bits are 13.3 ms and three flag bytes are 20 ms, which is 33 ms at 1200 baud. PTT stays on through those flags. The SCC then returns to flag idle on its own. This state does not write more bytes.
 
-When the tail timer expires, `tx_continue` counts the frame as transmitted and logs it when logging is on.
+When the tail timer expires, `tx_continue` counts the frame as transmitted and logs it when logging is on. The next take skips a frame that is already due, counts it as `!S`, and looks at the frame behind it.
 
 | Condition | Next |
 |---|---|
-| Another frame is queued, callsign still set | `TX_DATA` immediately. PTT stays on. `TXDELAY` is not repeated |
-| Queue empty, or the callsign was cleared | `TX_IDLE`. PTT drops with no abort, because the CRC and flags are already going out |
+| Another transmit frame is queued, callsign still set | `TX_DATA` immediately. PTT stays on. `TXDELAY` is not repeated |
+| Transmit queue empty, or the callsign was cleared | `TX_IDLE`. PTT drops with no abort, because the CRC and flags are already going out |
 
 A frame that finds the state idle later, including one queued after the unkey, takes the full path through persistence and `TXDELAY`.
 

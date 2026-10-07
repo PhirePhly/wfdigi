@@ -164,7 +164,7 @@ bool beacon_send(void)
         frame[n] = text[i];
         ++n;
     }
-    if (n > FRAME_MAX || !modem_send(PKTQ_BEACON, frame, n)) {
+    if (n > FRAME_MAX || !modem_send(frame, n)) {
         return false;
     }
     advance_path();

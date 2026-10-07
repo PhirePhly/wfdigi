@@ -60,7 +60,7 @@ need SDCC.
 - `src/hardware.c`: SCC setup, the front-panel lamp latch, radio carrier detect, and PTT
 - `src/lamps.c`: which front-panel lamps are lit on each service pass
 - `src/serial.c`: terminal I/O, with a receive interrupt and RTS flow control
-- `src/pktq.c`: transmit queue of 31-byte blocks
+- `src/pktq.c`: transmit and viscous queues sharing a pool of 31-byte blocks
 - `src/modem.c`: HDLC AX.25 receive and transmit on the radio channel
 - `src/digi.c`: path matching, header rewrite, and the transmit queue for repeats
 - `src/dupe.c`: the last 250 transmitted packets, used to skip a repeat
@@ -147,7 +147,7 @@ At the callsign prompt, a config name alone prints the value stored in SRAM.
 `NAME VALUE` updates that value when it is in range. `DISPLAY` prints every
 setting. `HELP` prints where to read the documentation. `ENGSTAT` prints
 the seconds counter, how many duplicate slots are occupied, the received and
-transmitted frames since the previous telemetry report, and the `!R` and `!Q` counts since boot. `REBOOT`
+transmitted frames since the previous telemetry report, and the `!R`, `!Q`, and `!S` counts since boot. `REBOOT`
 starts the firmware over and keeps the stored settings. `RESET` clears the
 stored settings and reboots, so the boot loads the defaults. Unknown commands
 print `Huh?`; lines longer than 79 characters print

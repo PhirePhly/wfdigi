@@ -229,23 +229,38 @@ void cli_redraw(void);
 void modem_quiesce(void);
 void modem_init(void);
 void modem_service(void);
-/* Seconds since boot, occupied duplicate slots, and the !R and !Q counts. */
+/* Seconds since boot, occupied duplicate slots, and the !R, !Q, and !S counts. */
 void engine_stat(void);
-/* !R and !Q counts since boot. Another drop at 65535 reboots. */
-void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops);
-#define PKTQ_AX25 0u
-#define PKTQ_BEACON 1u
+/* !R, !Q, and !S counts since boot. Another drop at 65535 reboots. */
+void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops, uint16_t *stale_drops);
+#define PKTQ_TX 0u
+#define PKTQ_VISCOUS 1u
+#define PKTQ_COUNT 2u
+/* Longest delay pktq_expire_in will schedule. A longer request is clamped. */
+#define PKTQ_EXPIRE_SPAN 0x8000u
 
 void pktq_init(void);
-/* True while at least one frame is still waiting in the transmit queue. */
-bool pktq_pending(void);
-/* Copy a frame into 31-byte blocks. False when the pool or the 64-deep queue is full. */
-bool pktq_put(uint8_t kind, const uint8_t *data, uint16_t len);
-/* Copy the oldest frame into dest and return its blocks to the pool. */
-bool pktq_take(uint8_t *kind, uint8_t *dest, uint16_t dest_max, uint16_t *len);
+/* Absolute second at which a slot is due. seconds is clamped to PKTQ_EXPIRE_SPAN. */
+uint16_t pktq_expire_in(uint16_t seconds);
+/* True once timer_seconds() has reached expire, including that same second. */
+bool pktq_expired(uint16_t expire);
+/* True while this queue holds a frame. */
+bool pktq_pending(uint8_t queue);
+/* Copy a frame into 31-byte blocks on one queue, in expiry order. expire is
+ * the due second. A frame that is due with or after the last slot is appended.
+ * False when the queue id is unknown, or the pool or that 16-deep ring is full.
+ */
+bool pktq_put(uint8_t queue, const uint8_t *data, uint16_t len, uint16_t expire);
+/* Copy the frame that expires first and its expiry second. expire may be null.
+ * False when that queue has nothing left.
+ */
+bool pktq_take(uint8_t queue, uint8_t *dest, uint16_t dest_max, uint16_t *len, uint16_t *expire);
 
-/* Queue one AX.25 frame, without the CRC. The modem sends it when the radio is free. */
-bool modem_send(uint8_t kind, const uint8_t *frame, uint16_t len);
+/* Queue one AX.25 frame on the transmit queue, without the CRC. The slot is due
+ * 10 seconds later. The modem sends it when the radio is free, or counts !S if
+ * that second has already been reached.
+ */
+bool modem_send(const uint8_t *frame, uint16_t len);
 /* Repeat a received frame when DIGIPEAT is on and the path matches this station. */
 void digi_ingress(const uint8_t *frame, uint16_t len);
 /* Clear the recently-sent list. Call before any packet is transmitted. */
