@@ -2,7 +2,6 @@
 
 /* AX.25 address block is 7 bytes. Destination, source, and up to 8 digipeaters. */
 #define AX25_ADDR 7u
-#define AX25_MAX_ADDRS 10u
 #define AX25_MIN 15u
 #define AX25_MAX 330u
 
@@ -30,8 +29,6 @@ typedef enum {
 #define TX_WAIT_TICKS 4u
 /* EOM is the start of the CRC. Sixteen CRC bits plus three flags is 33 ms. */
 #define TX_TAIL_TICKS 4u
-#define TRACE_MAX 254u
-
 static uint8_t rx_buf[2][AX25_MAX];
 static uint8_t rx_fill;
 static uint16_t rx_len;
@@ -51,9 +48,6 @@ static uint16_t tx_mark;
 static uint8_t tx_wait_armed;
 static volatile bool keyed;
 
-static char trace[TRACE_MAX];
-static uint8_t trace_len;
-static uint8_t trace_pos;
 static volatile uint8_t dcd_now;
 static volatile uint8_t sta_arm;
 static volatile uint8_t rx_dropped;
@@ -277,179 +271,8 @@ void modem_quiesce(void)
     tx_eom_watch = 0u;
     tx_eom_seen = 0u;
     tx_wait_armed = 0u;
-    trace_len = 0u;
-    trace_pos = 0u;
     sta_arm = 0u;
     rx_dropped = 0u;
-}
-
-static bool trace_idle(void)
-{
-    return trace_pos >= trace_len;
-}
-
-static void trace_begin(void)
-{
-    trace_len = 0u;
-    trace_pos = 0u;
-}
-
-static void trace_char(uint8_t byte)
-{
-    if (trace_len < TRACE_MAX) {
-        trace[trace_len] = (char)byte;
-        ++trace_len;
-    }
-}
-
-static void trace_puts(const char *text)
-{
-    while (*text != '\0') {
-        trace_char((uint8_t)*text);
-        ++text;
-    }
-}
-
-static void trace_u16(uint16_t value, uint8_t width)
-{
-    uint8_t text[5];
-    uint8_t n = format_u16(value, width, text);
-    uint8_t i;
-
-    for (i = 0u; i < n; ++i) {
-        trace_char(text[i]);
-    }
-}
-
-static void trace_drain(void)
-{
-    if (trace_idle()) {
-        return;
-    }
-    if (serial_try_putc((uint8_t)trace[trace_pos])) {
-        ++trace_pos;
-    }
-}
-
-static void print_hex_byte(uint8_t value)
-{
-    uint8_t hi = (uint8_t)(value >> 4);
-    uint8_t lo = (uint8_t)(value & 0x0Fu);
-
-    trace_char((uint8_t)(hi < 10u ? '0' + hi : 'A' + (hi - 10u)));
-    trace_char((uint8_t)(lo < 10u ? '0' + lo : 'A' + (lo - 10u)));
-}
-
-static void print_call(const uint8_t *raw)
-{
-    uint8_t i;
-    uint8_t ssid;
-
-    for (i = 0u; i < 6u; ++i) {
-        uint8_t c = (uint8_t)((raw[i] >> 1) & 0x7Fu);
-        if (c != ' ') {
-            trace_char(c);
-        }
-    }
-    ssid = (uint8_t)((raw[6] >> 1) & 0x0Fu);
-    if (ssid != 0u) {
-        trace_char('-');
-        if (ssid >= 10u) {
-            trace_char('1');
-            ssid = (uint8_t)(ssid - 10u);
-        }
-        trace_char((uint8_t)('0' + ssid));
-    }
-}
-
-static bool print_tnc2(const uint8_t *frame, uint16_t len)
-{
-    uint16_t at[AX25_MAX_ADDRS];
-    uint8_t n = 0u;
-    uint16_t i = 0u;
-    uint8_t d;
-    uint8_t last_h = 0u;
-    bool saw_h = false;
-    uint8_t ctl;
-
-    while (n < AX25_MAX_ADDRS && (uint16_t)(i + AX25_ADDR) <= len) {
-        at[n] = i;
-        ++n;
-        i = (uint16_t)(i + AX25_ADDR);
-        if ((frame[i - 1u] & 0x01u) != 0u) {
-            break;
-        }
-    }
-    if (n < 2u || (frame[at[n - 1u] + 6u] & 0x01u) == 0u) {
-        return false;
-    }
-    print_call(&frame[at[1]]);
-    trace_char('>');
-    print_call(&frame[at[0]]);
-    for (d = 2u; d < n; ++d) {
-        if ((frame[at[d] + 6u] & 0x80u) != 0u) {
-            last_h = d;
-            saw_h = true;
-        }
-    }
-    for (d = 2u; d < n; ++d) {
-        trace_char(',');
-        print_call(&frame[at[d]]);
-        if (saw_h && d == last_h) {
-            trace_char('*');
-        }
-    }
-    if (i >= len) {
-        return true;
-    }
-    ctl = frame[i];
-    ++i;
-    trace_char(':');
-    if (((ctl & 0x01u) == 0u) || ((ctl & 0xEFu) == 0x03u)) {
-        if (i < len) {
-            ++i;
-        }
-    }
-    while (i < len) {
-        uint8_t c = frame[i];
-        ++i;
-        if (c >= 0x20u && c <= 0x7Eu) {
-            trace_char(c);
-        }
-    }
-    return true;
-}
-
-static void log_frame(char kind, const uint8_t *frame, uint16_t len)
-{
-    uint16_t i;
-    uint8_t n;
-    uint8_t c;
-
-    if (!trace_idle()) {
-        return;
-    }
-    trace_begin();
-    trace_puts("\r\n");
-    trace_char((uint8_t)kind);
-    trace_char(' ');
-    /* Five characters, space-padded, so the packet text lines up. */
-    trace_u16(timer_seconds(), 5u);
-    trace_char(' ');
-    if (!print_tnc2(frame, len)) {
-        for (i = 0u; i < len; ++i) {
-            if (i != 0u) {
-                trace_char(' ');
-            }
-            print_hex_byte(frame[i]);
-        }
-    }
-    trace_puts("\r\n");
-    trace_puts(cli_prompt());
-    n = cli_pending_len();
-    for (c = 0u; c < n; ++c) {
-        trace_char((uint8_t)cli_pending_char(c));
-    }
 }
 
 /* True when the source address contains a printable character other than space. */
@@ -490,17 +313,11 @@ static void service_rx(void)
         n = AX25_MAX;
     }
     if (!source_call_present(rx_buf[idx], n)) {
-        if (g_config.logging != 0u) {
-            log_frame('D', rx_buf[idx], n);
-        }
+        logging_frame('D', rx_buf[idx], n);
         rx_ready = 0u;
         return;
     }
-    if (g_config.logging != 0u && trace_idle()) {
-        log_frame('R', rx_buf[idx], n);
-    } else if (g_config.logging != 0u) {
-        note_drop_r();
-    }
+    logging_frame('R', rx_buf[idx], n);
     digi_ingress(rx_buf[idx], n);
     rx_ready = 0u;
 }
@@ -610,9 +427,7 @@ static void tx_unkey(bool sent)
     tx_release(!sent);
     if (sent) {
         telemetry_note_tx();
-        if (g_config.logging != 0u) {
-            log_frame('T', tx_buf, tx_len);
-        }
+        logging_frame('T', tx_buf, tx_len);
     }
     tx_kick();
 }
@@ -623,9 +438,7 @@ static void tx_unkey(bool sent)
 static void tx_continue(void)
 {
     telemetry_note_tx();
-    if (g_config.logging != 0u) {
-        log_frame('T', tx_buf, tx_len);
-    }
+    logging_frame('T', tx_buf, tx_len);
     if (tx_interlock) {
         serial_puts("ERR - Set Callsign\r\n");
         while (tx_take()) {
@@ -825,7 +638,6 @@ static void drop_service(void)
 void modem_service(void)
 {
     sta_service();
-    trace_drain();
     service_rx();
     drop_service();
     tx_service();
@@ -854,13 +666,6 @@ bool modem_queue_viscous(const uint8_t *frame, uint16_t len, uint16_t expire)
         return false;
     }
     return true;
-}
-
-void modem_log_viscous(const uint8_t *frame, uint16_t len)
-{
-    if (g_config.logging != 0u) {
-        log_frame('V', frame, len);
-    }
 }
 
 void modem_cal_stop(void)
@@ -947,8 +752,6 @@ void modem_init(void)
     keyed = false;
     pktq_init();
     dupe_init();
-    trace_len = 0u;
-    trace_pos = 0u;
     radio_cmd(0x30u);
     radio_cmd(0x10u);
     radio_cmd(0x10u);

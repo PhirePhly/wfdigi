@@ -42,6 +42,7 @@ void firmware_boot(void)
     beacon_path_reset();
     timer_init();
     cli_start();
+    logging_init();
     modem_init();
     telemetry_init();
     serial_rx_init();
@@ -50,6 +51,7 @@ void firmware_boot(void)
     for (;;) {
         check_tx_interlock();
         timer_service();
+        logging_service();
         modem_service();
         digi_service();
         lamps_service();

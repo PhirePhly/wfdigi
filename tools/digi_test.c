@@ -88,11 +88,11 @@ void telemetry_note_viscous(void)
     ++viscous_note_count;
 }
 
-void modem_log_viscous(const uint8_t *frame, uint16_t len)
+void logging_frame(char kind, const uint8_t *frame, uint16_t len)
 {
     (void)frame;
     (void)len;
-    if (g_config.logging != 0u) {
+    if (kind == 'V' && g_config.logging != 0u) {
         ++viscous_log_count;
     }
 }

@@ -206,13 +206,15 @@ would otherwise have transmitted. The timestamp is
 the rolling 16-bit seconds counter, printed right-aligned in five characters
 so packet text stays aligned. Each trace starts and ends with a new line, and
 the callsign prompt is redrawn under it, including any characters already
-typed. The line is sent one byte per service pass, so the 10 ms timers keep
-running while it goes out. An SSID of 0 is omitted. The last digipeater that
+typed. Lines share a 256-byte ring. The main loop sends one byte each pass, so
+the 10 ms timers keep running and a later frame can be logged before the
+earlier line has finished. When 240 bytes are still waiting, the ring writes
+`!!!` and discards further trace text until the backlog has drained to 128
+bytes. An SSID of 0 is omitted. The last digipeater that
 has already repeated the frame is marked with `*`, as in `WIDE1-1*`.
 Bytes in the payload that are not printable ASCII are left out of the trace,
 so it stays on one line. A CRC-good frame that is not AX.25 is printed as
-hexadecimal instead. A valid frame discarded before it can be printed is
-reported as `!R`. `LOGGING OFF` keeps the modem running and suppresses
+hexadecimal instead. `LOGGING OFF` keeps the modem running and suppresses
 these lines.
 
 ## TELEMETRY

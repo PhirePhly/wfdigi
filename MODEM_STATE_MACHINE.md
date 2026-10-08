@@ -1,6 +1,6 @@
 # Modem state machines
 
-`src/modem.c` has one named transmitter state machine, `TxState`, and a receive path that moves a frame through two buffers. The main loop calls `modem_service`, which runs `tx_service` for every state except the ones the transmit interrupt advances. Channel A interrupts feed bytes, watch end-of-frame, and sample carrier.
+`src/modem.c` has one named transmitter state machine, `TxState`, and a receive path that moves a frame through two buffers. The main loop calls `logging_service` and `modem_service`. `modem_service` runs `tx_service` for every state except the ones the transmit interrupt advances. Channel A interrupts feed bytes, watch end-of-frame, and sample carrier.
 
 Time is in 10 ms ticks. Twelve interrupts of the 1200 Hz `/SYNCB` input are one tick.
 
@@ -165,4 +165,6 @@ If `rx_ready` is already set, the new frame is not stored. `rx_dropped` incremen
 
 ### Delivered
 
-`service_rx` runs once `rx_ready` is set. A frame with no source callsign is logged as `D` when logging is on, then dropped. A normal frame is logged as `R` when the trace buffer is empty. If a previous trace line is still draining, that frame counts as `!R` and is still passed to the digipeater. `digi_ingress` then decides whether to repeat it. `rx_ready` clears either way, which frees the holding buffer.
+`service_rx` runs once `rx_ready` is set. A frame with no source callsign is logged as `D` when logging is on, then dropped. A normal frame is logged as `R` when logging is on, then passed to `digi_ingress`. `rx_ready` clears either way, which frees the holding buffer.
+
+`src/logging.c` keeps the trace text. The main loop calls `logging_service`, which sends one queued byte when the terminal transmitter is idle. A new line does not wait for the previous one to finish, and a busy ring is not an adverse drop. When 240 bytes are still queued, the ring writes `!!!` and discards further trace text until 128 bytes or fewer remain.

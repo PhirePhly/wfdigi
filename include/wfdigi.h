@@ -226,8 +226,15 @@ void cli_start(void);
 void cli_input(uint8_t byte);
 /* MYCALL> with a trailing space. A non-zero SSID is included, as in MYCALL-3>. */
 const char *cli_prompt(void);
-/* Reprint the callsign prompt and any partial line. Used after a modem trace. */
+/* Reprint the callsign prompt and any partial line. Used after a trace line. */
 void cli_redraw(void);
+
+/* Clear the trace ring. Battery SRAM is not wiped, so call this at boot. */
+void logging_init(void);
+/* Send one queued trace byte when the terminal transmitter is idle. */
+void logging_service(void);
+/* Append one monitored frame when LOGGING is on. kind is R, T, D, or V. */
+void logging_frame(char kind, const uint8_t *frame, uint16_t len);
 
 void modem_quiesce(void);
 void modem_init(void);
@@ -271,8 +278,6 @@ bool pktq_take(uint8_t queue, uint8_t *dest, uint16_t dest_max, uint16_t *len, u
 bool modem_send(const uint8_t *frame, uint16_t len, uint16_t expires_in);
 /* Queue a viscous frame without kicking the transmitter. */
 bool modem_queue_viscous(const uint8_t *frame, uint16_t len, uint16_t expire);
-/* Log a viscous repeat suppressed by a copy heard from another station. */
-void modem_log_viscous(const uint8_t *frame, uint16_t len);
 /* Repeat a received frame when DIGIPEAT is on and the path matches this station. */
 void digi_ingress(const uint8_t *frame, uint16_t len);
 /* Promote due viscous frames or suppress them when another copy was heard. */

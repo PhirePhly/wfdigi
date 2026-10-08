@@ -8,10 +8,9 @@ reboots the TNC.
 
 ## !R
 
-A valid received AX.25 frame was discarded before it could be printed. The
-receiver holds one completed frame while the next one is arriving. If that
-next frame also finishes before the first is released, or a trace line is
-still draining, the new frame is dropped and the TNC prints `!R`.
+A valid received AX.25 frame was discarded. The receiver holds one completed
+frame while the next one is arriving. If that next frame also finishes before
+the first is released, the new frame is dropped and the TNC prints `!R`.
 
 ## !Q
 
