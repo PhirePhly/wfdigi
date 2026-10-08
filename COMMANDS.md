@@ -220,13 +220,14 @@ these lines.
 ## TELEMETRY
 
 Sends APRS telemetry. Accepts `ON`, `OFF`, `1`, or `0`. The cold-boot default
-is `ON`. Changing it starts the schedule over. Received and transmitted
+is `ON`. Received and transmitted
 frame counts keep running either way; `ENGSTAT` prints the increase since
 the previous report. The counts are not stored in the battery image. Every
 boot starts them at zero.
 
-Once `MYCALL` is set, the next one-second timer service sends the first definition message. It is
-an APRS message addressed to this station:
+Boot and a change to this setting start the schedule over. The first definition
+message waits five minutes, so a transmission that resets the TNC does not
+immediately key the radio again. It is an APRS message addressed to this station:
 
 ```
 :W6FOO    :BITS.11111111,WFDIGI <version>

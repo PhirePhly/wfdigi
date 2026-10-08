@@ -4,14 +4,17 @@
  * whether or not telemetry is on, and start over on every boot. They are
  * 16-bit and roll over. A UI frame every 10 minutes carries the unsigned
  * difference since the previous report. TELPATH is its digipeater; a blank
- * path is sent direct. One definition message goes out each hour: BITS,
- * EQNS, PARM, then UNIT.
+ * path is sent direct. The first definition waits five minutes after boot or
+ * after telemetry is changed, so a transmission that resets the TNC does not
+ * immediately key the radio again. One definition then goes out each hour:
+ * BITS, EQNS, PARM, then UNIT.
  */
 #define FRAME_MAX 128u
 #define AX25_UI 0x03u
 #define AX25_PID 0xF0u
 #define MSG_MAX 67u
 #define SLOT_SECONDS 600u
+#define TELEMETRY_START_DELAY 300u
 #define TELEMETRY_DEF_INTERVAL 3600u
 
 static const char msg_eqns[] = "EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0";
@@ -281,6 +284,20 @@ static void tel_def_sent(void)
     tel_def_left = TELEMETRY_DEF_INTERVAL;
 }
 
+static void arm_schedule(void)
+{
+    def_kind = 0u;
+    if (g_config.telemetry == 0u) {
+        def_due = 0u;
+        tel_def_left = 0u;
+        data_left = 0u;
+        return;
+    }
+    def_due = 0u;
+    tel_def_left = TELEMETRY_START_DELAY;
+    data_left = SLOT_SECONDS;
+}
+
 void telemetry_note_rx(void)
 {
     ++rx_count;
@@ -321,15 +338,7 @@ void telemetry_init(void)
     viscous_count = 0u;
     last_v = 0u;
     seq = 0u;
-    def_kind = 0u;
-    tel_def_left = 0u;
-    if (g_config.telemetry == 0u) {
-        def_due = 0u;
-        data_left = 0u;
-        return;
-    }
-    def_due = 1u;
-    data_left = SLOT_SECONDS;
+    arm_schedule();
 }
 
 void telemetry_restart(void)
@@ -348,15 +357,7 @@ void telemetry_restart(void)
     last_s = s;
     last_v = viscous_count;
     seq = 0u;
-    def_kind = 0u;
-    tel_def_left = 0u;
-    if (g_config.telemetry == 0u) {
-        def_due = 0u;
-        data_left = 0u;
-        return;
-    }
-    def_due = 1u;
-    data_left = SLOT_SECONDS;
+    arm_schedule();
 }
 
 void telemetry_second(void)

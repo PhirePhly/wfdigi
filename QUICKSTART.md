@@ -103,7 +103,9 @@ that repeat if another digipeater's copy is heard first. `VISCOUS OFF`
 restores immediate digipeating and turns `DIRECTONLY` off. `DIRECTONLY OFF`
 turns `VISCOUS` off.
 
-The first definition message is the `BITS` message, sent once `MYCALL` is set.
+The first definition message is the `BITS` message. It waits five minutes after
+boot, or after `TELEMETRY` is changed. Nothing is sent while `MYCALL` is still
+`N0CALL`.
 
 `DISPLAY` prints the stored settings. If you ever want to fully back up your
 digipeater settings, save the output of `DISPLAY` and paste it back into the
