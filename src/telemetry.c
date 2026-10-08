@@ -14,9 +14,9 @@
 #define SLOT_SECONDS 600u
 #define TELEMETRY_DEF_INTERVAL 3600u
 
-static const char msg_eqns[] = "EQNS.0,0.1,0,0,0.1,0,0,1,0,0,0.1,0,0,1,0";
-static const char msg_parm[] = "PARM.ReceivePkts,TransmitPks,AdverseDrops,ViscousDrops,";
-static const char msg_unit[] = "UNIT.pkts/min,pkts/min,count,pkts/min,";
+static const char msg_eqns[] = "EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0";
+static const char msg_parm[] = "PARM.ReceivePkts,TransmitPks,ViscousDrops,AdverseDrops,";
+static const char msg_unit[] = "UNIT.pkts/min,pkts/min,pkts/min,count,";
 
 _Static_assert(sizeof(msg_eqns) - 1u <= MSG_MAX, "EQNS message is too long");
 _Static_assert(sizeof(msg_parm) - 1u <= MSG_MAX, "PARM message is too long");
@@ -252,9 +252,9 @@ static bool send_data(void)
     put_byte((uint8_t)',');
     put_u16(tx);
     put_byte((uint8_t)',');
-    put_u16(drops);
-    put_byte((uint8_t)',');
     put_u16(viscous);
+    put_byte((uint8_t)',');
+    put_u16(drops);
     put_text(",0,00000000");
     if (!send_frame()) {
         return false;

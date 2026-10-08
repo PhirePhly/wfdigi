@@ -237,9 +237,9 @@ included. `<version>` is the same string as the boot banner. One definition
 message follows every hour, in this order: `BITS`, `EQNS`, `PARM`, `UNIT`.
 
 ```
-:W6FOO    :EQNS.0,0.1,0,0,0.1,0,0,1,0,0,0.1,0,0,1,0
-:W6FOO    :PARM.ReceivePkts,TransmitPks,AdverseDrops,ViscousDrops,
-:W6FOO    :UNIT.pkts/min,pkts/min,count,pkts/min,
+:W6FOO    :EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0
+:W6FOO    :PARM.ReceivePkts,TransmitPks,ViscousDrops,AdverseDrops,
+:W6FOO    :UNIT.pkts/min,pkts/min,pkts/min,count,
 ```
 
 `EQNS` divides the received, transmitted, and viscous channels by 10, so a
@@ -250,7 +250,7 @@ Every 10 minutes a UI frame reports that slot. The digipeater path is
 `TELPATH`, and the hourly definition messages use that same path:
 
 ```
-T#000,<received>,<transmitted>,<drops>,<viscous>,0,00000000
+T#000,<received>,<transmitted>,<viscous>,<drops>,0,00000000
 ```
 
 `<received>`, `<transmitted>`, and `<viscous>` are the frames counted since
