@@ -18,6 +18,24 @@ When booting the new firmware, you should expect to see all of the LEDs on
 the front panel to scan in a line, then `CMD` will start blinking if the
 transmitter interlock is preventing the station from transmitting.
 
+## Feature Highlights
+
+* Digipeater support for up to 4 n-N aliases as well as 4 fixed aliases, both with trace-style callsign substitution, so both WIDE and regional SSn-N aliases are supported equally.
+
+* Preemptive digipeating to respond to aliases other than the first available hop
+
+* Proportional pathing so location beacons alternate between 1-4 different path settings
+
+* Max Hop policy enforcement so abusive WIDE7-7 paths are quashed but still digipeated once
+
+* Direct-Only alias digipeating so as a fill-in digipeater we only digipeat packets with zero used VIA hops reagrdless of what alias users specify in their path. This relieves us from relying on every end user correctly using paths like `WIDE1-1,WIDE2-1` to enable low-level fill-in digipeaters.
+
+* Viscous digipeating, where digipeated packets are held in escrow for a random number of seconds to see if another digipeater also heard the packet and discard packets which have successfully been digipeated by another station to avoid redundant traffic.
+
+* Telemetry support to enable public visibility for the traffic levels in and out of the digipeater.
+
+* All user-facing settings support defaults being baked into the firmware ROM for protection from CMOS battery failure.
+
 ## Hardware target
 
 An unmodified AEA PK-88 TNC connected to a radio with no host computer and
@@ -33,10 +51,9 @@ The terminal port is fixed at 9600 baud, 8 data bits, no parity, and one stop
 bit. There is no autobaud detection. The radio channel is initialized for
 1200 baud AX.25: HDLC, NRZI, and equalized Bell 202.
 
-## Build
+## Building
 
-`sdcc`, `sdasz80`, and `makebin` must be on `PATH`. This tree is built with
-SDCC 4.6.0.
+`sdcc`, `sdasz80`, and `makebin` must be in your `PATH`.
 
 ```sh
 make
@@ -100,21 +117,16 @@ and duplicate suppression. It does not need SDCC or a Z80 to run the tests.
    Each value is range-checked as it is stored. A value outside its limits is
    left clear and reported as `Bad config: NAME`. The image is marked valid
    only when every parameter passes. A CRC-16 is then stored in the next two
-   bytes. Warm boot checks that CRC, keeps the image, and still starts the
-   timers, modem, packet queue, duplicate list, drop counters, and received and transmitted frame counts from zero. The beacon path
-   index starts over at the first path.
-4. The eight front-panel lamps walk once. CMD then stays lit, unless `MYCALL`
+   bytes. A later warm boot checks that CRC, keeps the config, and still restarts the
+   timers, modem, packet queue, duplicate list, drop counters, and received and transmitted frame counts from zero.
+4. The eight front-panel lamps scan once to indicate you are no longer running the
+   stock PK-88 firmware. CMD then stays lit, unless `MYCALL`
    is still `N0CALL`, in which case CMD blinks at 2 Hz until the callsign is
-   changed. The DCD lamp
-   follows radio carrier. STA lights for 400 ms after each valid received frame.
-   MULT lights while another frame is waiting in the transmit queue.
+   changed to unlock the transmitter interlock prevent `N0CALL` on the air.
+   The DCD lamp indicates the channel receivier is busy.
+   STA lights for 400 ms after each valid received frame.
+   MULT lights while multiple packets are waiting in the transmit queue.
    CON lights while a frame is waiting in the viscous queue.
-   The serial port then presents the callsign as the prompt, omitting SSID 0.
-5. The foreground loop is one service pass: the 10 ms timers, the modem, the
-   lamps, and one terminal character. The `/SYNCB` interrupt runs at 1200 Hz,
-   and 12 interrupts queue one 10 ms tick. The loop does
-   not pet the watchdog. `0xF8` is read only while the radio is deliberately
-   keyed. When those reads stop, the watchdog releases PTT.
 
 Cold-boot defaults:
 
@@ -142,17 +154,17 @@ Cold-boot defaults:
 
 Every transmission ends with 3 HDLC flags. The radio is unkeyed when nothing
 else is waiting. A frame already in the transmit queue follows those flags
-immediately, and `TXDELAY` is used only when the radio keys up. Half duplex
+immediately, and `TXDELAY` is used only when the radio first keys up. Half duplex
 waits until the channel is clear, then keys when a draw from 0 to 255 is
 less than or equal to `PPERSIST`. Otherwise it waits one `SLOTTIME` and
 draws again. Full duplex keys without that wait. A frame sent while the
 radio stays keyed does not draw again.
 
-At the callsign prompt, a config name alone prints the value stored in SRAM.
+At the callsign `>` prompt, a config name alone prints the value stored in SRAM.
 `NAME VALUE` updates that value when it is in range. `DISPLAY` prints every
-setting. `HELP` prints where to read the documentation. `ENGSTAT` prints
-the seconds counter, how many duplicate slots are occupied, the received and
-transmitted frames since the previous telemetry report, and the `!R`, `!Q`, and `!S` counts since boot. `REBOOT`
+setting and is an effective way to take a backup of the full digipeater config.
+`HELP` prints where to read the documentation. `ENGSTAT` prints
+low level diagnostics counters of the wfdigi packet engine. `REBOOT`
 starts the firmware over and keeps the stored settings. `RESET` clears the
 stored settings and reboots, so the boot loads the defaults. Unknown commands
 print `Huh?`; lines longer than 79 characters print
@@ -165,14 +177,14 @@ callsign is the prefix plus a digit N from 1 to 7, and the SSID is the
 remaining hop count n, with n from 1 through N. It does not match a bare
 `WIDE` or a hop count above N, such as `WIDE2-3`.
 
-A repeat searches the whole path, not only the next unused address. `MYCALL`
+A digipeat searches the whole path, not only the first unused address. `MYCALL`
 is taken first and every hop through it is marked repeated. A path in which
 `MYCALL` is already repeated has looped and is not sent again. An alias is
 replaced by `MYCALL`. An n-N address is replaced by `MYCALL`, and the same
 n-N call is appended at the end with the SSID reduced by one when that SSID
 is still at least 1. `WIDE2-2` goes out as `MYCALL*,WIDE2-1`. `WIDE2-1` goes
 out as `MYCALL*`. `DIRECTONLY` limits alias and n-N repeats to a path whose
-first digipeater has not been repeated yet. `WIDE1-1,WIDE2-1` still qualifies.
+first hop has not been used yet.
 A path that already has `MAXHOPS` repeated digipeaters
 is not repeated. An unused address counts as one hop unless it matches a
 configured n-N prefix, in which case it counts as the remaining hop count. A
@@ -180,7 +192,7 @@ used digipeater counts as one hop. The hop total is those used hops plus the
 remaining request. A total equal to `MAXHOPS` is repeated normally. A larger
 total is quashed: the matched n-N is decremented by one, every digipeater is
 marked used, and `MYCALL` is appended so the last repeated hop is this station.
-One used hop followed by `WIDE2-2` therefore goes out as `WIDE2-1*,MYCALL*`
+One used hop followed by `WIDE2-2` therefore goes out as `AAA,WIDE2-1*,MYCALL*`
 when `MAXHOPS` is 2. When the path already
 holds eight digipeaters, `MYCALL` replaces the last one. A path with no
 matching address is left alone.
