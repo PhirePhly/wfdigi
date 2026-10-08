@@ -46,6 +46,10 @@ static volatile uint8_t tx_eom_watch;
 static volatile uint8_t tx_eom_seen;
 static uint16_t tx_mark;
 static uint8_t tx_wait_armed;
+/* Tail timer has fired. Each service pass takes one more queued frame. */
+static uint8_t tx_tail_due;
+/* The callsign error has been printed for the frames still being discarded. */
+static uint8_t tx_err_noted;
 static volatile bool keyed;
 
 static volatile uint8_t dcd_now;
@@ -271,6 +275,8 @@ void modem_quiesce(void)
     tx_eom_watch = 0u;
     tx_eom_seen = 0u;
     tx_wait_armed = 0u;
+    tx_tail_due = 0u;
+    tx_err_noted = 0u;
     sta_arm = 0u;
     rx_dropped = 0u;
 }
@@ -317,8 +323,17 @@ static void service_rx(void)
         rx_ready = 0u;
         return;
     }
-    logging_frame('R', rx_buf[idx], n);
-    digi_ingress(rx_buf[idx], n);
+    /* A copied frame releases the slot inside digi_ingress. Rejected input
+     * still belongs to us, so release it before reporting the adverse drop.
+     */
+    if (!digi_ingress(rx_buf[idx], n)) {
+        modem_rx_release();
+        note_drop_r();
+    }
+}
+
+void modem_rx_release(void)
+{
     rx_ready = 0u;
 }
 
@@ -369,20 +384,39 @@ static void tx_start_data(void)
     timer_set(TIMER_TXWAIT, TX_WAIT_TICKS);
 }
 
-/* Take the next transmit frame that is still inside its 10 second window.
- * A frame whose expiry second has been reached is discarded and counted as !S.
+/* Take one transmit frame. A frame whose expiry second has been reached
+ * is discarded, counted as !S, and not returned. The next service pass
+ * takes the frame behind it.
  */
 static bool tx_take(void)
 {
     uint16_t expire;
 
-    while (pktq_take(PKTQ_TX, tx_buf, AX25_MAX, &tx_len, &expire)) {
-        if (!pktq_expired(expire)) {
-            return true;
-        }
-        note_drop_s();
+    if (!pktq_take(PKTQ_TX, tx_buf, AX25_MAX, &tx_len, &expire)) {
+        return false;
     }
-    return false;
+    if (pktq_expired(expire)) {
+        note_drop_s();
+        return false;
+    }
+    return true;
+}
+
+/* Drop one queued frame while the callsign is unset. The error is printed once. */
+static void tx_discard_interlock(void)
+{
+    if (!pktq_pending(PKTQ_TX)) {
+        tx_err_noted = 0u;
+        return;
+    }
+    if (tx_err_noted == 0u) {
+        serial_puts("ERR - Set Callsign\r\n");
+        tx_err_noted = 1u;
+    }
+    (void)tx_take();
+    if (!pktq_pending(PKTQ_TX)) {
+        tx_err_noted = 0u;
+    }
 }
 
 static void tx_kick(void)
@@ -390,14 +424,12 @@ static void tx_kick(void)
     if (tx_state != TX_IDLE) {
         return;
     }
-    if (!tx_take()) {
+    if (tx_interlock) {
+        tx_discard_interlock();
         return;
     }
-    if (tx_interlock) {
-        serial_puts("ERR - Set Callsign\r\n");
-        // Flush any additional frames in the queue
-        while (tx_take()) {
-        }
+    tx_err_noted = 0u;
+    if (!tx_take()) {
         return;
     }
     tx_i = 0u;
@@ -432,6 +464,29 @@ static void tx_unkey(bool sent)
     tx_kick();
 }
 
+/* One queued frame after the frame just sent has been counted. A stale
+ * frame is dropped and the one behind it waits for the next service pass.
+ */
+static void tx_next_frame(void)
+{
+    if (tx_interlock) {
+        tx_discard_interlock();
+        tx_tail_due = 0u;
+        tx_release(false);
+        return;
+    }
+    if (!tx_take()) {
+        if (pktq_pending(PKTQ_TX)) {
+            return;
+        }
+        tx_tail_due = 0u;
+        tx_release(false);
+        return;
+    }
+    tx_tail_due = 0u;
+    tx_start_data();
+}
+
 /* The channel is already ours. Closing flags have gone out, so the next
  * queued frame starts at once. TXDELAY runs only from tx_key.
  */
@@ -439,18 +494,8 @@ static void tx_continue(void)
 {
     telemetry_note_tx();
     logging_frame('T', tx_buf, tx_len);
-    if (tx_interlock) {
-        serial_puts("ERR - Set Callsign\r\n");
-        while (tx_take()) {
-        }
-        tx_release(false);
-        return;
-    }
-    if (!tx_take()) {
-        tx_release(false);
-        return;
-    }
-    tx_start_data();
+    tx_tail_due = 1u;
+    tx_next_frame();
 }
 
 static void tx_key(void)
@@ -515,6 +560,9 @@ static void tx_service(void)
     state = tx_state;
     hardware_irq_on();
     switch (state) {
+    case TX_IDLE:
+        tx_kick();
+        break;
     case TX_WAIT_DCD:
         if (dcd_now == 0u || g_config.fullduplex != 0u) {
             tx_persist();
@@ -574,6 +622,10 @@ static void tx_service(void)
     case TX_TAIL:
         if (timer_expired(TIMER_TXTAIL)) {
             tx_continue();
+            break;
+        }
+        if (tx_tail_due != 0u) {
+            tx_next_frame();
         }
         break;
     default:
@@ -749,6 +801,8 @@ void modem_init(void)
     tx_eom_seen = 0u;
     tx_mark = 0u;
     tx_wait_armed = 0u;
+    tx_tail_due = 0u;
+    tx_err_noted = 0u;
     keyed = false;
     pktq_init();
     dupe_init();

@@ -59,11 +59,10 @@ static uint8_t *via_ptr(uint8_t index)
     return p;
 }
 
-static bool load_frame(const uint8_t *frame, uint16_t len, uint8_t *vias)
+/* Copy the modem buffer, then let the receiver reuse it. Parsing uses work. */
+static bool take_frame(const uint8_t *frame, uint16_t len)
 {
     uint16_t i;
-    uint16_t at = 0u;
-    uint8_t n = 0u;
 
     if (frame == 0 || len < (AX25_ADDR + AX25_ADDR + 1u) || len > FRAME_MAX) {
         return false;
@@ -72,6 +71,16 @@ static bool load_frame(const uint8_t *frame, uint16_t len, uint8_t *vias)
         work[i] = frame[i];
     }
     work_len = len;
+    modem_rx_release();
+    return true;
+}
+
+static bool count_vias(uint8_t *vias)
+{
+    uint16_t at = 0u;
+    uint8_t n = 0u;
+    uint16_t len = work_len;
+
     while (n < (uint8_t)(2u + AX25_MAX_VIAS) && (uint16_t)(at + AX25_ADDR) <= len) {
         uint8_t ext = (uint8_t)(work[(uint16_t)(at + 6u)] & AX25_EXT);
 
@@ -401,7 +410,8 @@ static void rewrite_nn(uint8_t index, uint8_t vias, uint8_t remain)
     }
 }
 
-void digi_ingress(const uint8_t *frame, uint16_t len)
+// Returns true if the frame was successfully ingested and processed.
+bool digi_ingress(const uint8_t *frame, uint16_t len)
 {
     uint8_t vias;
     uint8_t mine;
@@ -412,15 +422,19 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
     uint8_t ahead;
     bool direct;
 
-    if (!load_frame(frame, len, &vias) || vias == 0u) {
-        return;
+    if (!take_frame(frame, len)) {
+        return false;
+    }
+    logging_frame('R', work, work_len);
+    if (!count_vias(&vias) || vias == 0u) {
+        return true;
     }
     /* Hearing our own source would repeat a beacon we just sent. */
     if (call_eq(work + AX25_ADDR, g_config.mycall, g_config.mycall_ssid)) {
-        return;
+        return true;
     }
     if (dupe_recent(work, work_len)) {
-        return;
+        return true;
     }
     direct = path_is_fresh(vias);
     if (g_config.viscous_min != 0u && !direct) {
@@ -428,18 +442,18 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
          * the delayed repeat.
          */
         dupe_remember(work, work_len);
-        return;
+        return true;
     }
     if (g_config.digipeat == 0u) {
-        return;
+        return true;
     }
     /* MAXHOPS already-used digipeaters end the trip. Do not add another. */
     used = used_hops(vias);
     if (used >= g_config.maxhops) {
-        return;
+        return true;
     }
     if (mycall_used(vias)) {
-        return;
+        return true;
     }
     mine = find_call(vias, g_config.mycall, g_config.mycall_ssid, true);
     if (mine != NOT_FOUND) {
@@ -449,7 +463,7 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
         mark_before(mine);
         mine_at[6] = (uint8_t)(mine_at[6] | AX25_H);
         send_work();
-        return;
+        return true;
     }
     alias_at = find_alias(vias);
     nn_at = NOT_FOUND;
@@ -457,11 +471,11 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
     if (alias_at == NOT_FOUND) {
         nn_at = find_nn(vias, &remain);
         if (nn_at == NOT_FOUND) {
-            return;
+            return true;
         }
     }
     if (g_config.directonly != 0u && !direct) {
-        return;
+        return true;
     }
     /* Used hops plus the request still ahead. Equal to MAXHOPS is repeated. */
     ahead = pending_hops(vias);
@@ -478,31 +492,34 @@ void digi_ingress(const uint8_t *frame, uint16_t len)
             write_mycall(via_ptr((uint8_t)(vias - 1u)), (uint8_t)(AX25_H | AX25_EXT));
             send_work();
         }
-        return;
+        return true;
     }
     if (alias_at != NOT_FOUND) {
         rewrite_alias(alias_at);
         send_work();
-        return;
+        return true;
     }
     rewrite_nn(nn_at, vias, remain);
+    return true;
 }
 
 void digi_service(void)
 {
     uint16_t expire;
 
-    while (pktq_peek_expire(PKTQ_VISCOUS, &expire) && pktq_expired(expire)) {
-        if (!pktq_take(PKTQ_VISCOUS, work, FRAME_MAX, &work_len, &expire)) {
-            return;
-        }
-        if (!dupe_recent(work, work_len)) {
-            dupe_remember(work, work_len);
-            (void)modem_send(work, work_len,
-                             (uint16_t)(TX_EXPIRE_SECONDS - g_config.viscous_min));
-        } else {
-            telemetry_note_viscous();
-            logging_frame('V', work, work_len);
-        }
+    /* One due frame per call. The next call takes the one behind it. */
+    if (!pktq_peek_expire(PKTQ_VISCOUS, &expire) || !pktq_expired(expire)) {
+        return;
+    }
+    if (!pktq_take(PKTQ_VISCOUS, work, FRAME_MAX, &work_len, &expire)) {
+        return;
+    }
+    if (!dupe_recent(work, work_len)) {
+        dupe_remember(work, work_len);
+        (void)modem_send(work, work_len,
+                         (uint16_t)(TX_EXPIRE_SECONDS - g_config.viscous_min));
+    } else {
+        telemetry_note_viscous();
+        logging_frame('V', work, work_len);
     }
 }

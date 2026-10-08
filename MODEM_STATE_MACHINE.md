@@ -9,10 +9,12 @@ Time is in 10 ms ticks. Twelve interrupts of the 1200 Hz `/SYNCB` input are one 
 `tx_state` starts at `TX_IDLE` from `modem_init`. `modem_send` queues a frame on the transmit queue and calls `tx_kick`, which leaves idle only when a frame is actually taken. A transmission already in progress stays there; that queue holds the new frame until the channel returns to idle, or until `TX_TAIL` takes the next frame without unkeying.
 
 With `VISCOUS X Y` enabled, `digi_ingress` first puts a selected repeat in the
-viscous queue. `digi_service` waits for its ordered expiry, discards it when
-the duplicate database contains a copy heard through another digipeater and
-logs that suppressed frame as `V`, or moves it to the transmit queue due
-`10 - X` seconds later. Only that promotion enters this transmitter state machine.
+viscous queue. `digi_service` waits for its ordered expiry and takes one due
+frame per call. It discards that frame when the duplicate database contains a
+copy heard through another digipeater and logs the suppressed frame as `V`,
+or moves it to the transmit queue due `10 - X` seconds later. The next due
+frame waits for the next call. Only that promotion enters this transmitter
+state machine.
 
 PTT (`keyed`) is on from `tx_key` until `tx_release`. Calibration keys on its own and does not pass through the data states.
 
@@ -113,12 +115,13 @@ The channel A external-status interrupt records the bit only while `tx_eom_watch
 
 The CRC transmission has started. The tail is 40 ms from that instant: 16 CRC bits are 13.3 ms and three flag bytes are 20 ms, which is 33 ms at 1200 baud. PTT stays on through those flags. The SCC then returns to flag idle on its own. This state does not write more bytes.
 
-When the tail timer expires, `tx_continue` counts the frame as transmitted and logs it when logging is on. The next take skips a frame that is already due, counts it as `!S`, and looks at the frame behind it.
+When the tail timer expires, `tx_continue` counts the frame as transmitted and logs it when logging is on. The next take removes one frame. A frame that is already due is counted as `!S` and left there; the frame behind it is taken on the next service pass. While idle, each `modem_service` likewise takes at most one queued frame.
 
 | Condition | Next |
 |---|---|
-| Another transmit frame is queued, callsign still set | `TX_DATA` immediately. PTT stays on. `TXDELAY` is not repeated |
-| Transmit queue empty, or the callsign was cleared | `TX_IDLE`. PTT drops with no abort, because the CRC and flags are already going out |
+| Another transmit frame is queued and still inside its window, callsign still set | `TX_DATA` immediately. PTT stays on. `TXDELAY` is not repeated |
+| The next frame is already due | Stay in `TX_TAIL` with PTT on. That frame is `!S`, and the next pass takes the one behind it |
+| Transmit queue empty, or the callsign was cleared | `TX_IDLE`. PTT drops with no abort, because the CRC and flags are already going out. Frames still queued are discarded one per later idle pass |
 
 A frame that finds the state idle later, including one queued after the unkey, takes the full path through persistence and `TXDELAY`.
 
@@ -165,6 +168,6 @@ If `rx_ready` is already set, the new frame is not stored. `rx_dropped` incremen
 
 ### Delivered
 
-`service_rx` runs once `rx_ready` is set. A frame with no source callsign is logged as `D` when logging is on, then dropped. A normal frame is logged as `R` when logging is on, then passed to `digi_ingress`. `rx_ready` clears either way, which frees the holding buffer.
+`service_rx` runs once `rx_ready` is set. A frame with no source callsign is logged as `D` when logging is on, then dropped, and `rx_ready` clears. A normal frame is passed to `digi_ingress`, which copies it into the digipeater workspace and clears `rx_ready` before logging it as `R` or deciding whether to repeat it. A frame that arrives during that decision can occupy the slot again. `service_rx` clears `rx_ready` only when the copy did not happen.
 
 `src/logging.c` keeps the trace text. The main loop calls `logging_service`, which sends one queued byte when the terminal transmitter is idle. A new line does not wait for the previous one to finish, and a busy ring is not an adverse drop. When 240 bytes are still queued, the ring writes `!!!` and discards further trace text until 128 bytes or fewer remain.

@@ -83,6 +83,10 @@ bool modem_queue_viscous(const uint8_t *frame, uint16_t len, uint16_t expire)
     return pktq_put(PKTQ_VISCOUS, frame, len, expire);
 }
 
+void modem_rx_release(void)
+{
+}
+
 void telemetry_note_viscous(void)
 {
     ++viscous_note_count;

@@ -278,8 +278,12 @@ bool pktq_take(uint8_t queue, uint8_t *dest, uint16_t dest_max, uint16_t *len, u
 bool modem_send(const uint8_t *frame, uint16_t len, uint16_t expires_in);
 /* Queue a viscous frame without kicking the transmitter. */
 bool modem_queue_viscous(const uint8_t *frame, uint16_t len, uint16_t expire);
-/* Repeat a received frame when DIGIPEAT is on and the path matches this station. */
-void digi_ingress(const uint8_t *frame, uint16_t len);
+/* The held receive buffer has been copied. The receiver may reuse it. */
+void modem_rx_release(void);
+/* Copy a received frame, release the modem buffer, then repeat it when it
+ * matches. False when the frame was not copied; the caller still owns the buffer.
+ */
+bool digi_ingress(const uint8_t *frame, uint16_t len);
 /* Promote due viscous frames or suppress them when another copy was heard. */
 void digi_service(void);
 /* Clear the recently-sent list. Call before any packet is transmitted. */
