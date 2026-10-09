@@ -23,3 +23,11 @@ selected ring was full, so the frame is dropped and the TNC prints `!Q`.
 A frame was taken from the transmit queue after its expiry second. Each
 transmit frame is due 10 seconds after it was queued. The frame is not
 transmitted and the TNC prints `!S`.
+
+## !F
+
+A frame was dropped because it is not a usable AX.25 format. A repeat that
+needs one more digipeater address, and is already within 7 bytes of the
+330-byte limit, is discarded and the TNC prints `!F`. A received frame with
+no source callsign is logged as `D` when logging is on, then counted the
+same way.

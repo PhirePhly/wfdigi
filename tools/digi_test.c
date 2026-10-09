@@ -28,6 +28,7 @@ static uint16_t tx_expire_at[TX_KEEP];
 static int tx_count;
 static int viscous_log_count;
 static int viscous_note_count;
+static int format_drops;
 static uint8_t random_draw[8];
 static uint8_t random_count;
 static uint8_t random_at;
@@ -92,6 +93,11 @@ void telemetry_note_viscous(void)
     ++viscous_note_count;
 }
 
+void note_drop_f(void)
+{
+    ++format_drops;
+}
+
 void logging_frame(char kind, const uint8_t *frame, uint16_t len)
 {
     (void)frame;
@@ -146,6 +152,7 @@ static void setup(void)
     tx_count = 0;
     viscous_log_count = 0;
     viscous_note_count = 0;
+    format_drops = 0;
     random_count = 0u;
     random_at = 0u;
 }
@@ -898,6 +905,11 @@ static void test_limits(void)
     fill_char(payload, 301, 'B');
     snprintf(in, sizeof in, "N0SRC>APRS,WIDE2-2:%s", payload);
     check_len("no room to append WIDE2-1", in, 324u, 0);
+    if (format_drops != 1) {
+        fail("no room to append WIDE2-1", "missing !F");
+    } else {
+        ++passed;
+    }
     snprintf(in, sizeof in, "N0SRC>APRS,WIDE2-1:%s", payload);
     snprintf(out, sizeof out, "N0SRC>APRS,WFDIGI*:%s", payload);
     check_len("in-place repeat still fits", in, 324u, out);

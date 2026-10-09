@@ -56,10 +56,11 @@ static volatile uint8_t dcd_now;
 static volatile uint8_t sta_arm;
 static volatile uint8_t rx_dropped;
 
-// !R, !Q, and !S since this boot. Adverse Drop counters
+// !R, !Q, !S, and !F since this boot. Adverse Drop counters
 static uint16_t drop_r; // Adverse drops due to Rx Overruns
 static uint16_t drop_q; // Adverse drops due to Tx queue overflows
 static uint16_t drop_s; // Adverse drops due to stale transmit frames
+static uint16_t drop_f; // Adverse drops due to frame format or a missing source callsign
 
 static void note_drop_r(void);
 static void note_drop_s(void);
@@ -321,6 +322,7 @@ static void service_rx(void)
     if (!source_call_present(rx_buf[idx], n)) {
         logging_frame('D', rx_buf[idx], n);
         rx_ready = 0u;
+        note_drop_f();
         return;
     }
     /* A copied frame releases the slot inside digi_ingress. Rejected input
@@ -673,6 +675,12 @@ static void note_drop_s(void)
     count_drop(&drop_s);
 }
 
+void note_drop_f(void)
+{
+    serial_puts("!F");
+    count_drop(&drop_f);
+}
+
 static void drop_service(void)
 {
     uint8_t n;
@@ -754,11 +762,13 @@ void modem_calibrate(uint8_t tone, uint8_t seconds)
     timer_cal_start(seconds);
 }
 
-void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops, uint16_t *stale_drops)
+void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops, uint16_t *stale_drops,
+                       uint16_t *format_drops)
 {
     *frame_drops = drop_r;
     *queue_drops = drop_q;
     *stale_drops = drop_s;
+    *format_drops = drop_f;
 }
 
 void engine_stat(void)
@@ -781,6 +791,8 @@ void engine_stat(void)
     print_u16(drop_q);
     serial_puts("\r\n!S ");
     print_u16(drop_s);
+    serial_puts("\r\n!F ");
+    print_u16(drop_f);
     serial_puts("\r\n");
 }
 
@@ -789,6 +801,7 @@ void modem_init(void)
     drop_r = 0u;
     drop_q = 0u;
     drop_s = 0u;
+    drop_f = 0u;
     rx_fill = 0u;
     rx_reset();
     rx_ready = 0u;

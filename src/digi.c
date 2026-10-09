@@ -397,6 +397,7 @@ static void rewrite_nn(uint8_t index, uint8_t vias, uint8_t remain)
     }
     mark_before(index);
     if (remain <= 1u) {
+        // We're able to delete the depleted n-N alias
         uint8_t ext = (uint8_t)(p[6] & AX25_EXT);
 
         write_mycall(p, (uint8_t)(AX25_H | ext));
@@ -407,6 +408,9 @@ static void rewrite_nn(uint8_t index, uint8_t vias, uint8_t remain)
     write_mycall(p, AX25_H);
     if (append_via(vias, saved, (uint8_t)(remain - 1u), AX25_EXT)) {
         send_work();
+    } else {
+        // We're unable to append the reduced n-N alias, so we drop it
+        note_drop_f();
     }
 }
 
@@ -423,38 +427,45 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
     bool direct;
 
     if (!take_frame(frame, len)) {
+        // Failed to take the frame, so it is not ingested.
         return false;
     }
     logging_frame('R', work, work_len);
-    if (!count_vias(&vias) || vias == 0u) {
+    if (g_config.digipeat == 0u) {
+        // Digipeating is disabled.
         return true;
     }
-    /* Hearing our own source would repeat a beacon we just sent. */
+    if (!count_vias(&vias) || vias == 0u) {
+        // No vias found, so it is not getting digipeated.
+        return true;
+    }
     if (call_eq(work + AX25_ADDR, g_config.mycall, g_config.mycall_ssid)) {
+        // Hearing our own source would repeat a beacon we just sent.
+        return true;
+    }
+    if (mycall_used(vias)) {
+        // Our callsign has been used in the path already.
         return true;
     }
     if (dupe_recent(work, work_len)) {
+        // We have already sent this frame recently.
         return true;
     }
     direct = path_is_fresh(vias);
     if (g_config.viscous_min != 0u && !direct) {
-        /* Only a copy heard after the original direct packet should suppress
-         * the delayed repeat.
-         */
+        // This is kind of a hack where we pretend we transmit all non-direct packets
+        // when in Viscous mode so packets digipeated by other stations "count"
+        // as us already sending them and this suppresses packets in the Viscous queue.
         dupe_remember(work, work_len);
         return true;
     }
-    if (g_config.digipeat == 0u) {
-        return true;
-    }
-    /* MAXHOPS already-used digipeaters end the trip. Do not add another. */
+
     used = used_hops(vias);
     if (used >= g_config.maxhops) {
+        // Already used at least MAXHOPS digipeaters, so we silently drop it
         return true;
     }
-    if (mycall_used(vias)) {
-        return true;
-    }
+
     mine = find_call(vias, g_config.mycall, g_config.mycall_ssid, true);
     if (mine != NOT_FOUND) {
         uint8_t *mine_at = via_ptr(mine);
@@ -465,22 +476,26 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
         send_work();
         return true;
     }
+    // Look for any of our aliases or n-N aliases
     alias_at = find_alias(vias);
     nn_at = NOT_FOUND;
     remain = 0u;
     if (alias_at == NOT_FOUND) {
         nn_at = find_nn(vias, &remain);
         if (nn_at == NOT_FOUND) {
+            // No aliases or n-N aliases found, so we silently drop it
             return true;
         }
     }
     if (g_config.directonly != 0u && !direct) {
+        // Non-direct packet when we are direct only
         return true;
     }
-    /* Used hops plus the request still ahead. Equal to MAXHOPS is repeated. */
+    // How many unused hops are still in the path?
     ahead = pending_hops(vias);
     if ((uint8_t)(255u - used) < ahead || (uint8_t)(used + ahead) > g_config.maxhops) {
-        /* Consume the matched n-N, mark every via used, and end on MYCALL. */
+        // The sender was greedy and requested too many hops.
+        // Quash the path and digipeat it since it hasn't gone too far yet.
         if (nn_at != NOT_FOUND) {
             reduce_nn(nn_at, remain);
         }
@@ -488,9 +503,12 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
         if (append_mycall(vias)) {
             send_work();
         } else if (vias >= AX25_MAX_VIAS) {
-            /* The path already holds eight digipeaters. Quash it by stamping MYCALL on the last one. */
+            /* The path already holds eight digipeaters. Quash it by stamping MYCALL over the last one. */
             write_mycall(via_ptr((uint8_t)(vias - 1u)), (uint8_t)(AX25_H | AX25_EXT));
             send_work();
+        } else {
+            /* The quashed path needs one more address and the frame cannot grow. */
+            note_drop_f();
         }
         return true;
     }

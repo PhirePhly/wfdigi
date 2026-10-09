@@ -221,6 +221,8 @@ void config_command(char *line);
 extern bool tx_interlock;
 /* Set tx_interlock from MYCALL. Called at the top of each service pass. */
 void check_tx_interlock(void);
+/* True for this boot when the defaults were loaded. Warm boot clears it. */
+extern bool cold_boot;
 
 void cli_start(void);
 void cli_input(uint8_t byte);
@@ -239,10 +241,15 @@ void logging_frame(char kind, const uint8_t *frame, uint16_t len);
 void modem_quiesce(void);
 void modem_init(void);
 void modem_service(void);
-/* Seconds since boot, occupied duplicate slots, and the !R, !Q, and !S counts. */
+/* Seconds since boot, occupied duplicate slots, and the !R, !Q, !S, and !F counts. */
 void engine_stat(void);
-/* !R, !Q, and !S counts since boot. Another drop at 65535 reboots. */
-void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops, uint16_t *stale_drops);
+/* !R, !Q, !S, and !F counts since boot. Another drop at 65535 reboots. */
+void modem_drop_counts(uint16_t *frame_drops, uint16_t *queue_drops, uint16_t *stale_drops,
+                       uint16_t *format_drops);
+/* Print !F and count a format drop. A frame that cannot be rewritten, or a
+ * received frame with no source callsign. Another drop at 65535 reboots.
+ */
+void note_drop_f(void);
 #define PKTQ_TX 0u
 #define PKTQ_VISCOUS 1u
 #define PKTQ_COUNT 2u

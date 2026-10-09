@@ -168,6 +168,6 @@ If `rx_ready` is already set, the new frame is not stored. `rx_dropped` incremen
 
 ### Delivered
 
-`service_rx` runs once `rx_ready` is set. A frame with no source callsign is logged as `D` when logging is on, then dropped, and `rx_ready` clears. A normal frame is passed to `digi_ingress`, which copies it into the digipeater workspace and clears `rx_ready` before logging it as `R` or deciding whether to repeat it. A frame that arrives during that decision can occupy the slot again. `service_rx` clears `rx_ready` only when the copy did not happen.
+`service_rx` runs once `rx_ready` is set. A frame with no source callsign is logged as `D` when logging is on, counted as `!F`, and `rx_ready` clears. A normal frame is passed to `digi_ingress`, which copies it into the digipeater workspace and clears `rx_ready` before logging it as `R` or deciding whether to repeat it. A repeat that cannot grow by one address is also `!F`. A frame that arrives during that decision can occupy the slot again. `service_rx` clears `rx_ready` only when the copy did not happen.
 
 `src/logging.c` keeps the trace text. The main loop calls `logging_service`, which sends one queued byte when the terminal transmitter is idle. A new line does not wait for the previous one to finish, and a busy ring is not an adverse drop. When 240 bytes are still queued, the ring writes `!!!` and discards further trace text until 128 bytes or fewer remain.

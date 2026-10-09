@@ -85,6 +85,7 @@ TX 12
 !R 0
 !Q 1
 !S 0
+!F 0
 ```
 
 `TIME` is the 16-bit seconds counter from boot, the same counter a trace line
@@ -94,7 +95,7 @@ and `TX` are the frames counted since the previous telemetry report, the same
 numbers the next telemetry frame will send. Reading `ENGSTAT` does not move
 that baseline. Both counters are 16-bit and roll over; the printed value is
 the unsigned difference, so a rollover still counts the frames in the
-interval. They keep counting while `TELEMETRY` is off. `!R`, `!Q`, and `!S` are how
+interval. They keep counting while `TELEMETRY` is off. `!R`, `!Q`, `!S`, and `!F` are how
 many times those drop codes have been printed since boot. Each is a 16-bit
 count. Another drop after a counter reaches 65535 reboots the TNC. The
 counts are working RAM, not part of the battery configuration image, and
@@ -233,7 +234,7 @@ immediately keying the radio again.
 One definition message follows every hour, in this order: `BITS`, `EQNS`, `PARM`, `UNIT`.
 
 ```
-:MYCALL   :BITS.11111111,WFDIGI <version>
+:MYCALL   :BITS.10111100,WFDIGI <version>
 :MYCALL   :EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0
 :MYCALL   :PARM.ReceivePkts,TransmitPks,ViscousDrops,AdverseDrops,
 :MYCALL   :UNIT.pkts/min,pkts/min,pkts/min,count,
@@ -246,7 +247,7 @@ Every 10 minutes a telemetry frame is sent out. The digipeater path used is
 controlled by `TELPATH`, and the hourly definition messages use that same path:
 
 ```
-T#000,<received>,<transmitted>,<viscous>,<drops>,0,00000000
+T#000,<received>,<transmitted>,<viscous>,<drops>,0,bbbbbbbb
 ```
 
 `<received>`, `<transmitted>`, and `<viscous>` are the frames counted since
@@ -254,9 +255,15 @@ the previous report. `<viscous>` counts a delayed repeat discarded because
 another station had already repeated the same source and information field.
 The counters are 16-bit and roll over. The value is their unsigned
 difference, so a rollover still counts the frames in that interval.
-`<drops>` is how far the `!R`, `!Q`, and `!S`
-counters have moved since the previous report. The sequence number runs from
-000 through 999. Nothing is queued while `MYCALL` is still `N0CALL`.
+`<drops>` is how far the `!R`, `!Q`, `!S`, and `!F`
+counters have moved since the previous report. The eight digits are digital
+bits B1 through B8. B1 stays `1` for the whole boot when that boot printed
+`Cold boot...`, and stays `0` after `Warm boot...`. B2 is reserved and is
+always `0`. B3 through B6 are `1` when `!F`, `!Q`, `!R`, and `!S` each moved
+since the previous report. B7 and B8 are unused and are always `0`.
+`BITS.10111100` marks B1 and B3 through B6 as the bits in use. The sequence
+number runs from 000 through 999. Nothing is queued while `MYCALL` is still
+`N0CALL`.
 
 ## TELPATH
 

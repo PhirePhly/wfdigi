@@ -8,6 +8,9 @@
  * after telemetry is changed, so a transmission that resets the TNC does not
  * immediately key the radio again. One definition then goes out each hour:
  * BITS, EQNS, PARM, then UNIT.
+ * The report's eight digital bits, left to right, are B1 cold boot for this
+ * power-on, B2 reserved, B3 !F, B4 !Q, B5 !R, and B6 !S since the previous
+ * report. B7 and B8 are unused. BITS.10111100 marks that same set.
  */
 #define FRAME_MAX 128u
 #define AX25_UI 0x03u
@@ -18,7 +21,7 @@
 #define TELEMETRY_DEF_INTERVAL 3600u
 
 static const char msg_eqns[] = "EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0";
-static const char msg_parm[] = "PARM.ReceivePkts,TransmitPks,ViscousDrops,AdverseDrops,";
+static const char msg_parm[] = "PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,,COLD,,!F,!Q,!R,!S";
 static const char msg_unit[] = "UNIT.pkts/min,pkts/min,pkts/min,count,";
 
 _Static_assert(sizeof(msg_eqns) - 1u <= MSG_MAX, "EQNS message is too long");
@@ -36,6 +39,7 @@ static uint16_t last_tx;
 static uint16_t last_r;
 static uint16_t last_q;
 static uint16_t last_s;
+static uint16_t last_f;
 static uint16_t viscous_count;
 static uint16_t last_v;
 static uint16_t seq;
@@ -197,7 +201,7 @@ static bool send_message(const char *text, const char *extra)
 static bool send_tel_def(void)
 {
     if (def_kind == 0u) {
-        return send_message("BITS.11111111,WFDIGI ", wfdigi_version);
+        return send_message("BITS.10111100,WFDIGI ", wfdigi_version);
     }
     if (def_kind == 1u) {
         return send_message(msg_eqns, 0);
@@ -206,6 +210,11 @@ static bool send_tel_def(void)
         return send_message(msg_parm, 0);
     }
     return send_message(msg_unit, 0);
+}
+
+static void put_bit(bool on)
+{
+    put_byte(on ? (uint8_t)'1' : (uint8_t)'0');
 }
 
 static bool send_data(void)
@@ -217,9 +226,11 @@ static bool send_data(void)
     uint16_t r;
     uint16_t q;
     uint16_t s;
+    uint16_t f;
     uint16_t dr;
     uint16_t dq;
     uint16_t ds;
+    uint16_t df;
     uint16_t drops;
     uint16_t viscous;
 
@@ -229,10 +240,11 @@ static bool send_data(void)
     tx_now = tx_count;
     rx = (uint16_t)(rx_now - last_rx);
     tx = (uint16_t)(tx_now - last_tx);
-    modem_drop_counts(&r, &q, &s);
+    modem_drop_counts(&r, &q, &s, &f);
     dr = (uint16_t)(r - last_r);
     dq = (uint16_t)(q - last_q);
     ds = (uint16_t)(s - last_s);
+    df = (uint16_t)(f - last_f);
     drops = dr;
     if (dq > (uint16_t)(65535u - drops)) {
         drops = 65535u;
@@ -243,6 +255,11 @@ static bool send_data(void)
         drops = 65535u;
     } else {
         drops = (uint16_t)(drops + ds);
+    }
+    if (df > (uint16_t)(65535u - drops)) {
+        drops = 65535u;
+    } else {
+        drops = (uint16_t)(drops + df);
     }
     viscous = (uint16_t)(viscous_count - last_v);
 
@@ -258,7 +275,15 @@ static bool send_data(void)
     put_u16(viscous);
     put_byte((uint8_t)',');
     put_u16(drops);
-    put_text(",0,00000000");
+    put_text(",0,");
+    put_bit(cold_boot);
+    put_bit(false);
+    put_bit(df != 0u);
+    put_bit(dq != 0u);
+    put_bit(dr != 0u);
+    put_bit(ds != 0u);
+    put_bit(false);
+    put_bit(false);
     if (!send_frame()) {
         return false;
     }
@@ -268,6 +293,7 @@ static bool send_data(void)
     last_r = r;
     last_q = q;
     last_s = s;
+    last_f = f;
     last_v = viscous_count;
     if (seq >= 999u) {
         seq = 0u;
@@ -335,6 +361,7 @@ void telemetry_init(void)
     last_r = 0u;
     last_q = 0u;
     last_s = 0u;
+    last_f = 0u;
     viscous_count = 0u;
     last_v = 0u;
     seq = 0u;
@@ -346,15 +373,17 @@ void telemetry_restart(void)
     uint16_t r;
     uint16_t q;
     uint16_t s;
+    uint16_t f;
 
     hardware_irq_off();
     last_rx = rx_count;
     hardware_irq_restore();
     last_tx = tx_count;
-    modem_drop_counts(&r, &q, &s);
+    modem_drop_counts(&r, &q, &s, &f);
     last_r = r;
     last_q = q;
     last_s = s;
+    last_f = f;
     last_v = viscous_count;
     seq = 0u;
     arm_schedule();

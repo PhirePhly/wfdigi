@@ -37,6 +37,7 @@ _Static_assert(CFG_TELEMETRY <= 1u, "TELEMETRY must be 0 or 1");
 DigiConfig __at (CONFIG_ADDR) g_config;
 
 bool tx_interlock;
+bool cold_boot;
 
 void check_tx_interlock(void)
 {
@@ -411,8 +412,10 @@ void config_boot(void)
 {
     seal_live = false;
     if (config_crc_ok()) {
+        cold_boot = false;
         serial_puts("Warm boot...\r\n");
     } else {
+        cold_boot = true;
         config_cold_boot();
     }
     seal_live = true;
