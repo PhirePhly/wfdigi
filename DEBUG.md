@@ -28,6 +28,7 @@ transmitted and the TNC prints `!S`.
 
 A frame was dropped because it is not a usable AX.25 format. A repeat that
 needs one more digipeater address, and is already within 7 bytes of the
-330-byte limit, is discarded and the TNC prints `!F`. A received frame with
-no source callsign is logged as `D` when logging is on, then counted the
-same way.
+330-byte limit, is discarded and the TNC prints `!F`. A path with no end bit
+after eight digipeater addresses is counted the same way. A received frame
+with no source callsign is logged as `D` when logging is on, then counted
+the same way.

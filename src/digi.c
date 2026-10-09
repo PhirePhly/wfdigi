@@ -94,6 +94,10 @@ static bool count_vias(uint8_t *vias)
             return true;
         }
     }
+    /* Eight digipeaters is the limit. No end bit after that many is a format drop. */
+    if (n >= (uint8_t)(2u + AX25_MAX_VIAS)) {
+        note_drop_f();
+    }
     return false;
 }
 
@@ -436,7 +440,8 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
         return true;
     }
     if (!count_vias(&vias) || vias == 0u) {
-        // No vias found, so it is not getting digipeated.
+        // We failed to correct a reasonable number of vias
+        // or the packet has no vias and is direct only and doesn't need digipeating
         return true;
     }
     if (call_eq(work + AX25_ADDR, g_config.mycall, g_config.mycall_ssid)) {

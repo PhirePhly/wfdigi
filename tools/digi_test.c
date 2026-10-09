@@ -665,6 +665,43 @@ static void check_raw_short(const uint8_t *frame)
     judge("truncated frame", 0);
 }
 
+/* Destination, source, and nine digipeaters. The eighth via is not the end. */
+static void test_ninth_via(void)
+{
+    uint8_t frame[(11u * 7u) + 3u];
+    uint16_t len = 0u;
+    uint8_t i;
+
+    setup();
+    set_nn(0, "WIDE");
+    for (i = 0u; i < 11u; ++i) {
+        uint8_t a;
+
+        for (a = 0u; a < 6u; ++a) {
+            frame[len] = (uint8_t)((uint8_t)'A' << 1);
+            ++len;
+        }
+        frame[len] = 0x60u;
+        if (i == 10u) {
+            frame[len] = (uint8_t)(frame[len] | 0x01u);
+        }
+        ++len;
+    }
+    frame[len] = 0x03u;
+    ++len;
+    frame[len] = 0xF0u;
+    ++len;
+    frame[len] = (uint8_t)'H';
+    ++len;
+    digi_ingress(frame, len);
+    judge("ninth via is not repeated", 0);
+    if (format_drops != 1) {
+        fail("ninth via is not repeated", "missing !F");
+    } else {
+        ++passed;
+    }
+}
+
 static void test_mycall(void)
 {
     static const struct Case cases[] = {
@@ -737,6 +774,7 @@ static void test_nnalias(void)
         {"n above N does not match", "N0SRC>APRS,WIDE2-3:Hi", 0},
         {"bare prefix does not match", "N0SRC>APRS,WIDE:Hi", 0},
         {"missing SSID does not match", "N0SRC>APRS,WIDE2:Hi", 0},
+        {"We dont get stuck on invalid aliases", "N0SRC>APRS,WIDE2,WIDE2-2:Hi", "N0SRC>APRS,WIDE2*,WFDIGI*,WIDE2-1:Hi"},
         {"SSID 0 does not match", "N0SRC>APRS,WIDE2-0:Hi", 0},
         {"digit above 7 does not match", "N0SRC>APRS,WIDE8-1:Hi", 0},
         {"unconfigured prefix does not match", "N0SRC>APRS,GATE2-2:Hi", 0},
@@ -751,7 +789,7 @@ static void test_nnalias(void)
         {"first unused n-N, reduced call goes last", "N0SRC>APRS,TRACE2-2,WIDE1-1:Hi",
          "N0SRC>APRS,WFDIGI*,WIDE1-1,TRACE2-1:Hi"},
         {"fourth n-N slot", "N0SRC>APRS,QST1-1:Hi", "N0SRC>APRS,WFDIGI*:Hi"},
-        {"We dont match longer vias", "N0SRC>APRS,WIDE3G-3:Hi", 0},
+        {"We dont match subsets of an n-N alias", "N0SRC>APRS,WIDE3G-3:Hi", 0},        
         {"full path quash replaces the last via", "N0SRC>APRS,WIDE2-2,A,B,C,D,E,F,G:Hi",
          "N0SRC>APRS,WIDE2-1*,A*,B*,C*,D*,E*,F*,WFDIGI*:Hi"},
     };
@@ -1131,6 +1169,7 @@ int main(void)
 {
     test_roundtrip();
     test_gates();
+    test_ninth_via();
     test_mycall();
     test_alias();
     test_nnalias();
