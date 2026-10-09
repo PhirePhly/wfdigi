@@ -163,6 +163,10 @@ static bool print_tnc2(const uint8_t *frame, uint16_t len)
         ++i;
         if (c >= 0x20u && c <= 0x7Eu) {
             trace_char(c);
+        } else {
+            trace_char('<');
+            print_hex_byte(c);
+            trace_char('>');
         }
     }
     return true;
