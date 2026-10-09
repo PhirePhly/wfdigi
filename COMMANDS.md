@@ -225,30 +225,25 @@ frame counts keep running either way; `ENGSTAT` prints the increase since
 the previous report. The counts are not stored in the battery image. Every
 boot starts them at zero.
 
-Boot and a change to this setting start the schedule over. The first definition
-message waits five minutes, so a transmission that resets the TNC does not
-immediately key the radio again. It is an APRS message addressed to this station:
+Boot and a change to this setting start the PARMS/UNITS schedule over.
+The first definition message waits five minutes to protect the local network from
+an antenna failure causing the TNC to reset and creating an AIO style boot loop
+immediately keying the radio again.
+
+One definition message follows every hour, in this order: `BITS`, `EQNS`, `PARM`, `UNIT`.
 
 ```
-:W6FOO    :BITS.11111111,WFDIGI <version>
-```
-
-The addressee is the callsign padded to nine characters. A non-zero SSID is
-included. `<version>` is the same string as the boot banner. One definition
-message follows every hour, in this order: `BITS`, `EQNS`, `PARM`, `UNIT`.
-
-```
-:W6FOO    :EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0
-:W6FOO    :PARM.ReceivePkts,TransmitPks,ViscousDrops,AdverseDrops,
-:W6FOO    :UNIT.pkts/min,pkts/min,pkts/min,count,
+:MYCALL   :BITS.11111111,WFDIGI <version>
+:MYCALL   :EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0
+:MYCALL   :PARM.ReceivePkts,TransmitPks,ViscousDrops,AdverseDrops,
+:MYCALL   :UNIT.pkts/min,pkts/min,pkts/min,count,
 ```
 
 `EQNS` divides the received, transmitted, and viscous channels by 10, so a
-10-minute packet count is shown on a graph as packets per minute. The adverse
-drop channel is unchanged.
+10-minute packet count is shown on a graph as packets per minute.
 
-Every 10 minutes a UI frame reports that slot. The digipeater path is
-`TELPATH`, and the hourly definition messages use that same path:
+Every 10 minutes a telemetry frame is sent out. The digipeater path used is
+controlled by `TELPATH`, and the hourly definition messages use that same path:
 
 ```
 T#000,<received>,<transmitted>,<viscous>,<drops>,0,00000000
@@ -266,9 +261,9 @@ counters have moved since the previous report. The sequence number runs from
 ## TELPATH
 
 The digipeater path used by telemetry. Enter one AX.25 callsign, in the same
-form as `MYCALL`, or `-` for a direct frame with no path. A second path is
-rejected. The cold-boot default is `-`, so the 10-minute report and the
-hourly definition messages do not request a digipeater.
+form as `MYCALL`, or `-` for a direct frame with no path. The cold-boot default
+is `-`, so the 10-minute report and the hourly definition messages do not 
+request a digipeater.
 
 ## TXDELAY
 
@@ -434,3 +429,6 @@ selects the table: `/` for the primary table, `\` for the alternate table,
 or an overlay `0`–`9` or `A`–`Z`. The second character is the symbol code,
 from `!` through `~`. The cold-boot default is `/#`, the primary-table
 digipeater symbol.
+
+Traditionally fill-in digipeaters use the `1#` symbol and Regional network digipeaters
+use `S#`.
