@@ -14,25 +14,15 @@ typedef struct {
 static DupeSlot db[DUPE_SLOTS];
 static DupeSlot *db_end;
 
-/* Low 8 bits of the sum of the printable information-field bytes. Zero marks an empty slot. */
+/* Pearson hash of the information field. Zero marks an empty slot. */
 static uint8_t info_sum(const uint8_t *info, uint16_t len)
 {
-    uint8_t sum = 0u;
+    uint8_t hash = pearson_hash(info, len);
 
-    while (len != 0u) {
-        uint8_t c = *info;
-
-        /* Skip padding such as a trailing CR so two copies of the same text match. */
-        if (c >= 0x20u && c <= 0x7Eu) {
-            sum = (uint8_t)(sum + c);
-        }
-        ++info;
-        --len;
-    }
-    if (sum == 0u) {
+    if (hash == 0u) {
         return 1u;
     }
-    return sum;
+    return hash;
 }
 
 static void clear_slot(DupeSlot *slot)
@@ -45,18 +35,6 @@ static void clear_slot(DupeSlot *slot)
     slot->ssid = 0u;
     slot->sum = 0u;
     slot->sent = 0u;
-}
-
-static bool call_same(const uint8_t *a, const uint8_t *b)
-{
-    uint8_t i;
-
-    for (i = 0u; i < CALLSIGN_LEN; ++i) {
-        if (a[i] != b[i]) {
-            return false;
-        }
-    }
-    return true;
 }
 
 /* Source address, and the information field after control and PID. */
@@ -166,8 +144,9 @@ void dupe_remember(const uint8_t *frame, uint16_t len)
         return;
     }
     slot = available_slot();
+    /* The address field keeps each character shifted left by one. */
     for (i = 0u; i < CALLSIGN_LEN; ++i) {
-        slot->call[i] = src[i];
+        slot->call[i] = (uint8_t)(src[i] >> 1);
     }
     slot->ssid = ssid;
     slot->sum = info_sum(info, info_len);
@@ -193,7 +172,7 @@ bool dupe_recent(const uint8_t *frame, uint16_t len)
         if (slot->sum != 0u) {
             if (!timer_in_dupe_window(slot->sent)) {
                 clear_slot(slot);
-            } else if (slot->sum == sum && call_same(slot->call, src) && slot->ssid == ssid) {
+            } else if (slot->sum == sum && call_eq(src, slot->call, slot->ssid)) {
                 found = true;
             }
         }

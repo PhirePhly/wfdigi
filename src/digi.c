@@ -34,20 +34,6 @@ static uint8_t random_seconds(uint8_t low, uint8_t high)
     return (uint8_t)(low + draw);
 }
 
-static bool call_eq(const uint8_t *ax, const uint8_t *call, uint8_t ssid)
-{
-    uint8_t i;
-    uint8_t got;
-
-    for (i = 0u; i < CALLSIGN_LEN; ++i) {
-        if (ax[i] != (uint8_t)(call[i] << 1)) {
-            return false;
-        }
-    }
-    got = (uint8_t)((ax[6] >> 1) & 0x0Fu);
-    return got == ssid;
-}
-
 static uint8_t *via_ptr(uint8_t index)
 {
     uint8_t *p = work + (AX25_ADDR + AX25_ADDR);

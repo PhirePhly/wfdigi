@@ -61,6 +61,11 @@ uint8_t prng_u8(void)
     return 0u;
 }
 
+void serial_putc(uint8_t byte)
+{
+    (void)byte;
+}
+
 bool modem_send(const uint8_t *frame, uint16_t len, uint16_t expires_in)
 {
     uint16_t i;
@@ -1007,27 +1012,27 @@ static void test_dupes(void)
     check_keep("same text to another destination", "N0SRC>BEACON,WIDE1-1:Hi", 0);
 
     dupe_init();
-    check_keep("printable text", "N0SRC>APRS,WIDE1-1:Hello", "N0SRC>APRS,WFDIGI*:Hello");
-    check_keep("trailing CR still matches", "N0SRC>APRS,WIDE1-1:Hello\\r", 0);
+    check_keep("information field", "N0SRC>APRS,WIDE1-1:Hello", "N0SRC>APRS,WFDIGI*:Hello");
+    check_keep("trailing CR is a different hash", "N0SRC>APRS,WIDE1-1:Hello\\r", "N0SRC>APRS,WFDIGI*:Hello\\r");
     dupe_init();
-    check_keep("printable text again", "N0SRC>APRS,WIDE1-1:Hello", "N0SRC>APRS,WFDIGI*:Hello");
-    check_keep("trailing LF still matches", "N0SRC>APRS,WIDE1-1:Hello\\n", 0);
+    check_keep("information field again", "N0SRC>APRS,WIDE1-1:Hello", "N0SRC>APRS,WFDIGI*:Hello");
+    check_keep("trailing LF is a different hash", "N0SRC>APRS,WIDE1-1:Hello\\n", "N0SRC>APRS,WFDIGI*:Hello\\n");
     dupe_init();
     check_keep("letters", "N0SRC>APRS,WIDE1-1:Hello", "N0SRC>APRS,WFDIGI*:Hello");
-    check_keep("embedded non-printable still matches", "N0SRC>APRS,WIDE1-1:H\\x01ello", 0);
-    check_keep("checksum uses printable bytes only", "N0SRC>APRS,WIDE1-1:A\\rB", "N0SRC>APRS,WFDIGI*:A\\rB");
-    check_keep("same printable bytes", "N0SRC>APRS,WIDE1-1:AB", 0);
+    check_keep("embedded byte is a different hash", "N0SRC>APRS,WIDE1-1:H\\x01ello", "N0SRC>APRS,WFDIGI*:H\\x01ello");
+    check_keep("CR between letters", "N0SRC>APRS,WIDE1-1:A\\rB", "N0SRC>APRS,WFDIGI*:A\\rB");
+    check_keep("AB is a different hash", "N0SRC>APRS,WIDE1-1:AB", "N0SRC>APRS,WFDIGI*:AB");
 
     dupe_init();
     check_keep("empty information field", "N0SRC>APRS,WIDE1-1:", "N0SRC>APRS,WFDIGI*:");
-    check_keep("sum of 256 is stored as 1", "N0SRC>APRS,WIDE1-1:@@@@", 0);
-    check_keep("non-printable field is stored as 1", "N0SRC>APRS,WIDE1-1:\\x00\\xff", 0);
-    check_keep("a real sum is different", "N0SRC>APRS,WIDE1-1:A", "N0SRC>APRS,WFDIGI*:A");
+    check_keep("printable text differs from empty", "N0SRC>APRS,WIDE1-1:@@@@", "N0SRC>APRS,WFDIGI*:@@@@");
+    check_keep("non-printable field differs from empty", "N0SRC>APRS,WIDE1-1:\\x00\\xff", "N0SRC>APRS,WFDIGI*:\\x00\\xff");
+    check_keep("a real hash is different", "N0SRC>APRS,WIDE1-1:A", "N0SRC>APRS,WFDIGI*:A");
 
     dupe_init();
-    check_keep("checksum collision AB", "N0SRC>APRS,WIDE1-1:AB", "N0SRC>APRS,WFDIGI*:AB");
-    check_keep("checksum collision BA", "N0SRC>APRS,WIDE1-1:BA", 0);
-    check_keep("same sum from another station", "N0OTH>APRS,WIDE1-1:BA", "N0OTH>APRS,WFDIGI*:BA");
+    check_keep("hash keeps AB", "N0SRC>APRS,WIDE1-1:AB", "N0SRC>APRS,WFDIGI*:AB");
+    check_keep("BA is not the same hash", "N0SRC>APRS,WIDE1-1:BA", "N0SRC>APRS,WFDIGI*:BA");
+    check_keep("same text from another station", "N0OTH>APRS,WIDE1-1:BA", "N0OTH>APRS,WFDIGI*:BA");
 
     setup();
     set_nn(0, "WIDE");

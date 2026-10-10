@@ -208,6 +208,12 @@ uint8_t format_u16(uint16_t value, uint8_t width, uint8_t *dest);
 void print_u16(uint16_t value);
 /* A lowercase letter becomes uppercase. Any other byte is returned unchanged. */
 uint8_t letter_to_upper(uint8_t c);
+/* 8-bit Pearson hash of len bytes at data. An empty range hashes to 0. */
+uint8_t pearson_hash(const uint8_t *data, uint16_t len);
+/* True when the 7-byte AX.25 address matches this callsign and SSID.
+ * call holds CALLSIGN_LEN plain characters. The H bit is ignored.
+ */
+bool call_eq(const uint8_t *ax, const uint8_t *call, uint8_t ssid);
 bool serial_getc(uint8_t *byte);
 /* Writes one byte when the terminal transmitter is idle. */
 bool serial_try_putc(uint8_t byte);
