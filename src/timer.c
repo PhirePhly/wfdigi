@@ -17,6 +17,7 @@ static uint8_t seconds_pending;
 static uint16_t clock_sec;
 static uint16_t beacon_left;
 static uint8_t cal_left;
+static uint8_t query_cool_left;
 
 static void arm_sync_interrupt(void)
 {
@@ -39,6 +40,7 @@ void timer_init(void)
     clock_sec = 0u;
     beacon_left = 0u;
     cal_left = 0u;
+    query_cool_left = 0u;
     prng_init();
     for (i = 0u; i < TIMER_COUNT; ++i) {
         left[i] = 0u;
@@ -122,6 +124,9 @@ static void tock_on_second(void)
             modem_cal_stop();
         }
     }
+    if (query_cool_left != 0u) {
+        --query_cool_left;
+    }
     telemetry_second();
     if (g_config.beacon_every == 0u) {
         return;
@@ -171,6 +176,16 @@ bool timer_beacon_now(void)
 void timer_cal_start(uint8_t seconds)
 {
     cal_left = seconds;
+}
+
+void timer_start_query_cooldown(void)
+{
+    query_cool_left = (uint8_t)DUPE_WINDOW;
+}
+
+bool timer_query_cooling(void)
+{
+    return query_cool_left != 0u;
 }
 
 void timer_service(void)

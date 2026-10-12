@@ -148,14 +148,16 @@ end of the path when that count is still at least one. `WIDE2-2` becomes
 `MYCALL*,WIDE2-1`. `WIDE2-1` becomes `MYCALL*`. Hops that followed the n-N
 address stay where they were.
 
-Each packet this station transmits is kept in a list of 250. An entry holds
-the source callsign and SSID, a one-byte sum of the printable characters in
-the information field, and the second the packet was sent. A sum of 0 means the slot is empty, so a
-calculated sum of 0 is stored as 1. The transmitted packet takes the first
-empty slot. Before a digipeat, the list is scanned by that sum, then the
-source callsign and the SSID. An entry 30 seconds old or older is cleared.
-A match that is still inside that window is not repeated. When every slot
-is still inside the window, the oldest entry is replaced.
+Each digipeat, message reply, and query-triggered telemetry definition is kept
+in a list of 250. An entry holds the source callsign and SSID, a one-byte
+Pearson hash of every byte in the information field, and the second the packet
+was sent. A hash of 0 means the slot is empty, so a calculated hash of 0 is
+stored as 1. The transmitted packet takes the first empty slot. Before a
+digipeat or reply is queued, the list is scanned by that hash, then the source
+callsign and the SSID. An entry 30 seconds old or older is cleared. A match that is still inside
+that window is not sent. When every slot is still inside the window, the oldest
+entry is replaced. A received general query is not stored, so it can still be
+digipeated.
 
 ## DIRECTONLY
 
@@ -231,12 +233,12 @@ The first definition message waits five minutes to protect the local network fro
 an antenna failure causing the TNC to reset and creating an AIO style boot loop
 immediately keying the radio again.
 
-One definition message follows every hour, in this order: `BITS`, `EQNS`, `PARM`, `UNIT`.
+One definition message follows every four hours, in this order: `BITS`, `EQNS`, `PARM`, `UNIT`.
 
 ```
 :MYCALL   :BITS.10111100,WFDIGI <version>
 :MYCALL   :EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0
-:MYCALL   :PARM.ReceivePkts,TransmitPks,ViscousDrops,AdverseDrops,
+:MYCALL   :PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,,COLD,,!F,!Q,!R,!S
 :MYCALL   :UNIT.pkts/min,pkts/min,pkts/min,count,
 ```
 
@@ -244,7 +246,7 @@ One definition message follows every hour, in this order: `BITS`, `EQNS`, `PARM`
 10-minute packet count is shown on a graph as packets per minute.
 
 Every 10 minutes a telemetry frame is sent out. The digipeater path used is
-controlled by `TELPATH`, and the hourly definition messages use that same path:
+controlled by `TELPATH`, and the definition messages use that same path:
 
 ```
 T#000,<received>,<transmitted>,<viscous>,<drops>,0,bbbbbbbb
@@ -263,13 +265,14 @@ always `0`. B3 through B6 are `1` when `!F`, `!Q`, `!R`, and `!S` each moved
 since the previous report. B7 and B8 are unused and are always `0`.
 `BITS.10111100` marks B1 and B3 through B6 as the bits in use. The sequence
 number runs from 000 through 999. Nothing is queued while `MYCALL` is still
-`N0CALL`.
+`N0CALL`. A directed `?APRSU` query, described under Messages, sends all four
+definition messages at once and does not move this schedule.
 
 ## TELPATH
 
 The digipeater path used by telemetry. Enter one AX.25 callsign, in the same
 form as `MYCALL`, or `-` for a direct frame with no path. The cold-boot default
-is `-`, so the 10-minute report and the hourly definition messages do not 
+is `-`, so the 10-minute report and the definition messages do not
 request a digipeater.
 
 ## TXDELAY
@@ -439,3 +442,62 @@ digipeater symbol.
 
 Traditionally fill-in digipeaters use the `1#` symbol and Regional network digipeaters
 use `S#`.
+
+# Messages
+
+An APRS message for this station is a UI frame whose information field starts
+with `:CALLSIGN :`. The callsign field is nine characters. SSID 0 is omitted,
+and any other SSID is written after a dash. The comparison ignores letter
+case. That message is answered and is not digipeated. This is the addressee
+in the information field. An AX.25 path that contains `MYCALL` is still
+handled by `DIGIPEAT`.
+
+A message number is the last `{` followed by one to five letters or digits.
+A numbered message is answered at once with `ack` and that number, before any
+other reply. The number is copied as received. A message without a valid
+number is not acknowledged.
+
+An acknowledgement, and the unsupported-query reply below, is a UI frame from
+`MYCALL` to `APWFDP`. The first `BPATH` entry is its one digipeater when that
+entry is a callsign. A blank first entry, or no beacon path, is sent direct.
+The reply does not advance the beacon-path cycle. It is recorded in the
+duplicate list before it is queued, so the same reply is not sent again for
+30 seconds. The transmitter interlock still discards it while `MYCALL` is
+`N0CALL`.
+
+A directed query is a message whose text is `?APRS` and one letter `A`–`Z`.
+The character after that letter is the end of the text or a space. More text
+may follow the space.
+
+`?APRSP` queues the same position beacon as `BEACON` and starts that countdown
+over. Another position query, from any station, does not queue a second beacon
+until 30 seconds have passed. A numbered query is still acknowledged during
+that wait, and an unsupported query is still answered. A periodic beacon does
+not start or reset the wait. If the transmit queue cannot take the beacon, the
+wait is not started and the beacon countdown stays at zero so the next second
+tries again while `BEACON` is non-zero.
+
+`?APRSU` queues all four telemetry definition messages at once, in the order
+`BITS`, `EQNS`, `PARM`, `UNIT`. A copy of one of those messages that is still
+inside the duplicate window is not queued again. The four-hour definition
+schedule is left where it was. The query sends the definitions even when
+`TELEMETRY` is off.
+
+Any other letter is answered with the unnumbered message
+`ERR - query type unsupported`.
+
+`?APRS`, `?APRS `, and a directed `?APRS?` are ordinary messages. They are
+acknowledged when numbered, and they do not request a beacon or a definition.
+
+A general query is an information field whose first word is `?APRS?`. It may
+queue a position beacon under the same 30-second wait, and the received frame
+then continues through digipeating. Digipeating still has to be on and the
+path still has to match.
+
+A third-party packet has an information field that starts with `}`. The
+originator is the callsign before `>` in that TNC-2 header, and the text after
+the header's colon follows the same message and query rules. The AX.25 path
+and the vias inside the header are not used for the reply. A header that
+cannot be read is left for the digipeater. A third-party packet that is
+neither a general query nor a message for `MYCALL` is also left for the
+digipeater.

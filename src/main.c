@@ -40,6 +40,7 @@ void firmware_boot(void)
     lamp_test();
     config_boot();
     beacon_path_reset();
+    messaging_init();
     timer_init();
     cli_start();
     logging_init();

@@ -421,6 +421,11 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
         return false;
     }
     logging_frame('R', work, work_len);
+    // Process frame for messaging / queries
+    if (process_frame_for_messaging(work, work_len)) {
+        // If we respond to a message, we don't need to digipeat it
+        return true;
+    }
     if (g_config.digipeat == 0u) {
         // Digipeating is disabled.
         return true;

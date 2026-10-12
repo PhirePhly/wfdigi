@@ -34,6 +34,10 @@ transmitter interlock is preventing the station from transmitting.
 
 * Telemetry support to enable public visibility for the traffic levels in and out of the digipeater.
 
+* APRS messages addressed to `MYCALL` are acknowledged. 
+`?APRS?` general queries, `?APRSP` directed position queries, and `?APRSU` telemetry
+units directed queries are supported.
+
 * All user-facing settings support defaults being baked into the firmware ROM for protection from CMOS battery failure.
 
 ## Hardware target
@@ -69,9 +73,10 @@ Build products are placed in `build/`:
 `DI` / `LD SP,0`, an incomplete mode-2 vector table, or a baud-rate constant
 other than 9600 on the terminal and the 1200 baud DPLL clock on the radio.
 
-`make test` compiles the digipeater, packet queue, and duplicate list on the
-host run test fixture and checks alias, n-N, `DIRECTONLY`, `VISCOUS`, `MAXHOPS`,
-and duplicate suppression. It does not need SDCC or a Z80 to run the tests.
+`make test` compiles the digipeater, packet queue, duplicate list, and
+messaging on the host and checks alias, n-N, `DIRECTONLY`, `VISCOUS`,
+`MAXHOPS`, duplicate suppression, message acknowledgements, and APRS queries.
+It does not need SDCC or a Z80 to run the tests.
 
 ## Firmware organization
 
@@ -83,10 +88,11 @@ and duplicate suppression. It does not need SDCC or a Z80 to run the tests.
 - `src/pktq.c`: transmit and viscous queues sharing a pool of 31-byte blocks
 - `src/modem.c`: HDLC AX.25 receive and transmit on the radio channel
 - `src/digi.c`: path matching, header rewrite, and the transmit queue for repeats
+- `src/messaging.c`: APRS messages and queries addressed to `MYCALL`, plus general `?APRS?`
 - `src/dupe.c`: the last 250 transmitted packets, used to skip a repeat
 - `src/util.c`: shared helper functions
 - `src/beacon.c`: APRS position beacon
-- `src/telemetry.c`: 10-minute packet counts and the hourly telemetry definitions
+- `src/telemetry.c`: 10-minute packet counts and telemetry definitions every four hours
 - `src/timer.c`: 10 ms countdown timers, from the 1200 Hz `/SYNCB` square wave
 - `src/cli.c`: callsign line editor. SSID 0 is omitted from the prompt
 - `include/config.h`: cold-boot defaults. Edit this file and run `make`
@@ -196,6 +202,20 @@ One used hop followed by `WIDE2-2` therefore goes out as `AAA,WIDE2-1*,MYCALL*`
 when `MAXHOPS` is 2. When the path already
 holds eight digipeaters, `MYCALL` replaces the last one. A path with no
 matching address is left alone.
+
+An APRS message whose addressee is `MYCALL` is answered and is not digipeated.
+The addressee is nine characters, SSID 0 is omitted, and letter case does not
+matter. A numbered message, whose text ends in `{` and one to five letters or
+digits, is acknowledged with `ack` and that number before any other reply.
+The reply is a UI frame from `MYCALL` to `APWFDP`, via the first `BPATH`
+entry when that entry is a callsign, and it does not advance the beacon path.
+`?APRSP` queues the normal position beacon, at most once every 30 seconds.
+`?APRSU` queues the four telemetry definition messages at once. Any other
+`?APRS` letter is answered with `ERR - query type unsupported`. A general
+`?APRS?` may queue that same beacon and is then digipeated. A third-party
+frame begins with `}` and uses the callsign before `>` as the station those
+rules apply to. [COMMANDS.md](COMMANDS.md) describes the replies, the cooldown,
+and which frames are still digipeated.
 
 `VISCOUS X Y` enables `DIRECTONLY` and holds digipeated packets for a
 random `X` through `Y` seconds. A copy heard through another digipeater during

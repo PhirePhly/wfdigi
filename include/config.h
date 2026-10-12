@@ -12,7 +12,7 @@
  * MYSYMBOL is two characters: a table or overlay, then the symbol code.
  * BPATH is one to four beacon paths. "-" is a beacon with no path.
  * LOGGING is 1 to print radio traffic, or 0 to stay quiet.
- * TELEMETRY is 1 to send 10-minute counts and hourly definition messages.
+ * TELEMETRY is 1 to send 10-minute counts and a definition message every four hours.
  * TELPATH is the one digipeater path for those frames. "-" sends them direct.
  * VISCOUS is off when both limits are 0. Otherwise both are 1 through 9,
  * and the minimum cannot be greater than the maximum.

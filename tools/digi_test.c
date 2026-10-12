@@ -34,6 +34,11 @@ static uint8_t random_count;
 static uint8_t random_at;
 static int passed;
 static int failed;
+static int beacon_now_count;
+static int tel_def_count;
+static uint8_t query_cool_left;
+
+const uint8_t tncid[CALLSIGN_LEN] = {'A', 'P', 'W', 'F', 'D', 'P'};
 
 uint16_t timer_seconds(void)
 {
@@ -64,6 +69,37 @@ uint8_t prng_u8(void)
 void serial_putc(uint8_t byte)
 {
     (void)byte;
+}
+
+bool timer_beacon_now(void)
+{
+    ++beacon_now_count;
+    return true;
+}
+
+void telemetry_send_definitions(void)
+{
+    ++tel_def_count;
+}
+
+void timer_start_query_cooldown(void)
+{
+    query_cool_left = (uint8_t)DUPE_WINDOW;
+}
+
+bool timer_query_cooling(void)
+{
+    return query_cool_left != 0u;
+}
+
+/* The host clock is assigned, not ticked, so tests step this countdown themselves. */
+static void pass_query_seconds(uint8_t seconds)
+{
+    if (seconds >= query_cool_left) {
+        query_cool_left = 0u;
+        return;
+    }
+    query_cool_left = (uint8_t)(query_cool_left - seconds);
 }
 
 bool modem_send(const uint8_t *frame, uint16_t len, uint16_t expires_in)
@@ -153,6 +189,10 @@ static void setup(void)
     }
     now = 1000u;
     dupe_init();
+    messaging_init();
+    query_cool_left = 0u;
+    beacon_now_count = 0;
+    tel_def_count = 0;
     pktq_init();
     tx_count = 0;
     viscous_log_count = 0;
@@ -564,6 +604,30 @@ static void expect_dupe_count(const char *name, uint16_t want)
     ++passed;
 }
 
+static void expect_beacon(const char *name, int want)
+{
+    char detail[80];
+
+    if (beacon_now_count != want) {
+        snprintf(detail, sizeof detail, "beacon calls %d, want %d", beacon_now_count, want);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
+}
+
+static void expect_tel_defs(const char *name, int want)
+{
+    char detail[80];
+
+    if (tel_def_count != want) {
+        snprintf(detail, sizeof detail, "definition sends %d, want %d", tel_def_count, want);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
+}
+
 static void check_keep(const char *name, const char *in, const char *out)
 {
     uint8_t frame[FRAME_CAP];
@@ -576,6 +640,37 @@ static void check_keep(const char *name, const char *in, const char *out)
     }
     digi_ingress(frame, len);
     judge(name, out);
+}
+
+static void check_two(const char *name, const char *in, const char *first, const char *second)
+{
+    uint8_t frame[FRAME_CAP];
+    uint16_t len = 0u;
+    char got[TEXT_CAP];
+    char detail[TEXT_CAP + 80];
+
+    tx_count = 0;
+    if (encode(in, frame, &len) != 0) {
+        fail(name, "could not build the test frame");
+        return;
+    }
+    digi_ingress(frame, len);
+    if (tx_count != 2) {
+        snprintf(detail, sizeof detail, "transmitted %d frame(s), want 2", tx_count);
+        fail(name, detail);
+        return;
+    }
+    if (decode(tx_frame[0], tx_len_at[0], got, TEXT_CAP) != 0 || strcmp(got, first) != 0) {
+        snprintf(detail, sizeof detail, "first got %s", got);
+        fail(name, detail);
+        return;
+    }
+    if (decode(tx_frame[1], tx_len_at[1], got, TEXT_CAP) != 0 || strcmp(got, second) != 0) {
+        snprintf(detail, sizeof detail, "second got %s", got);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
 }
 
 static void check_len(const char *name, const char *in, uint16_t want_len, const char *out)
@@ -1170,6 +1265,115 @@ static void test_viscous(void)
     judge("VISCOUS later expiry follows", "N0ONE>APRS,WFDIGI*:Late");
 }
 
+static void test_messaging(void)
+{
+    setup();
+    check_keep("direct general query is not digipeated without a path", "N0SRC>APRS:?APRS?", 0);
+    expect_beacon("direct general query beacons", 1);
+    expect_dupe_count("general query is not recorded", 0u);
+
+    setup();
+    set_nn(0, "WIDE");
+    check_keep("general query is digipeated", "N0SRC>APRS,WIDE1-1:?APRS?", "N0SRC>APRS,WFDIGI*:?APRS?");
+    expect_beacon("general query beacons", 1);
+    pass_query_seconds(30u);
+    check_keep("general query with an argument is digipeated", "N0SRC>APRS,WIDE1-1:?APRS? extra",
+               "N0SRC>APRS,WFDIGI*:?APRS? extra");
+    expect_beacon("general query with an argument beacons", 2);
+    pass_query_seconds(29u);
+    check_keep("another station during cooldown", "N0OTH>APRS,WIDE1-1:?APRS?", "N0OTH>APRS,WFDIGI*:?APRS?");
+    expect_beacon("cooldown holds the beacon", 2);
+    pass_query_seconds(1u);
+    check_keep("cooldown expires at 30 seconds", "N0NEW>APRS,WIDE1-1:?APRS?", "N0NEW>APRS,WFDIGI*:?APRS?");
+    expect_beacon("cooldown allows another beacon", 3);
+
+    setup();
+    check_keep("numbered message", "N0SRC>APRS::WFDIGI   :Hello{12", "WFDIGI>APWFDP*::N0SRC    :ack12");
+    expect_dupe_count("ack is recorded", 1u);
+    expect_beacon("ordinary message does not beacon", 0);
+    check_keep("echo is not answered again", "N0SRC>APRS::WFDIGI   :Hello{12", 0);
+    expect_dupe_count("echo adds no duplicate entry", 1u);
+
+    setup();
+    set_nn(0, "WIDE");
+    check_keep("directed message is not digipeated", "N0SRC>APRS,WIDE1-1::WFDIGI   :Hello", 0);
+    check_keep("message for someone else is digipeated", "N0SRC>APRS,WIDE1-1::N0OTH    :Hello{1",
+               "N0SRC>APRS,WFDIGI*::N0OTH    :Hello{1");
+
+    setup();
+    g_config.bpath_count = 1u;
+    put_text(g_config.bpath[0], "WIDE1");
+    g_config.bpath_ssid[0] = 1u;
+    check_keep("ack uses the first beacon path", "N0SRC>APRS::WFDIGI   :Hello{4",
+               "WFDIGI>APWFDP*,WIDE1-1::N0SRC    :ack4");
+
+    setup();
+    g_config.mycall_ssid = 3u;
+    check_keep("ssid is part of the addressee", "N0SRC-2>APRS::WFDIGI-3 :Ping{7",
+               "WFDIGI-3>APWFDP*::N0SRC-2  :ack7");
+    setup();
+    set_nn(0, "WIDE");
+    check_keep("ssid 0 omits the dash", "N0SRC>APRS,WIDE1-1::WFDIGI-0 :Hi{1",
+               "N0SRC>APRS,WFDIGI*::WFDIGI-0 :Hi{1");
+
+    setup();
+    check_keep("lowercase addressee matches", "N0SRC>APRS::wfdigi   :Hello{1", "WFDIGI>APWFDP*::N0SRC    :ack1");
+
+    setup();
+    check_keep("directed position query", "N0SRC>APRS::WFDIGI   :?APRSP", 0);
+    expect_beacon("directed position query beacons", 1);
+    pass_query_seconds(30u);
+    check_keep("position query with an argument", "N0OTH>APRS::WFDIGI   :?APRSP please", 0);
+    expect_beacon("position query with an argument beacons", 2);
+    check_keep("bare APRS is not a query", "N0SRC>APRS::WFDIGI   :?APRS", 0);
+    check_keep("spaced APRS is not a query", "N0SRC>APRS::WFDIGI   :?APRS ", 0);
+    check_keep("directed question mark is not a query", "N0SRC>APRS::WFDIGI   :?APRS?", 0);
+    check_keep("longer token is not a query", "N0SRC>APRS::WFDIGI   :?APRSPX", 0);
+    expect_beacon("only a single query letter beacons", 2);
+
+    setup();
+    check_keep("numbered position query", "N0SRC>APRS::WFDIGI   :?APRSP{9", "WFDIGI>APWFDP*::N0SRC    :ack9");
+    expect_beacon("numbered position query beacons after the ack", 1);
+    check_keep("echo of a numbered position query", "N0SRC>APRS::WFDIGI   :?APRSP{9", 0);
+    expect_beacon("echo does not beacon again", 1);
+
+    setup();
+    check_keep("telemetry definition query", "N0SRC>APRS::WFDIGI   :?APRSU", 0);
+    expect_tel_defs("telemetry definition query sends the definitions", 1);
+    expect_beacon("telemetry definition query does not beacon", 0);
+    check_keep("telemetry definition query with an argument", "N0SRC>APRS::WFDIGI   :?APRSU now", 0);
+    expect_tel_defs("telemetry definition argument sends the definitions", 2);
+    setup();
+    check_keep("numbered telemetry definition query", "N0SRC>APRS::WFDIGI   :?APRSU{5",
+               "WFDIGI>APWFDP*::N0SRC    :ack5");
+    expect_tel_defs("numbered telemetry definition query sends the definitions", 1);
+
+    setup();
+    check_keep("unsupported query", "N0SRC>APRS::WFDIGI   :?APRSS",
+               "WFDIGI>APWFDP*::N0SRC    :ERR - query type unsupported");
+    expect_beacon("unsupported query does not beacon", 0);
+    check_keep("unsupported query echo", "N0SRC>APRS::WFDIGI   :?APRSS", 0);
+    check_keep("unsupported query with an argument", "N0OTH>APRS::WFDIGI   :?APRSH N0ZZZ",
+               "WFDIGI>APWFDP*::N0OTH    :ERR - query type unsupported");
+    setup();
+    check_two("numbered unsupported query", "N0SRC>APRS::WFDIGI   :?APRSM{3", "WFDIGI>APWFDP*::N0SRC    :ack3",
+              "WFDIGI>APWFDP*::N0SRC    :ERR - query type unsupported");
+    check_keep("numbered unsupported echo", "N0SRC>APRS::WFDIGI   :?APRSM{3", 0);
+
+    setup();
+    set_nn(0, "WIDE");
+    check_keep("third-party message", "IGATE>APRS,WIDE1-1:}N0SRC-2>APRS::WFDIGI   :Hello{8",
+               "WFDIGI>APWFDP*::N0SRC-2  :ack8");
+    check_keep("third-party message is not digipeated", "IGATE>APRS,WIDE1-1:}N0SRC-2>APRS::WFDIGI   :Hello{8", 0);
+    check_keep("third-party for someone else is digipeated", "IGATE>APRS,WIDE1-1:}N0SRC>APRS::N0OTH    :Hello{1",
+               "IGATE>APRS,WFDIGI*:}N0SRC>APRS::N0OTH    :Hello{1");
+    check_keep("malformed third-party is digipeated", "N0SRC>APRS,WIDE1-1:}not-a-header",
+               "N0SRC>APRS,WFDIGI*:}not-a-header");
+    check_keep("third-party general query is digipeated", "N0SRC>APRS,WIDE1-1:}N0OTH>BEACON:?APRS?",
+               "N0SRC>APRS,WFDIGI*:}N0OTH>BEACON:?APRS?");
+    expect_beacon("third-party general query beacons", 1);
+}
+
 int main(void)
 {
     test_roundtrip();
@@ -1184,6 +1388,7 @@ int main(void)
     test_dupe_count();
     test_dupes();
     test_viscous();
+    test_messaging();
     if (failed != 0) {
         printf("digi tests: %d passed, %d failed\n", passed, failed);
         return 1;

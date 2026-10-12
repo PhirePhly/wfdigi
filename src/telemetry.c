@@ -6,8 +6,8 @@
  * difference since the previous report. TELPATH is its digipeater; a blank
  * path is sent direct. The first definition waits five minutes after boot or
  * after telemetry is changed, so a transmission that resets the TNC does not
- * immediately key the radio again. One definition then goes out each hour:
- * BITS, EQNS, PARM, then UNIT.
+ * immediately key the radio again. One definition then goes out every four hours:
+ * BITS, EQNS, PARM, then UNIT. A ?APRSU query sends all four at once.
  * The report's eight digital bits, left to right, are B1 cold boot for this
  * power-on, B2 reserved, B3 !F, B4 !Q, B5 !R, and B6 !S since the previous
  * report. B7 and B8 are unused. BITS.10111100 marks that same set.
@@ -18,7 +18,7 @@
 #define MSG_MAX 67u
 #define SLOT_SECONDS 600u
 #define TELEMETRY_START_DELAY 300u
-#define TELEMETRY_DEF_INTERVAL 3600u
+#define TELEMETRY_DEF_INTERVAL 14400u
 
 static const char msg_eqns[] = "EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0";
 static const char msg_parm[] = "PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,,COLD,,!F,!Q,!R,!S";
@@ -169,15 +169,23 @@ static void put_addressee(void)
     put_byte((uint8_t)':');
 }
 
-static bool send_frame(void)
+static bool send_frame(bool once)
 {
     if (!frame_ok || frame_n < 16u) {
         return false;
     }
+    if (once) {
+        // If this is due to a query, use the dupe check db to prevent
+        // more than one set of definitions from being sent per 30 seconds.
+        if (dupe_recent(frame, frame_n)) {
+            return true;
+        }
+        dupe_remember(frame, frame_n);
+    }
     return modem_send(frame, frame_n, TX_EXPIRE_SECONDS);
 }
 
-static bool send_message(const char *text, const char *extra)
+static bool send_message(const char *text, const char *extra, bool once)
 {
     uint8_t used = 0u;
 
@@ -195,21 +203,35 @@ static bool send_message(const char *text, const char *extra)
             ++used;
         }
     }
-    return send_frame();
+    return send_frame(once);
+}
+
+static bool send_tel_def_kind(uint8_t kind, bool once)
+{
+    if (kind == 0u) {
+        return send_message("BITS.10111100,WFDIGI ", wfdigi_version, once);
+    }
+    if (kind == 1u) {
+        return send_message(msg_eqns, 0, once);
+    }
+    if (kind == 2u) {
+        return send_message(msg_parm, 0, once);
+    }
+    return send_message(msg_unit, 0, once);
 }
 
 static bool send_tel_def(void)
 {
-    if (def_kind == 0u) {
-        return send_message("BITS.10111100,WFDIGI ", wfdigi_version);
+    return send_tel_def_kind(def_kind, false);
+}
+
+void telemetry_send_definitions(void)
+{
+    uint8_t kind;
+
+    for (kind = 0u; kind < 4u; ++kind) {
+        (void)send_tel_def_kind(kind, true);
     }
-    if (def_kind == 1u) {
-        return send_message(msg_eqns, 0);
-    }
-    if (def_kind == 2u) {
-        return send_message(msg_parm, 0);
-    }
-    return send_message(msg_unit, 0);
 }
 
 static void put_bit(bool on)
@@ -284,7 +306,7 @@ static bool send_data(void)
     put_bit(ds != 0u);
     put_bit(false);
     put_bit(false);
-    if (!send_frame()) {
+    if (!send_frame(false)) {
         return false;
     }
 

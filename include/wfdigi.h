@@ -299,6 +299,12 @@ void modem_rx_release(void);
 bool digi_ingress(const uint8_t *frame, uint16_t len);
 /* Promote due viscous frames or suppress them when another copy was heard. */
 void digi_service(void);
+/* Messaging has no cooldown of its own. Call before any packet is received. */
+void messaging_init(void);
+/* True when this frame is a directed message for MYCALL and must not be digipeated.
+ * A general ?APRS? may start a beacon and still returns false.
+ */
+bool process_frame_for_messaging(const uint8_t *frame, uint16_t len);
 /* Clear the recently-sent list. Call before any packet is transmitted. */
 void dupe_init(void);
 /* Remember a frame that has gone out on the air. */
@@ -333,6 +339,10 @@ void timer_beacon_restart(void);
 bool timer_beacon_now(void);
 /* Count down in tock_on_second, then modem_cal_stop runs. */
 void timer_cal_start(uint8_t seconds);
+/* Hold query position beacons for DUPE_WINDOW seconds. The timer counts it down. */
+void timer_start_query_cooldown(void);
+/* True while that hold still has seconds left. */
+bool timer_query_cooling(void);
 
 void prng_init(void);
 void prng_stir(uint16_t extra);
@@ -357,8 +367,10 @@ void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted);
 void telemetry_init(void);
 /* Start the telemetry schedule over. The packet counts keep running. */
 void telemetry_restart(void);
-/* One-second service for the 10-minute report and the hourly definition message. */
+/* One-second service for the 10-minute report and the four-hour definition message. */
 void telemetry_second(void);
+/* Send BITS, EQNS, PARM, and UNIT now. A copy still inside the dupe window is skipped. */
+void telemetry_send_definitions(void);
 
 uint8_t cli_pending_len(void);
 char cli_pending_char(uint8_t index);
