@@ -164,6 +164,13 @@ static bool append_mycall(uint8_t vias)
     return append_via(vias, call_ax, g_config.mycall_ssid, (uint8_t)(AX25_H | AX25_EXT));
 }
 
+static void send_work_now(void)
+{
+    /* Record before the modem finishes sending, so a second copy is caught. */
+    dupe_remember(work, work_len);
+    (void)modem_send(work, work_len, TX_EXPIRE_SECONDS);
+}
+
 static void send_work(void)
 {
     if (g_config.viscous_min != 0u) {
@@ -172,9 +179,7 @@ static void send_work(void)
         (void)modem_queue_viscous(work, work_len, pktq_expire_in(delay));
         return;
     }
-    /* Record before the modem finishes sending, so a second copy is caught. */
-    dupe_remember(work, work_len);
-    (void)modem_send(work, work_len, TX_EXPIRE_SECONDS);
+    send_work_now();
 }
 
 /* First matching via. unused_only skips addresses that already have the H bit. */
@@ -448,7 +453,8 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
         return true;
     }
     direct = path_is_fresh(vias);
-    if (g_config.viscous_min != 0u && !direct) {
+    mine = find_call(vias, g_config.mycall, g_config.mycall_ssid, true);
+    if (mine == NOT_FOUND && g_config.viscous_min != 0u && !direct) {
         // This is kind of a hack where we pretend we transmit all non-direct packets
         // when in Viscous mode so packets digipeated by other stations "count"
         // as us already sending them and this suppresses packets in the Viscous queue.
@@ -462,14 +468,14 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
         return true;
     }
 
-    mine = find_call(vias, g_config.mycall, g_config.mycall_ssid, true);
     if (mine != NOT_FOUND) {
         uint8_t *mine_at = via_ptr(mine);
 
         /* Preempt: every hop through our callsign has now been repeated. */
         mark_before(mine);
         mine_at[6] = (uint8_t)(mine_at[6] | AX25_H);
-        send_work();
+        /* A specific request for this station is never held by VISCOUS. */
+        send_work_now();
         return true;
     }
     // Look for any of our aliases or n-N aliases

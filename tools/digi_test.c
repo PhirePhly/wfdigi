@@ -1196,6 +1196,32 @@ static void expect_expire(const char *name, uint16_t want)
 static void test_viscous(void)
 {
     setup();
+    g_config.directonly = 1u;
+    g_config.viscous_min = 3u;
+    g_config.viscous_max = 5u;
+    if (!ingress_text("N0SRC>APRS,WFDIGI:Specific")) {
+        fail("VISCOUS immediate MYCALL", "could not build frame");
+        return;
+    }
+    judge("VISCOUS does not delay MYCALL", "N0SRC>APRS,WFDIGI*:Specific");
+    if (pktq_pending(PKTQ_VISCOUS)) {
+        fail("VISCOUS leaves MYCALL queue empty", "frame entered viscous queue");
+    } else {
+        ++passed;
+    }
+
+    setup();
+    g_config.directonly = 1u;
+    g_config.viscous_min = 3u;
+    g_config.viscous_max = 5u;
+    if (!ingress_text("N0SRC>APRS,OTHER*,WFDIGI:Specific")) {
+        fail("VISCOUS non-direct MYCALL", "could not build frame");
+        return;
+    }
+    judge("VISCOUS does not suppress non-direct MYCALL",
+          "N0SRC>APRS,OTHER*,WFDIGI*:Specific");
+
+    setup();
     set_nn(0, "WIDE");
     g_config.directonly = 1u;
     g_config.viscous_min = 3u;

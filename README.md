@@ -220,9 +220,10 @@ and which frames are still digipeated.
 `VISCOUS X Y` enables `DIRECTONLY` and holds digipeated packets for a
 random `X` through `Y` seconds. A copy heard through another digipeater during
 that delay suppresses the queued repeat. Otherwise the frame moves to the
-transmit queue when its delay expires. Viscous digipeating is purely a first
-hop fill-in digipeater concept, so `DIRECTONLY` is required for viscous
-digipeating to be enabled. When enabled, a viscous digipeater very effectively
-increases low-level digipeater coverage while not increasing congestion when it
-is observed that higher level / other digipeaters have already successfully picked
-up the same packet.
+transmit queue when its delay expires. A path containing this station's
+specific `MYCALL` is sent immediately instead of entering the viscous queue.
+Viscous digipeating is purely a first hop fill-in digipeater concept, so
+`DIRECTONLY` is required for viscous digipeating to be enabled. When enabled,
+a viscous digipeater very effectively increases low-level digipeater coverage
+while not increasing congestion when it is observed that higher level / other
+digipeaters have already successfully picked up the same packet.

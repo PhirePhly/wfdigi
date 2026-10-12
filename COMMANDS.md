@@ -183,7 +183,9 @@ When a direct packet is selected for digipeating, its rewritten frame enters
 the viscous queue instead of the transmit queue. At its selected second, the
 firmware checks the duplicate database. If another station has repeated the
 same source and information field, the queued frame is discarded. Otherwise
-it moves to the transmit queue and is due `10 - X` seconds later.
+it moves to the transmit queue and is due `10 - X` seconds later. A packet
+whose path specifically contains `MYCALL` bypasses the viscous queue and is
+sent immediately, including when an earlier hop is already used.
 
 While VISCOUS is enabled, every received packet whose path is not direct is
 remembered in the duplicate database. A path is direct when its first
