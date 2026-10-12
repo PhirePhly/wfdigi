@@ -151,6 +151,8 @@ typedef struct {
     /* A blank call is a direct telemetry frame ("-"). */
     uint8_t telpath[CALLSIGN_LEN];
     uint8_t telpath_ssid;
+    /* When set, the 7910 uses Bell 202 with the DSP equalizer. */
+    uint8_t equalizer;
     uint8_t valid;
 } DigiConfig;
 
@@ -180,6 +182,8 @@ void hardware_irq_restore(void);
 void hardware_watchdog_pet(void);
 /* Assert or release radio PTT. While keyed, each call also pets the watchdog. */
 void hardware_ptt(bool keyed);
+/* Bell 202 with the compromise equalizer when on, and Bell 202 when off. */
+void hardware_equalizer(bool on);
 /* Terminal RTS. Ready means the host may send. The caller holds interrupts off. */
 void hardware_terminal_rts(bool ready);
 /* Select the calibration waveform. Packet HDLC is restored by hardware_cal_restore. */

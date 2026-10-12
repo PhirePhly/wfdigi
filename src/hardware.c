@@ -6,9 +6,10 @@ __sfr __at (PORT_SCC_A_CTRL) scc_a_ctrl;
 __sfr __at (PORT_SCC_B_CTRL) scc_b_ctrl;
 __sfr __at (PORT_LED) led_latch;
 
-/* WR5 shadows. DTR stays clear on both channels: /DTR is the 7910 MC pin,
- * and a clear bit holds that pin high. MC4 is tied high and MC3:MC2 are tied
- * low, so both DTR bits clear select equalized Bell 202.
+/* WR5 shadows. /DTR is active low and drives a 7910 mode pin. Both DTR bits
+ * start clear, which holds MC1 and MC0 high: Bell 202 with the compromise
+ * equalizer. Channel B DTR stays clear. EQUALIZER OFF sets channel A DTR and
+ * pulls MC0 low, selecting Bell 202. MC4 is tied high and MC3:MC2 are tied low.
  */
 static uint8_t radio_wr5;
 static uint8_t terminal_wr5;
@@ -157,6 +158,23 @@ void hardware_terminal_rts(bool ready)
     }
     terminal_wr5 = next;
     terminal_reg(5, next);
+}
+
+void hardware_equalizer(bool on)
+{
+    uint8_t next = radio_wr5;
+
+    /* A set DTR bit pulls MC0 low: Bell 202, without the equalizer. */
+    if (on) {
+        next = (uint8_t)(next & (uint8_t)~WR5_DTR);
+    } else {
+        next = (uint8_t)(next | WR5_DTR);
+    }
+    if (next == radio_wr5) {
+        return;
+    }
+    radio_wr5 = next;
+    radio_reg(5, radio_wr5);
 }
 
 void hardware_ptt(bool keyed)

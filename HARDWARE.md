@@ -135,4 +135,4 @@ Those straps select the 7910 same-band modes. In this group the transmitter and 
 | `10` | `10010` | Bell 202, 1200 bps |
 | `11` | `10011` | Bell 202 with compromise equalizer, 1200 bps |
 
-Equalized Bell 202 (`MC4–MC0` = `10011`) is the 1200 bps packet mode.
+The firmware boots with both `/DTR` bits clear, so the cold-boot default is equalized Bell 202 (`MC4–MC0` = `10011`). `EQUALIZER OFF` drives channel A `/DTR`, pulling `MC0` low and selecting Bell 202 (`10010`). Channel B `/DTR` stays clear, so `MC1` stays high.

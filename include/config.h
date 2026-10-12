@@ -16,6 +16,7 @@
  * TELPATH is the one digipeater path for those frames. "-" sends them direct.
  * VISCOUS is off when both limits are 0. Otherwise both are 1 through 9,
  * and the minimum cannot be greater than the maximum.
+ * EQUALIZER is 1 for Bell 202 with the compromise equalizer, or 0 for Bell 202.
  */
 
 #define CFG_MYCALL "N0CALL"
@@ -33,6 +34,7 @@
 #define CFG_PPERSIST 63
 #define CFG_SLOTTIME 10
 #define CFG_FULLDUPLEX 0
+#define CFG_EQUALIZER 1
 
 #define CFG_ALIAS_0 ""
 #define CFG_ALIAS_0_SSID 0

@@ -309,6 +309,18 @@ TNC transmits without waiting for a clear channel. When it is off, transmit
 timing follows carrier detect, `PPERSIST`, and `SLOTTIME`. The cold-boot
 default is `OFF`.
 
+## EQUALIZER
+
+Enables the AM7910 receive equalizer. Accepts `ON`, `OFF`, `1`, or `0`.
+When it is off, the modem uses Bell 202. When it is on, the modem uses Bell
+202 with the DSP equalizer. The cold-boot default is `ON`.
+
+Note that there is essentially no consensus across the APRS community whether
+AX.25 should be emphasized or flat, so it is not at all clear what the correct
+setting is for this knob.
+Kenneth's recommendation is to assume that APRS is transmitted flat, so leave this
+setting on if your receive pathway has de-emphasis in it.
+
 ## ALIAS0, ALIAS1, ALIAS2, ALIAS3
 
 Extra callsigns this station digipeats, in addition to `MYCALL`. Each slot

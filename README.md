@@ -53,7 +53,7 @@ our replacement firmware installed in the IC15 socket.
 
 The terminal port is fixed at 9600 baud, 8 data bits, no parity, and one stop
 bit. There is no autobaud detection. The radio channel is initialized for
-1200 baud AX.25: HDLC, NRZI, and equalized Bell 202.
+1200 baud AX.25: HDLC, NRZI, and equalized Bell 202. `EQUALIZER OFF` selects Bell 202.
 
 ## Building
 
@@ -149,6 +149,7 @@ Cold-boot defaults:
 | PPERSIST | 63 | 0–255 |
 | SLOTTIME | 10 (100 ms) | 0–255, in 10 ms steps |
 | FULLDUPLEX | off | off or on |
+| EQUALIZER | on | off or on |
 | ALIAS 0–3 | blank, disabled | an AX.25 call and SSID, or empty to disable that slot |
 | NNALIAS 0–3 | `WIDE`, then three blank slots | an n-N prefix, or empty to disable that slot |
 | BEACON | off | off, 1–60 minutes |

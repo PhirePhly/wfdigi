@@ -14,6 +14,7 @@ _Static_assert(CFG_TXDELAY >= TXDELAY_MIN && CFG_TXDELAY <= TXDELAY_MAX, "TXDELA
 _Static_assert(CFG_PPERSIST >= PERSIST_MIN && CFG_PPERSIST <= PERSIST_MAX, "PPERSIST is out of range");
 _Static_assert(CFG_SLOTTIME >= SLOTTIME_MIN && CFG_SLOTTIME <= SLOTTIME_MAX, "SLOTTIME is out of range");
 _Static_assert(CFG_FULLDUPLEX <= 1u, "FULLDUPLEX must be 0 or 1");
+_Static_assert(CFG_EQUALIZER <= 1u, "EQUALIZER must be 0 or 1");
 _Static_assert(sizeof(CFG_ALIAS_0) <= CALLSIGN_LEN + 1u, "ALIAS 0 is longer than 6 characters");
 _Static_assert(sizeof(CFG_ALIAS_1) <= CALLSIGN_LEN + 1u, "ALIAS 1 is longer than 6 characters");
 _Static_assert(sizeof(CFG_ALIAS_2) <= CALLSIGN_LEN + 1u, "ALIAS 2 is longer than 6 characters");
@@ -387,6 +388,7 @@ static void config_cold_boot(void)
     store_u8("PPERSIST", (uint8_t)CFG_PPERSIST, PERSIST_MIN, PERSIST_MAX, &g_config.persist);
     store_u8("SLOTTIME", (uint8_t)CFG_SLOTTIME, SLOTTIME_MIN, SLOTTIME_MAX, &g_config.slottime);
     store_u8("FULLDUPLEX", (uint8_t)CFG_FULLDUPLEX, 0u, 1u, &g_config.fullduplex);
+    store_u8("EQUALIZER", (uint8_t)CFG_EQUALIZER, 0u, 1u, &g_config.equalizer);
     store_alias(CFG_ALIAS_0, (uint8_t)CFG_ALIAS_0_SSID, g_config.alias[0], &g_config.alias_ssid[0]);
     store_alias(CFG_ALIAS_1, (uint8_t)CFG_ALIAS_1_SSID, g_config.alias[1], &g_config.alias_ssid[1]);
     store_alias(CFG_ALIAS_2, (uint8_t)CFG_ALIAS_2_SSID, g_config.alias[2], &g_config.alias_ssid[2]);
@@ -419,6 +421,7 @@ void config_boot(void)
         config_cold_boot();
     }
     seal_live = true;
+    hardware_equalizer(g_config.equalizer != 0u);
 }
 
 static bool same_text(const char *text, const char *word)
@@ -1203,6 +1206,8 @@ static void command_display(void)
     show_number("SLOTTIME", g_config.slottime);
     serial_puts("FULLDUPLEX ");
     show_flag(g_config.fullduplex);
+    serial_puts("EQUALIZER ");
+    show_flag(g_config.equalizer);
 }
 
 static void command_cal(char *value)
@@ -1411,6 +1416,15 @@ void config_command(char *line)
             show_flag(g_config.fullduplex);
         } else if (set_flag("FULLDUPLEX", value, &g_config.fullduplex)) {
             show_flag(g_config.fullduplex);
+        }
+        return;
+    }
+    if (same_text(cmd, "EQUALIZER")) {
+        if (value == 0) {
+            show_flag(g_config.equalizer);
+        } else if (set_flag("EQUALIZER", value, &g_config.equalizer)) {
+            hardware_equalizer(g_config.equalizer != 0u);
+            show_flag(g_config.equalizer);
         }
         return;
     }
