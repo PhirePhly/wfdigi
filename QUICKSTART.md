@@ -89,6 +89,9 @@ BTEXT Whiskey Fox Digi
 BEACON 10
 ```
 
+To calibrate the TNC transmit audio levels, use the `CAL [L|H|D] NUMBER` command
+to either send the high tone, the low tone, or both for a set number of seconds.
+
 `BEACON 10` queues a position beacon every 10 minutes. `BEACON OFF` disables
 it. `WIDE` matches `WIDE2-2`, `WIDE1-1`, and the other n-N forms of that
 prefix. `DIGIPEAT` and `TELEMETRY` are already on. With telemetry on, a

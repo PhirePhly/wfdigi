@@ -161,15 +161,19 @@ digipeated.
 
 ## DIRECTONLY
 
-Limits alias and n-N digipeating to a path that has not been used yet.
+Limits alias and n-N digipeating to a path with no used hops yet.
 Accepts `ON`, `OFF`, `1`, or `0`. The cold-boot default is `OFF`. Turning it
 off also turns `VISCOUS` off.
 
 When it is on, a packet is repeated for an alias or a matching n-N prefix
 only when the first digipeater address does not have the has-been-repeated
-bit set. `WIDE1-1,WIDE2-1` is still direct. A later reduced n-N address does
-not by itself make the path used. A packet addressed to `MYCALL` is repeated
-even when the first hop has already been used.
+bit set. `WIDE1-1,WIDE2-1` qualifies as direct, where `W6WWW*,WIDE2-1` is
+dropped. A reduced n-N address such as `WIDE2-1` does not by itself
+make the path used, which is different from some other direct-only APRS
+implementations. 
+
+A packet addressed to `MYCALL` is repeated even when the first hop has
+already been used.
 
 ## VISCOUS
 
@@ -177,19 +181,16 @@ even when the first hop has already been used.
 `X` through `Y`, inclusive. Both values must be 1–9 and `X` cannot be greater
 than `Y`. Applying the command turns `DIRECTONLY` on. `VISCOUS OFF`
 disables the delay and turns `DIRECTONLY` off. `DIRECTONLY OFF` also turns
-this delay off. The cold-boot default is `OFF`.
+this delay off. The cold-boot default is `OFF`. A recommended first value to
+try if you are interested in using this feature is `VISCOUS 3 5`
 
 When a direct packet is selected for digipeating, its rewritten frame enters
-the viscous queue instead of the transmit queue. At its selected second, the
-firmware checks the duplicate database. If another station has repeated the
+the viscous queue instead of the transmit queue. It waits a random number of
+seconds between `X` and `Y` and if another station has repeated the
 same source and information field, the queued frame is discarded. Otherwise
-it moves to the transmit queue and is due `10 - X` seconds later. A packet
+it moves to the transmit queue and is sent out. A packet
 whose path specifically contains `MYCALL` bypasses the viscous queue and is
-sent immediately, including when an earlier hop is already used.
-
-While VISCOUS is enabled, every received packet whose path is not direct is
-remembered in the duplicate database. A path is direct when its first
-digipeater address is not marked repeated.
+sent immediately, including bypassing the `DIRECTONLY` filter.
 
 ## LOGGING
 
@@ -281,11 +282,11 @@ request a digipeater.
 
 How long the radio sends HDLC flags before the first byte when it keys up
 and acquires the channel. The range is 0–120 steps of 10 ms, so 30 means
-300 ms and 45 flags. At 1200 baud each step is 12 bit times, which is 1.5
-flags. The cold-boot default is 30. A 10 ms step is 12 interrupts from the
-1200 Hz sync input on the terminal channel. A frame already waiting when the
-previous one finishes does not repeat this delay: the radio stays keyed,
-sends the closing flags, and starts that frame.
+300 ms of preamble to allow the radio to key up and remote squelch to open.
+The cold-boot default is 30. Additional frames in the transmit queue do not
+trigger this same preamble when the first packet finishes: the radio stays keyed,
+sends three closing flags, and starts that frame immediately since the channel
+is already aquired and synced.
 
 ## PPERSIST
 
