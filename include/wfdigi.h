@@ -174,6 +174,7 @@ void firmware_reset(void);
 void hardware_set_im2(void);
 void hardware_irq_off(void);
 void hardware_irq_on(void);
+void hardware_halt(void);
 /* Enables CPU interrupts and remembers that later critical sections may turn them back on. */
 void hardware_irq_enable(void);
 /* Turns CPU interrupts back on only after hardware_irq_enable. */
@@ -193,7 +194,7 @@ void hardware_init(void);
 void hardware_lamps(uint8_t lamps_on);
 bool hardware_radio_dcd(void);
 /* Refresh the front-panel lamps from the current radio, queue, and interlock state. */
-void lamps_service(void);
+void lamps_service(bool system_idle);
 
 void serial_putc(uint8_t byte);
 void serial_puts(const char *text);

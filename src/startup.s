@@ -6,6 +6,7 @@
 	.globl _hardware_irq_off
 	.globl _hardware_irq_on
 	.globl _hardware_watchdog_pet
+	.globl _hardware_halt
 	.globl _isr_b_tx_stub
 	.globl _isr_b_ext_stub
 	.globl _isr_b_rx_stub
@@ -24,6 +25,10 @@ reset:
 halt_forever:
 	halt
 	jr halt_forever
+
+_hardware_halt:
+	halt
+	ret
 
 	.org 0x0100
 im2_vectors:

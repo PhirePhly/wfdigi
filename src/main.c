@@ -46,7 +46,7 @@ static void lamp_test(void)
         delay_spins(5000u);
         bit = (uint8_t)(bit << 1);
     } while (bit != 0u);
-    hardware_lamps(LED_CMD);
+    hardware_lamps(LED_CONV);
 }
 
 void firmware_boot(void)
@@ -59,10 +59,10 @@ void firmware_boot(void)
     serial_puts("\r\n\r\nWhiskey Fox Digi - version ");
     serial_puts(wfdigi_version);
     serial_puts("\r\nCopyright 2026 - Kenneth Finnegan\r\n");
-    rom_checksum_verify();
-    serial_puts("ROM checksum: ");
-    serial_puts(rom_checksum_pass ? "PASS\r\n" : "FAIL\r\n");
     lamp_test();
+    serial_puts("ROM checksum: ");
+    rom_checksum_verify();
+    serial_puts(rom_checksum_pass ? "PASS\r\n" : "FAIL\r\n");
     config_boot();
     beacon_path_reset();
     messaging_init();
@@ -75,15 +75,17 @@ void firmware_boot(void)
     hardware_irq_enable();
 
     for (;;) {
+        lamps_service(false);
         check_tx_interlock();
         timer_service();
         logging_service();
         modem_service();
         digi_service();
-        lamps_service();
-
+        
         if (serial_getc(&byte)) {
             cli_input(byte);
         }
+        lamps_service(true);
+        hardware_halt();
     }
 }

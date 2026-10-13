@@ -1,7 +1,7 @@
 #include "wfdigi.h"
 
 /* Paint the front panel from the current radio, queue, and interlock state. */
-void lamps_service(void)
+void lamps_service(bool system_idle)
 {
     uint8_t lamps = 0u;
 
@@ -22,6 +22,9 @@ void lamps_service(void)
     }
     if (pktq_pending(PKTQ_VISCOUS)) {
         lamps = (uint8_t)(lamps | LED_CON);
+    }
+    if (system_idle) {
+        lamps = (uint8_t)(lamps | LED_TRANS);
     }
     hardware_lamps(lamps);
 }
