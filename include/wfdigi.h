@@ -214,6 +214,12 @@ void print_u16(uint16_t value);
 uint8_t letter_to_upper(uint8_t c);
 /* 8-bit Pearson hash of len bytes at data. An empty range hashes to 0. */
 uint8_t pearson_hash(const uint8_t *data, uint16_t len);
+/* CRC-16/CCITT-FALSE: polynomial 0x1021, initial value 0xFFFF, no final XOR. */
+uint16_t crc16_feed(uint16_t crc, uint8_t byte);
+/* Bytes of ROM covered by the checksum. The little-endian CRC follows them. */
+#define ROM_CHECK_LEN 0x7FFEu
+/* True when the last boot found a matching ROM checksum. */
+extern bool rom_checksum_pass;
 /* True when the 7-byte AX.25 address matches this callsign and SSID.
  * call holds CALLSIGN_LEN plain characters. The H bit is ignored.
  */

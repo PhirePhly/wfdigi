@@ -66,7 +66,7 @@ make
 Build products are placed in `build/`:
 
 - `wfdigi.ihx` — Intel HEX image
-- `wfdigi.bin` — 32 KiB ROM image, unused bytes filled with `0xFF`
+- `wfdigi.bin` — 32 KiB ROM image, unused bytes filled with `0xFF`. The last two bytes are the CRC-16 of `0x0000`–`0x7FFD`, written by the layout check
 - `wfdigi.map` — linker map used by the layout check
 
 `make` rejects a ROM that runs into RAM at `0x8000`, a reset vector other than
@@ -110,11 +110,14 @@ It does not need SDCC or a Z80 to run the tests.
     ```
     Whiskey Fox Digi - version <git-describe>
     Copyright 2026 - Kenneth Finnegan
+    ROM checksum: PASS
     Cold boot...
     ```
 
    `<git-describe>` is the `git describe --tags --always --dirty` string from the
    tree that built the ROM. The same text is the `wfdigi_version` string.
+   The checksum is the CRC-16 of `0x0000` through `0x7FFD`. A mismatch prints
+   `ROM checksum: FAIL` and the firmware still boots.
 
    A later reset with a matching configuration CRC prints `Warm boot...` instead
    and keeps the settings entered at the prompt.

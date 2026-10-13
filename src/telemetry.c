@@ -9,8 +9,8 @@
  * immediately key the radio again. One definition then goes out every four hours:
  * BITS, EQNS, PARM, then UNIT. A ?APRSU query sends all four at once.
  * The report's eight digital bits, left to right, are B1 cold boot for this
- * power-on, B2 reserved, B3 !F, B4 !Q, B5 !R, and B6 !S since the previous
- * report. B7 and B8 are unused. BITS.10111100 marks that same set.
+ * power-on, B2 ROM checksum passed, B3 !F, B4 !Q, B5 !R, and B6 !S since the
+ * previous report. B7 and B8 are unused. BITS.11111100 marks that same set.
  */
 #define FRAME_MAX 128u
 #define AX25_UI 0x03u
@@ -21,7 +21,7 @@
 #define TELEMETRY_DEF_INTERVAL 14400u
 
 static const char msg_eqns[] = "EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0";
-static const char msg_parm[] = "PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,,COLD,,!F,!Q,!R,!S";
+static const char msg_parm[] = "PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,,COLD,SUM,!F,!Q,!R,!S";
 static const char msg_unit[] = "UNIT.pkts/min,pkts/min,pkts/min,count,";
 
 _Static_assert(sizeof(msg_eqns) - 1u <= MSG_MAX, "EQNS message is too long");
@@ -209,7 +209,7 @@ static bool send_message(const char *text, const char *extra, bool once)
 static bool send_tel_def_kind(uint8_t kind, bool once)
 {
     if (kind == 0u) {
-        return send_message("BITS.10111100,WFDIGI ", wfdigi_version, once);
+        return send_message("BITS.11111100,WFDIGI ", wfdigi_version, once);
     }
     if (kind == 1u) {
         return send_message(msg_eqns, 0, once);
@@ -299,7 +299,7 @@ static bool send_data(void)
     put_u16(drops);
     put_text(",0,");
     put_bit(cold_boot);
-    put_bit(false);
+    put_bit(rom_checksum_pass);
     put_bit(df != 0u);
     put_bit(dq != 0u);
     put_bit(dr != 0u);

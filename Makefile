@@ -62,8 +62,8 @@ $(BUILD)/$(PROJECT).ihx: $(OBJECTS) Makefile
 $(BUILD)/$(PROJECT).bin: $(BUILD)/$(PROJECT).ihx
 	$(MAKEBIN) -s 32768 $< $@
 
-layout: $(BUILD)/$(PROJECT).ihx $(BUILD)/version.h
-	$(PYTHON) tools/check-layout.py $< $(BUILD)/$(PROJECT).map $(BUILD)/version.h
+layout: $(BUILD)/$(PROJECT).bin $(BUILD)/version.h
+	$(PYTHON) tools/check-layout.py $(BUILD)/$(PROJECT).ihx $(BUILD)/$(PROJECT).map $(BUILD)/version.h $<
 
 test: $(BUILD)/digi_test
 	./$(BUILD)/digi_test

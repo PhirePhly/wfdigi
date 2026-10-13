@@ -239,9 +239,9 @@ immediately keying the radio again.
 One definition message follows every four hours, in this order: `BITS`, `EQNS`, `PARM`, `UNIT`.
 
 ```
-:MYCALL   :BITS.10111100,WFDIGI <version>
+:MYCALL   :BITS.11111100,WFDIGI <version>
 :MYCALL   :EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0
-:MYCALL   :PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,,COLD,,!F,!Q,!R,!S
+:MYCALL   :PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,,COLD,SUM,!F,!Q,!R,!S
 :MYCALL   :UNIT.pkts/min,pkts/min,pkts/min,count,
 ```
 
@@ -263,10 +263,11 @@ difference, so a rollover still counts the frames in that interval.
 `<drops>` is how far the `!R`, `!Q`, `!S`, and `!F`
 counters have moved since the previous report. The eight digits are digital
 bits B1 through B8. B1 stays `1` for the whole boot when that boot printed
-`Cold boot...`, and stays `0` after `Warm boot...`. B2 is reserved and is
-always `0`. B3 through B6 are `1` when `!F`, `!Q`, `!R`, and `!S` each moved
-since the previous report. B7 and B8 are unused and are always `0`.
-`BITS.10111100` marks B1 and B3 through B6 as the bits in use. The sequence
+`Cold boot...`, and stays `0` after `Warm boot...`. B2 stays `1` for the whole
+boot when that boot printed `ROM checksum: PASS`, and stays `0` after
+`ROM checksum: FAIL`. B3 through B6 are `1` when `!F`, `!Q`, `!R`, and `!S`
+each moved since the previous report. B7 and B8 are unused and are always `0`.
+`BITS.11111100` marks B1 through B6 as the bits in use. The sequence
 number runs from 000 through 999. Nothing is queued while `MYCALL` is still
 `N0CALL`. A directed `?APRSU` query, described under Messages, sends all four
 definition messages at once and does not move this schedule.

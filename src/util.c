@@ -105,6 +105,22 @@ static const uint8_t pearson_table[256] = {
     0x68u, 0x30u, 0xF7u, 0x67u, 0x0Fu, 0x0Bu, 0x8Au, 0xEFu
 };
 
+/* CRC-16/CCITT-FALSE: polynomial 0x1021, initial value 0xFFFF, no final XOR. */
+uint16_t crc16_feed(uint16_t crc, uint8_t byte)
+{
+    uint8_t bit;
+
+    crc = (uint16_t)(crc ^ (uint16_t)((uint16_t)byte << 8));
+    for (bit = 0u; bit < 8u; ++bit) {
+        if ((crc & 0x8000u) != 0u) {
+            crc = (uint16_t)((uint16_t)(crc << 1) ^ 0x1021u);
+        } else {
+            crc = (uint16_t)(crc << 1);
+        }
+    }
+    return crc;
+}
+
 uint8_t pearson_hash(const uint8_t *data, uint16_t len)
 {
     uint8_t hash = 0u;
