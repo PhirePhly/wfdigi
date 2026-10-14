@@ -75,17 +75,18 @@ void firmware_boot(void)
     hardware_irq_enable();
 
     for (;;) {
-        lamps_service(false);
         check_tx_interlock();
         timer_service();
         logging_service();
         modem_service();
         digi_service();
-        
         if (serial_getc(&byte)) {
             cli_input(byte);
         }
+
+        // Update LEDs and halt when idle
         lamps_service(true);
         hardware_halt();
+        lamps_service(false);
     }
 }
