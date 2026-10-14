@@ -1188,10 +1188,15 @@ static void command_display(void)
     show_number("TXDELAY", g_config.txdelay);
     show_number("PPERSIST", g_config.persist);
     show_number("SLOTTIME", g_config.slottime);
-    serial_puts("FULLDUPLEX ");
-    show_flag(g_config.fullduplex);
-    serial_puts("EQUALIZER ");
-    show_flag(g_config.equalizer);
+    // Shadow configs are silent if they're the default
+    if (g_config.fullduplex) {
+        serial_puts("FULLDUPLEX ");
+        show_flag(g_config.fullduplex);
+    }
+    if (g_config.equalizer) {
+        serial_puts("EQUALIZER ");
+        show_flag(g_config.equalizer);
+    }
 }
 
 static void command_cal(char *value)
