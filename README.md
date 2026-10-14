@@ -185,7 +185,8 @@ An n-N prefix is at most five characters, so the hop-limit digit still fits in
 the six-character AX.25 callsign. `WIDE` matches `WIDE2-2` and `WIDE2-1`: the
 callsign is the prefix plus a digit N from 1 to 7, and the SSID is the
 remaining hop count n, with n from 1 through N. It does not match a bare
-`WIDE` or a hop count above N, such as `WIDE2-3`.
+`WIDE`. An SSID above n, such as `WIDE1-2`, is quashed without taking a hop,
+so it goes out as `WIDE1-2*,MYCALL*` even when the request is within `MAXHOPS`.
 
 A digipeat searches the whole path, not only the first unused address. `MYCALL`
 is taken first and every hop through it is marked repeated. A path in which
@@ -202,6 +203,8 @@ used digipeater counts as one hop. The hop total is those used hops plus the
 remaining request. A total equal to `MAXHOPS` is repeated normally. A larger
 total is quashed: the matched n-N is decremented by one, every digipeater is
 marked used, and `MYCALL` is appended so the last repeated hop is this station.
+An unused n-N with the SSID above N is quashed the same way, except that hop
+count is left unchanged.
 One used hop followed by `WIDE2-2` therefore goes out as `AAA,WIDE2-1*,MYCALL*`
 when `MAXHOPS` is 2. When the path already
 holds eight digipeaters, `MYCALL` replaces the last one. A path with no

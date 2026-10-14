@@ -235,8 +235,8 @@ static uint8_t find_alias(uint8_t vias)
     return NOT_FOUND;
 }
 
-/* Prefix plus digit N, SSID n, with 1 <= n <= N. The H bit is ignored here. */
-static bool nn_match(const uint8_t *ax, const uint8_t *prefix, uint8_t *n, uint8_t *limit)
+/* Prefix plus digit N (1-7). *limit is N and *n is the SSID. The H bit is ignored. */
+static bool nn_shape(const uint8_t *ax, const uint8_t *prefix, uint8_t *n, uint8_t *limit)
 {
     uint8_t len = 0u;
     uint8_t i;
@@ -266,7 +266,13 @@ static bool nn_match(const uint8_t *ax, const uint8_t *prefix, uint8_t *n, uint8
     ssid = (uint8_t)((ax[6] >> 1) & 0x0Fu);
     *limit = (uint8_t)(digit - (uint8_t)'0');
     *n = ssid;
-    return ssid >= 1u && ssid <= *limit;
+    return true;
+}
+
+/* 1 <= n <= N. An SSID above N is a different path and is quashed instead. */
+static bool nn_match(const uint8_t *ax, const uint8_t *prefix, uint8_t *n, uint8_t *limit)
+{
+    return nn_shape(ax, prefix, n, limit) && *n >= 1u && *n <= *limit;
 }
 
 static bool nn_match_any(const uint8_t *ax, uint8_t *n, uint8_t *limit)
@@ -297,6 +303,30 @@ static uint8_t find_nn(uint8_t vias, uint8_t *remain)
         p += AX25_ADDR;
     }
     return NOT_FOUND;
+}
+
+/* Unused n-N whose SSID is above N, such as WIDE1-2. That is not a hop request. */
+static bool path_nn_invalid(uint8_t vias)
+{
+    uint8_t i;
+    uint8_t *p = via_ptr(0u);
+
+    for (i = 0u; i < vias; ++i) {
+        if ((p[6] & AX25_H) == 0u) {
+            uint8_t a;
+
+            for (a = 0u; a < NNALIAS_COUNT; ++a) {
+                uint8_t n;
+                uint8_t limit;
+
+                if (nn_shape(p, g_config.nnalias[a], &n, &limit) && n > limit) {
+                    return true;
+                }
+            }
+        }
+        p += AX25_ADDR;
+    }
+    return false;
 }
 
 /* DIRECTONLY: the first digipeater has not been repeated yet. A later
@@ -420,6 +450,7 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
     uint8_t used;
     uint8_t ahead;
     bool direct;
+    bool nn_invalid;
 
     if (!take_frame(frame, len)) {
         // Failed to take the frame, so it is not ingested.
@@ -482,9 +513,10 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
     alias_at = find_alias(vias);
     nn_at = NOT_FOUND;
     remain = 0u;
+    nn_invalid = path_nn_invalid(vias);
     if (alias_at == NOT_FOUND) {
         nn_at = find_nn(vias, &remain);
-        if (nn_at == NOT_FOUND) {
+        if (nn_at == NOT_FOUND && !nn_invalid) {
             // No aliases or n-N aliases found, so we silently drop it
             return true;
         }
@@ -495,10 +527,11 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
     }
     // How many unused hops are still in the path?
     ahead = pending_hops(vias);
-    if ((uint8_t)(255u - used) < ahead || (uint8_t)(used + ahead) > g_config.maxhops) {
-        // The sender was greedy and requested too many hops.
-        // Quash the path and digipeat it since it hasn't gone too far yet.
-        if (nn_at != NOT_FOUND) {
+    if (nn_invalid || (uint8_t)(255u - used) < ahead || (uint8_t)(used + ahead) > g_config.maxhops) {
+        /* An SSID above N is already invalid, so leave every hop count alone.
+         * A request past MAXHOPS still gives up one hop before the quash.
+         */
+        if (!nn_invalid && nn_at != NOT_FOUND) {
             reduce_nn(nn_at, remain);
         }
         mark_all(vias);

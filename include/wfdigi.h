@@ -120,7 +120,8 @@ typedef struct {
     /* n-N prefixes, with no SSID. A blank prefix disables that slot.
      * On air the callsign is the prefix plus one digit N (1-7), and the SSID
      * is the remaining hop count n, 1 <= n <= N. WIDE matches WIDE2-2 and
-     * WIDE2-1, and does not match WIDE or WIDE2-3.
+     * WIDE2-1, and does not match a bare WIDE. An SSID above N, such as
+     * WIDE1-2, is quashed in place as WIDE1-2*,MYCALL* without taking a hop.
      */
     uint8_t nnalias[NNALIAS_COUNT][CALLSIGN_LEN];
     uint8_t beacon_every;

@@ -871,7 +871,16 @@ static void test_nnalias(void)
         {"WIDE3-1 is consumed", "N0SRC>APRS,WIDE3-1:Hi", "N0SRC>APRS,WFDIGI*:Hi"},
         {"WIDE7-7 asks for more than MAXHOPS", "N0SRC>APRS,WIDE7-7:Hi", "N0SRC>APRS,WIDE7-6*,WFDIGI*:Hi"},
         {"WIDE7-1 is consumed", "N0SRC>APRS,WIDE7-1:Hi", "N0SRC>APRS,WFDIGI*:Hi"},
-        {"n above N does not match", "N0SRC>APRS,WIDE2-3:Hi", 0},
+        {"SSID above N is quashed", "N0SRC>APRS,WIDE2-3:Hi", "N0SRC>APRS,WIDE2-3*,WFDIGI*:Hi"},
+        {"WIDE1-2 is quashed without a hop", "N0SRC>APRS,WIDE1-2:Hi", "N0SRC>APRS,WIDE1-2*,WFDIGI*:Hi"},
+        {"WIDE1-2 quashes a later n-N", "N0SRC>APRS,WIDE1-2,WIDE2-2:Hi",
+         "N0SRC>APRS,WIDE1-2*,WIDE2-2*,WFDIGI*:Hi"},
+        {"WIDE1-2 does not take a hop from a greedy path", "N0SRC>APRS,WIDE1-2,WIDE5-5:Hi",
+         "N0SRC>APRS,WIDE1-2*,WIDE5-5*,WFDIGI*:Hi"},
+        {"WIDE1-2 quashes the hops before it", "N0SRC>APRS,AAA,WIDE1-2:Hi",
+         "N0SRC>APRS,AAA*,WIDE1-2*,WFDIGI*:Hi"},
+        {"used SSID above N is skipped", "N0SRC>APRS,WIDE1-2*,WIDE2-1:Hi", "N0SRC>APRS,WIDE1-2*,WFDIGI*:Hi"},
+        {"unconfigured SSID above N is not quashed", "N0SRC>APRS,GATE1-2:Hi", 0},
         {"bare prefix does not match", "N0SRC>APRS,WIDE:Hi", 0},
         {"missing SSID does not match", "N0SRC>APRS,WIDE2:Hi", 0},
         {"We dont get stuck on invalid aliases", "N0SRC>APRS,WIDE2,WIDE2-2:Hi", "N0SRC>APRS,WIDE2*,WFDIGI*,WIDE2-1:Hi"},
@@ -892,6 +901,8 @@ static void test_nnalias(void)
         {"We dont match subsets of an n-N alias", "N0SRC>APRS,WIDE3G-3:Hi", 0},        
         {"full path quash replaces the last via", "N0SRC>APRS,WIDE2-2,A,B,C,D,E,F,G:Hi",
          "N0SRC>APRS,WIDE2-1*,A*,B*,C*,D*,E*,F*,WFDIGI*:Hi"},
+        {"full path quash of WIDE1-2 leaves the SSID", "N0SRC>APRS,WIDE1-2,A,B,C,D,E,F,G:Hi",
+         "N0SRC>APRS,WIDE1-2*,A*,B*,C*,D*,E*,F*,WFDIGI*:Hi"},
     };
 
     setup();
@@ -966,8 +977,8 @@ static void test_maxhops(void)
     check("two WIDE2-2 requests are quashed", "N0SRC>APRS,WIDE2-2,WIDE2-2:Hi",
           "N0SRC>APRS,WIDE2-1*,WIDE2-2*,WFDIGI*:Hi");
     check("alias request equal to MAXHOPS", "N0SRC>APRS,AAA,TEMP:Hi", "N0SRC>APRS,AAA*,WFDIGI*:Hi");
-    check("n-N shape that does not match still counts one", "N0SRC>APRS,TEMP,WIDE2-3:Hi",
-          "N0SRC>APRS,WFDIGI*,WIDE2-3:Hi");
+    check("SSID above n quashes an alias path", "N0SRC>APRS,TEMP,WIDE2-3:Hi",
+          "N0SRC>APRS,TEMP*,WIDE2-3*,WFDIGI*:Hi");
     check("unconfigured n-N shape counts as one hop", "N0SRC>APRS,TEMP,GATE5-5:Hi", "N0SRC>APRS,WFDIGI*,GATE5-5:Hi");
     check("a used n-N address counts as one hop", "N0SRC>APRS,WIDE5-5*,TEMP:Hi", "N0SRC>APRS,WIDE5-5*,WFDIGI*:Hi");
     check("an unmatched path is not quashed", "N0SRC>APRS,AAA,BBB,CCC,DDD:Hi", 0);
@@ -989,9 +1000,12 @@ static void test_maxhops(void)
     g_config.maxhops = 1u;
     check("MAXHOPS 1 repeats WIDE1-1", "N0SRC>APRS,WIDE1-1:Hi", "N0SRC>APRS,WFDIGI*:Hi");
     check("MAXHOPS 1 quashes WIDE2-2", "N0SRC>APRS,WIDE2-2:Hi", "N0SRC>APRS,WIDE2-1*,WFDIGI*:Hi");
+    check("MAXHOPS 1 quashes WIDE1-2 without a hop", "N0SRC>APRS,WIDE1-2:Hi",
+          "N0SRC>APRS,WIDE1-2*,WFDIGI*:Hi");
 
     g_config.maxhops = 7u;
     check("MAXHOPS 7 repeats WIDE7-7", "N0SRC>APRS,WIDE7-7:Hi", "N0SRC>APRS,WFDIGI*,WIDE7-6:Hi");
+    check("MAXHOPS 7 still quashes WIDE1-2", "N0SRC>APRS,WIDE1-2:Hi", "N0SRC>APRS,WIDE1-2*,WFDIGI*:Hi");
     check("seven alias hops stay a normal repeat", "N0SRC>APRS,TEMP,A,B,C,D,E,F:Hi",
           "N0SRC>APRS,WFDIGI*,A,B,C,D,E,F:Hi");
 
@@ -1016,6 +1030,8 @@ static void test_maxhops(void)
     g_config.directonly = 1u;
     check("a fresh oversized n-N is still quashed", "N0SRC>APRS,WIDE5-5:Hi", "N0SRC>APRS,WIDE5-4*,WFDIGI*:Hi");
     check("DIRECTONLY drops before a quash", "N0SRC>APRS,AAA*,WIDE5-5:Hi", 0);
+    check("DIRECTONLY quashes a fresh WIDE1-2", "N0SRC>APRS,WIDE1-2:Hi", "N0SRC>APRS,WIDE1-2*,WFDIGI*:Hi");
+    check("DIRECTONLY drops a used hop before WIDE1-2", "N0SRC>APRS,AAA*,WIDE1-2:Hi", 0);
     g_config.directonly = 0u;
     check("two used hops still quash WIDE5-5", "N0SRC>APRS,AAA*,BBB*,WIDE5-5:Hi",
           "N0SRC>APRS,AAA*,BBB*,WIDE5-4*,WFDIGI*:Hi");

@@ -340,8 +340,10 @@ boot.
 
 On the air, the callsign is the prefix plus one digit N from 1 to 7, and the
 SSID is the remaining hop count n, with n from 1 through N. `WIDE` matches
-`WIDE2-2` and `WIDE2-1`. It does not match a bare `WIDE`, and it does not
-match a hop count above N, such as `WIDE2-3`.
+`WIDE2-2` and `WIDE2-1`. It does not match a bare `WIDE`. An SSID above n,
+such as `WIDE1-2`, is invalid and quashed in place without taking a hop:
+the address stays `WIDE1-2*`, every digipeater is marked repeated, and 
+`MYCALL*` is appended. That quash does not depend on `MAXHOPS`.
 
 ## BEACON
 
