@@ -13,8 +13,6 @@
  * previous report. B7 and B8 are unused. BITS.11111100 marks that same set.
  */
 #define FRAME_MAX 128u
-#define AX25_UI 0x03u
-#define AX25_PID 0xF0u
 #define MSG_MAX 67u
 #define SLOT_SECONDS 600u
 #define TELEMETRY_START_DELAY 300u

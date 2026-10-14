@@ -12,7 +12,6 @@
 #define BLOCK_DATA 31u
 #define BLOCK_END 0xFFu
 #define QUEUE_MAX 16u
-#define FRAME_MAX 330u
 
 static uint8_t block[BLOCKS][BLOCK_BYTES];
 static uint8_t free_head;
@@ -185,7 +184,7 @@ bool pktq_put(uint8_t queue, const uint8_t *data, uint16_t len, uint16_t expire)
     uint8_t slot;
     uint16_t at = 0u;
 
-    if (!queue_ok(queue) || data == 0 || len == 0u || len > FRAME_MAX) {
+    if (!queue_ok(queue) || data == 0 || len == 0u || len > AX25_MAX) {
         return false;
     }
     if (q_count[queue] >= QUEUE_MAX) {

@@ -1,6 +1,8 @@
 #ifndef WFDIGI_H
 #define WFDIGI_H
 
+#include "ax25.h"
+
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef uint8_t bool;
@@ -58,7 +60,6 @@ typedef uint8_t bool;
  * Timing values are in the usual 10 ms TNC units.
  */
 #define CONFIG_ADDR 0x8000u
-#define CALLSIGN_LEN 6u
 #define ALIAS_COUNT 4u
 #define NNALIAS_COUNT 4u
 /* One character of the AX.25 callsign is the hop-limit digit, so the prefix
@@ -74,19 +75,17 @@ typedef uint8_t bool;
 #define PERSIST_MAX 255u
 #define SLOTTIME_MIN 0u
 #define SLOTTIME_MAX 255u
-#define SSID_MAX 15u
 /* HDLC flags sent after the last frame. PTT drops once these are done. */
 #define TX_CLOSING_FLAGS 3u
 #define BEACON_MAX 60u
 #define MAXHOPS_MIN 1u
 /* Eight digipeater addresses is the AX.25 path limit. */
-#define MAXHOPS_MAX 8u
+#define MAXHOPS_MAX AX25_MAX_VIAS
+/* Recently transmitted packets kept for the duplicate check. */
+#define DUPE_SLOTS 250u
 /* Software countdown slots, in 10 ms ticks. A tick is 12 interrupts of the 1200 Hz /SYNCB input.
  * One hundred ticks are one second. The duplicate window and the beacon interval use that second.
  */
-#define DUPE_WINDOW 30u
-/* Recently transmitted packets kept for the duplicate check. */
-#define DUPE_SLOTS 250u
 #define TIMER_TXDELAY 0u
 #define TIMER_TXTAIL 1u
 #define TIMER_TXWAIT 2u

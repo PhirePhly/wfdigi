@@ -1,15 +1,8 @@
 #include "wfdigi.h"
 
-/* Received frames are at most this long. The transmit queue uses the same limit. */
-#define FRAME_MAX 330u
-#define AX25_ADDR 7u
-#define AX25_MAX_VIAS 8u
 #define NOT_FOUND 0xFFu
-#define AX25_H 0x80u
-#define AX25_EXT 0x01u
-#define AX25_RESERVED 0x60u
 
-static uint8_t work[FRAME_MAX];
+static uint8_t work[AX25_MAX];
 static uint16_t work_len;
 
 /* Uniform draw in [low, high]. The limits are 1..9, so repeated subtraction
@@ -50,7 +43,7 @@ static bool take_frame(const uint8_t *frame, uint16_t len)
 {
     uint16_t i;
 
-    if (frame == 0 || len < (AX25_ADDR + AX25_ADDR + 1u) || len > FRAME_MAX) {
+    if (frame == 0 || len < (AX25_ADDR + AX25_ADDR + 1u) || len > AX25_MAX) {
         return false;
     }
     for (i = 0u; i < len; ++i) {
@@ -130,7 +123,7 @@ static bool append_via(uint8_t vias, const uint8_t call_ax[CALLSIGN_LEN], uint8_
     if (vias == 0u || vias >= AX25_MAX_VIAS) {
         return false;
     }
-    if (work_len > (uint16_t)(FRAME_MAX - AX25_ADDR)) {
+    if (work_len > (uint16_t)(AX25_MAX - AX25_ADDR)) {
         return false;
     }
     last = via_ptr((uint8_t)(vias - 1u));
@@ -564,7 +557,7 @@ void digi_service(void)
     if (!pktq_peek_expire(PKTQ_VISCOUS, &expire) || !pktq_expired(expire)) {
         return;
     }
-    if (!pktq_take(PKTQ_VISCOUS, work, FRAME_MAX, &work_len, &expire)) {
+    if (!pktq_take(PKTQ_VISCOUS, work, AX25_MAX, &work_len, &expire)) {
         return;
     }
     if (!dupe_recent(work, work_len)) {

@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define FRAME_CAP 330
+#define FRAME_CAP AX25_MAX
 #define TEXT_CAP 800
 #define TX_KEEP 2
 
@@ -390,8 +390,8 @@ static int encode(const char *text, uint8_t *out, uint16_t *out_len)
         put_addr(out + 14 + (7 * i), &via[i], i == vias - 1);
     }
     at = (uint16_t)((2 + vias) * 7);
-    out[at] = 0x03u;
-    out[(uint16_t)(at + 1u)] = 0xF0u;
+    out[at] = AX25_UI;
+    out[(uint16_t)(at + 1u)] = AX25_PID;
     for (i = 0; i < (int)info_len; ++i) {
         out[(uint16_t)(at + 2u + (uint16_t)i)] = info[i];
     }
@@ -531,7 +531,7 @@ static int decode(const uint8_t *frame, uint16_t len, char *text, int cap)
     if (count < 2 || (frame[(uint16_t)(at - 1u)] & 0x01u) == 0u) {
         return -1;
     }
-    if ((uint16_t)(at + 2u) > len || frame[at] != 0x03u || frame[(uint16_t)(at + 1u)] != 0xF0u) {
+    if ((uint16_t)(at + 2u) > len || frame[at] != AX25_UI || frame[(uint16_t)(at + 1u)] != AX25_PID) {
         return -1;
     }
     n = append_text(text, n, cap, addr[1]);
@@ -787,9 +787,9 @@ static void test_ninth_via(void)
         }
         ++len;
     }
-    frame[len] = 0x03u;
+    frame[len] = AX25_UI;
     ++len;
-    frame[len] = 0xF0u;
+    frame[len] = AX25_PID;
     ++len;
     frame[len] = (uint8_t)'H';
     ++len;

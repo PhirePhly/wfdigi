@@ -12,7 +12,7 @@ LDFLAGS := -mz80 --nostdlib --no-std-crt0 --code-loc 0x0120 --data-loc 0x8100
 
 C_SOURCES := src/hardware.c src/lamps.c src/serial.c src/config.c src/cli.c src/util.c src/pktq.c src/beacon.c src/telemetry.c src/timer.c src/logging.c src/modem.c src/digi.c src/dupe.c src/messaging.c src/interrupts.c src/main.c
 ASM_SOURCES := src/startup.s src/isr_stubs.s
-HEADERS := include/wfdigi.h include/config.h include/hardware.h
+HEADERS := include/wfdigi.h include/ax25.h include/config.h include/hardware.h
 C_OBJECTS := $(patsubst src/%.c,$(BUILD)/%.rel,$(C_SOURCES))
 ASM_OBJECTS := $(patsubst src/%.s,$(BUILD)/%.rel,$(ASM_SOURCES))
 OBJECTS := $(ASM_OBJECTS) $(C_OBJECTS)
@@ -68,7 +68,7 @@ layout: $(BUILD)/$(PROJECT).bin $(BUILD)/version.h
 test: $(BUILD)/digi_test
 	./$(BUILD)/digi_test
 
-$(BUILD)/digi_test: src/digi.c src/dupe.c src/pktq.c src/util.c src/messaging.c tools/digi_test.c include/wfdigi.h tools/host_prefix.h | $(BUILD)
+$(BUILD)/digi_test: src/digi.c src/dupe.c src/pktq.c src/util.c src/messaging.c tools/digi_test.c include/wfdigi.h include/ax25.h tools/host_prefix.h | $(BUILD)
 	$(HOSTCC) $(HOSTCFLAGS) -DHOST_DIGI_TEST -o $@ src/digi.c src/dupe.c src/pktq.c src/util.c src/messaging.c tools/digi_test.c
 
 clean:

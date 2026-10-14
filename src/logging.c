@@ -1,9 +1,5 @@
 #include "wfdigi.h"
 
-/* AX.25 address block is 7 bytes. Destination, source, and up to 8 digipeaters. */
-#define AX25_ADDR 7u
-#define AX25_MAX_ADDRS 10u
-
 /* Trace text waits here while the terminal catches up. A power of two keeps
  * the indices a mask. Near the top, logging stops until half the ring has
  * drained, and "!!!" marks the gap.
@@ -148,7 +144,7 @@ static bool print_tnc2(const uint8_t *frame, uint16_t len)
     ctl = frame[i];
     ++i;
     trace_char(':');
-    if (((ctl & 0x01u) == 0u) || ((ctl & 0xEFu) == 0x03u)) {
+    if (((ctl & 0x01u) == 0u) || ((ctl & 0xEFu) == AX25_UI)) {
         if (i < len) {
             ++i;
         }

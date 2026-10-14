@@ -4,10 +4,6 @@
  * A general ?APRS? may start the normal beacon and is then left for the
  * digipeater, so this file never records a received frame.
  */
-#define AX25_ADDR 7u
-#define AX25_MAX_ADDRS 10u
-#define AX25_UI 0x03u
-#define AX25_PID 0xF0u
 #define FRAME_MAX 128u
 #define ADDRESSEE_LEN 9u
 #define MSG_ID_MAX 5u

@@ -1,10 +1,5 @@
 #include "wfdigi.h"
 
-/* AX.25 address block is 7 bytes. Destination, source, and up to 8 digipeaters. */
-#define AX25_ADDR 7u
-#define AX25_MIN 15u
-#define AX25_MAX 330u
-
 __sfr __at (PORT_SCC_A_CTRL) scc_a_ctrl;
 __sfr __at (PORT_SCC_A_DATA) scc_a_data;
 __sfr __at (PORT_SCC_B_CTRL) scc_b_ctrl;

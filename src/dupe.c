@@ -1,9 +1,6 @@
 #include "wfdigi.h"
 
 /* Recently sent packets. The scan compares the information-field sum first. */
-#define AX25_ADDR 7u
-#define AX25_MAX_ADDRS 10u
-
 typedef struct {
     uint8_t call[CALLSIGN_LEN];
     uint8_t ssid;
@@ -70,7 +67,7 @@ static bool frame_parts(const uint8_t *frame, uint16_t len, const uint8_t **src,
     ctl = frame[at];
     at = (uint16_t)(at + 1u);
     /* I frames and UI frames carry a PID byte ahead of the information field. */
-    if (((ctl & 0x01u) == 0u) || ((ctl & 0xEFu) == 0x03u)) {
+    if (((ctl & 0x01u) == 0u) || ((ctl & 0xEFu) == AX25_UI)) {
         if (at < len) {
             at = (uint16_t)(at + 1u);
         }

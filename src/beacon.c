@@ -1,8 +1,6 @@
 #include "hardware.h"
 
 #define FRAME_MAX 128u
-#define AX25_UI 0x03u
-#define AX25_PID 0xF0u
 #define BEACON_JITTER 15u
 
 static uint8_t frame[FRAME_MAX];
