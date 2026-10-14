@@ -1200,146 +1200,20 @@ static void command_display(void)
     }
 }
 
-#define RAW_FRAME_MAX 96u
-
-static void encode_raw_call(uint8_t *dest, const uint8_t *call, uint8_t ssid, uint8_t flags)
-{
-    uint8_t i;
-
-    for (i = 0u; i < CALLSIGN_LEN; ++i) {
-        dest[i] = (uint8_t)(call[i] << 1);
-    }
-    dest[6] = (uint8_t)(0x60u | (uint8_t)((ssid & 0x0Fu) << 1) | flags);
-}
-
-/* The first word matches lit, and the next character ends that word. */
-static bool keyword_word(const char *text, const char *lit, uint8_t *used)
-{
-    uint8_t i = 0u;
-
-    while (lit[i] != '\0') {
-        if (text[i] == '\0' || letter_to_upper((uint8_t)text[i]) != (uint8_t)lit[i]) {
-            return false;
-        }
-        ++i;
-    }
-    if (text[i] != '\0' && text[i] != ' ') {
-        return false;
-    }
-    *used = i;
-    return true;
-}
-
-/* Header plus text has to fit, including when a digipeater is present. */
-static bool raw_text_ok(const char *info)
-{
-    uint8_t n = 23u;
-
-    while (*info != '\0') {
-        if (n >= RAW_FRAME_MAX) {
-            return false;
-        }
-        ++n;
-        ++info;
-    }
-    return true;
-}
-
-/* UI frame from MYCALL to APWFDP. One optional digipeater, then the typed text. */
-static bool queue_raw(bool has_via, const uint8_t *via, uint8_t via_ssid, const char *info)
-{
-    static uint8_t frame[RAW_FRAME_MAX];
-    uint8_t n = 0u;
-
-    encode_raw_call(&frame[0], tncid, 0u, 0x80u);
-    n = 7u;
-    encode_raw_call(&frame[7], g_config.mycall, g_config.mycall_ssid, has_via ? 0u : 0x01u);
-    n = 14u;
-    if (has_via) {
-        encode_raw_call(&frame[14], via, via_ssid, 0x01u);
-        n = 21u;
-    }
-    frame[n] = AX25_UI;
-    ++n;
-    frame[n] = AX25_PID;
-    ++n;
-    while (*info != '\0') {
-        if (n >= RAW_FRAME_MAX) {
-            return false;
-        }
-        frame[n] = (uint8_t)*info;
-        ++n;
-        ++info;
-    }
-    return modem_send(frame, n, TX_EXPIRE_SECONDS);
-}
-
 static void command_sendraw(char *value)
 {
-    char *info = value;
-    uint8_t via_call[CALLSIGN_LEN];
-    uint8_t via_ssid = 0u;
-    bool has_via = false;
-    uint8_t used = 0u;
+    uint8_t sent;
 
-    pad_call(via_call, "");
-    if (value == 0) {
+    if (value == 0 || value[0] == '\0') {
         print_huh();
         return;
     }
-    if (keyword_word(value, "VIA", &used)) {
-        char *token;
-        char body[CALLSIGN_LEN + 1u];
-
-        if (value[used] != ' ') {
-            print_huh();
-            return;
-        }
-        token = &value[used];
-        while (*token == ' ') {
-            ++token;
-        }
-        if (*token == '\0') {
-            print_huh();
-            return;
-        }
-        info = token;
-        while (*info != '\0' && *info != ' ') {
-            ++info;
-        }
-        if (*info != ' ') {
-            print_huh();
-            return;
-        }
-        *info = '\0';
-        ++info;
-        while (*info == ' ') {
-            ++info;
-        }
-        if (*info == '\0') {
-            print_huh();
-            return;
-        }
-        if (!parse_call(token, body, &via_ssid)) {
-            reject("SENDRAW");
-            return;
-        }
-        pad_call(via_call, body);
-        if (!callsign_ok(via_call)) {
-            reject("SENDRAW");
-            return;
-        }
-        has_via = true;
-    }
-    if (info[0] == '\0') {
-        print_huh();
-        return;
-    }
-    if (!raw_text_ok(info)) {
+    sent = messaging_send_raw(value);
+    if (sent == 1u) {
         reject("SENDRAW");
         return;
     }
-    if (!queue_raw(has_via, via_call, via_ssid, info)) {
+    if (sent != 0u) {
         serial_puts("Busy\r\n");
     }
 }

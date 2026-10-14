@@ -1,14 +1,15 @@
 #include "hardware.h"
 
-/* Directed APRS messages and queries. A message for MYCALL is consumed.
- * A general ?APRS? may start the normal beacon and is then left for the
- * digipeater, so this file never records a received frame.
+/* Directed APRS messages and queries, and one-off UI frames from the terminal.
+ * A message for MYCALL is consumed. A general ?APRS? may start the normal
+ * beacon and is then left for the digipeater, so this file never records a
+ * received frame.
  */
 #define FRAME_MAX 128u
 #define ADDRESSEE_LEN 9u
 #define MSG_ID_MAX 5u
 
-static uint8_t reply[FRAME_MAX];
+static uint8_t frame[FRAME_MAX];
 
 void messaging_init(void)
 {
@@ -170,48 +171,79 @@ static void query_beacon(void)
     timer_start_query_cooldown();
 }
 
+/* MYCALL to APWFDP. The first beacon path is the digipeater when it is set.
+ * Returns the index of the information field.
+ */
+static uint16_t begin_ui(void)
+{
+    uint16_t n;
+    bool via;
+
+    via = g_config.bpath_count != 0u && !call_blank(g_config.bpath[0]);
+    encode_call(&frame[0], tncid, 0u, 0x80u);
+    n = 7u;
+    encode_call(&frame[7], g_config.mycall, g_config.mycall_ssid, via ? 0u : 0x01u);
+    n = 14u;
+    if (via) {
+        encode_call(&frame[14], g_config.bpath[0], g_config.bpath_ssid[0], 0x01u);
+        n = 21u;
+    }
+    frame[n] = AX25_UI;
+    ++n;
+    frame[n] = AX25_PID;
+    ++n;
+    return n;
+}
+
 /* Record the reply before queueing it. A later copy of the same reply is an echo. */
 static void send_reply(const uint8_t *to_call, uint8_t to_ssid, const uint8_t *text, uint8_t text_len)
 {
     uint8_t who[ADDRESSEE_LEN];
-    uint16_t n = 0u;
+    uint16_t n;
     uint8_t i;
-    bool via;
 
-    via = g_config.bpath_count != 0u && !call_blank(g_config.bpath[0]);
-    encode_call(&reply[0], tncid, 0u, 0x80u);
-    n = 7u;
-    encode_call(&reply[7], g_config.mycall, g_config.mycall_ssid, via ? 0u : 0x01u);
-    n = 14u;
-    if (via) {
-        encode_call(&reply[14], g_config.bpath[0], g_config.bpath_ssid[0], 0x01u);
-        n = 21u;
-    }
-    reply[n] = AX25_UI;
-    ++n;
-    reply[n] = AX25_PID;
-    ++n;
-    reply[n] = (uint8_t)':';
+    n = begin_ui();
+    frame[n] = (uint8_t)':';
     ++n;
     format_addressee(to_call, to_ssid, who);
     for (i = 0u; i < ADDRESSEE_LEN; ++i) {
-        reply[n] = who[i];
+        frame[n] = who[i];
         ++n;
     }
-    reply[n] = (uint8_t)':';
+    frame[n] = (uint8_t)':';
     ++n;
     for (i = 0u; i < text_len; ++i) {
         if (n >= FRAME_MAX) {
             return;
         }
-        reply[n] = text[i];
+        frame[n] = text[i];
         ++n;
     }
-    if (dupe_recent(reply, n)) {
+    if (dupe_recent(frame, n)) {
         return;
     }
-    dupe_remember(reply, n);
-    (void)modem_send(reply, n, TX_EXPIRE_SECONDS);
+    dupe_remember(frame, n);
+    (void)modem_send(frame, n, TX_EXPIRE_SECONDS);
+}
+
+/* 0 when queued, 1 when the text does not fit, 2 when the transmit queue is full. */
+uint8_t messaging_send_raw(const char *info)
+{
+    uint16_t n;
+
+    n = begin_ui();
+    while (*info != '\0') {
+        if (n >= FRAME_MAX) {
+            return 1u;
+        }
+        frame[n] = (uint8_t)*info;
+        ++n;
+        ++info;
+    }
+    if (!modem_send(frame, n, TX_EXPIRE_SECONDS)) {
+        return 2u;
+    }
+    return 0u;
 }
 
 static void send_ack(const uint8_t *to_call, uint8_t to_ssid, const uint8_t *id, uint8_t id_len)
@@ -271,7 +303,7 @@ static void answer_directed(const uint8_t *from, uint8_t from_ssid, const uint8_
     }
 }
 
-static bool ui_payload(const uint8_t *frame, uint16_t len, uint8_t from[CALLSIGN_LEN], uint8_t *from_ssid,
+static bool ui_payload(const uint8_t *rx, uint16_t len, uint8_t from[CALLSIGN_LEN], uint8_t *from_ssid,
                        const uint8_t **info, uint16_t *info_len)
 {
     uint16_t at = 0u;
@@ -279,11 +311,11 @@ static bool ui_payload(const uint8_t *frame, uint16_t len, uint8_t from[CALLSIGN
     uint8_t i;
     const uint8_t *src;
 
-    if (frame == 0 || len < (uint16_t)(AX25_ADDR + AX25_ADDR + 2u)) {
+    if (rx == 0 || len < (uint16_t)(AX25_ADDR + AX25_ADDR + 2u)) {
         return false;
     }
     while (n < AX25_MAX_ADDRS && (uint16_t)(at + AX25_ADDR) <= len) {
-        uint8_t ext = (uint8_t)(frame[(uint16_t)(at + 6u)] & 0x01u);
+        uint8_t ext = (uint8_t)(rx[(uint16_t)(at + 6u)] & 0x01u);
 
         at = (uint16_t)(at + AX25_ADDR);
         ++n;
@@ -291,18 +323,18 @@ static bool ui_payload(const uint8_t *frame, uint16_t len, uint8_t from[CALLSIGN
             break;
         }
     }
-    if (n < 2u || (frame[(uint16_t)(at - 1u)] & 0x01u) == 0u) {
+    if (n < 2u || (rx[(uint16_t)(at - 1u)] & 0x01u) == 0u) {
         return false;
     }
-    if ((uint16_t)(at + 2u) > len || (frame[at] & 0xEFu) != AX25_UI || frame[(uint16_t)(at + 1u)] != AX25_PID) {
+    if ((uint16_t)(at + 2u) > len || (rx[at] & 0xEFu) != AX25_UI || rx[(uint16_t)(at + 1u)] != AX25_PID) {
         return false;
     }
-    src = frame + AX25_ADDR;
+    src = rx + AX25_ADDR;
     for (i = 0u; i < CALLSIGN_LEN; ++i) {
         from[i] = (uint8_t)(src[i] >> 1);
     }
     *from_ssid = (uint8_t)((src[6] >> 1) & 0x0Fu);
-    *info = frame + (uint16_t)(at + 2u);
+    *info = rx + (uint16_t)(at + 2u);
     *info_len = (uint16_t)(len - (uint16_t)(at + 2u));
     return true;
 }
@@ -372,7 +404,7 @@ static bool third_party(const uint8_t **info, uint16_t *info_len, uint8_t from[C
 
 // Returns true if the frame was successfully disposed of for messaging.
 // Returns false if the frame should still be considered for digipeating.
-bool process_frame_for_messaging(const uint8_t *frame, uint16_t len)
+bool process_frame_for_messaging(const uint8_t *rx, uint16_t len)
 {
     uint8_t from[CALLSIGN_LEN];
     uint8_t from_ssid = 0u;
@@ -380,7 +412,7 @@ bool process_frame_for_messaging(const uint8_t *frame, uint16_t len)
     uint16_t info_len;
     bool wrapped;
 
-    if (!ui_payload(frame, len, from, &from_ssid, &info, &info_len)) {
+    if (!ui_payload(rx, len, from, &from_ssid, &info, &info_len)) {
         return false;
     }
     wrapped = info_len != 0u && info[0] == (uint8_t)'}';

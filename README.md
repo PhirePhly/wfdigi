@@ -175,7 +175,8 @@ At the callsign `>` prompt, a config name alone prints the value stored in SRAM.
 setting and is an effective way to take a backup of the full digipeater config.
 `HELP` prints where to read the documentation. `ENGSTAT` prints
 low level diagnostics counters of the wfdigi packet engine. `SENDRAW` queues
-one UI frame from `MYCALL` to `APWFDP`, with an optional `VIA` callsign.
+one UI frame from `MYCALL` to `APWFDP`, via the first `BPATH` entry when that
+entry is a callsign.
 `REBOOT`
 starts the firmware over and keeps the stored settings. `RESET` clears the
 stored settings and reboots, so the boot loads the defaults. Unknown commands

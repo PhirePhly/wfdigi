@@ -316,6 +316,12 @@ void messaging_init(void);
  * A general ?APRS? may start a beacon and still returns false.
  */
 bool process_frame_for_messaging(const uint8_t *frame, uint16_t len);
+/* Queue one UI frame from MYCALL to APWFDP. The text is the information field.
+ * The first BPATH entry is the digipeater when that entry is a callsign.
+ * Returns 0 when queued, 1 when the text does not fit, and 2 when the
+ * transmit queue is full.
+ */
+uint8_t messaging_send_raw(const char *info);
 /* Clear the recently-sent list. Call before any packet is transmitted. */
 void dupe_init(void);
 /* Remember a frame that has gone out on the air. */
