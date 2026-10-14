@@ -376,6 +376,30 @@ offset. A zero interval stays idle after that one beacon. If the transmit
 queue cannot take the frame, the TNC prints `Busy` and leaves the countdown
 at zero so the next second tries again while `BEACON` is non-zero.
 
+## SENDRAW
+
+Queues one UI frame and returns to the prompt. It is not a stored setting and
+does not appear in `DISPLAY`. A bare `SENDRAW` prints `Huh?`.
+
+```
+SENDRAW packet contents
+SENDRAW VIA callsign packet contents
+```
+
+The frame is `MYCALL` to `APWFDP`. The packet contents are the information
+field, including spaces, and the case is preserved. `VIA` is optional and is
+not case sensitive. It is recognized only as the first word. The callsign
+after it is one AX.25 call and SSID, in the same form as `MYCALL`, and it is
+the only digipeater. `SENDRAW VIA WIDE1-1 >Test` goes out as
+`MYCALL>APWFDP,WIDE1-1:>Test`. `SENDRAW >Test` goes out with no digipeater.
+
+A missing callsign after `VIA`, or missing packet contents, prints `Huh?`.
+A callsign that is not valid, or text that does not fit in the frame, prints
+`Bad config: SENDRAW`.
+If the transmit queue cannot take the frame, the TNC prints `Busy`. `MYCALL`
+still has to be set, or the TNC prints `ERR - Set Callsign` and does not key.
+The beacon path and the beacon countdown are left alone.
+
 ## CAL
 
 Keys the radio and sends a Bell 202 calibration tone, then unkeys. It takes
