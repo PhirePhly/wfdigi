@@ -1194,7 +1194,7 @@ static void command_display(void)
         serial_puts("FULLDUPLEX ");
         show_flag(g_config.fullduplex);
     }
-    if (g_config.equalizer) {
+    if (!g_config.equalizer) {
         serial_puts("EQUALIZER ");
         show_flag(g_config.equalizer);
     }
