@@ -1132,12 +1132,12 @@ static void show_number(const char *name, uint8_t value)
     serial_puts("\r\n");
 }
 
-static void show_beacon(void)
+static void show_number_or_off(uint16_t value)
 {
-    if (g_config.beacon_every == 0u) {
+    if (value == 0u) {
         serial_puts("OFF\r\n");
     } else {
-        print_u16(g_config.beacon_every);
+        print_u16(value);
         serial_puts("\r\n");
     }
 }
@@ -1151,7 +1151,7 @@ static void command_display(void)
     serial_puts("MYSYMBOL ");
     show_symbol();
     serial_puts("BEACON ");
-    show_beacon();
+    show_number_or_off(g_config.beacon_every);
     serial_puts("BTEXT ");
     show_btext();
     serial_puts("BPATH ");
@@ -1190,10 +1190,11 @@ static void command_display(void)
     show_number("TXDELAY", g_config.txdelay);
     show_number("PPERSIST", g_config.persist);
     show_number("SLOTTIME", g_config.slottime);
-    if (g_config.txstale != TX_STALE_DEFAULT) {
-        show_number("TXSTALE", g_config.txstale);
-    }
     // Shadow configs are silent if they're the default
+    if (g_config.txstale != TX_STALE_DEFAULT) {
+        serial_puts("TXSTALE ");
+        show_number_or_off(g_config.txstale);
+    }
     if (g_config.fullduplex) {
         serial_puts("FULLDUPLEX ");
         show_flag(g_config.fullduplex);
@@ -1425,18 +1426,13 @@ void config_command(char *line)
     }
     if (same_text(cmd, "TXSTALE")) {
         if (value == 0) {
-            if (g_config.txstale != TX_STALE_DEFAULT) {
-                print_u16(g_config.txstale);
-                serial_puts("\r\n");
-            }
+            show_number_or_off(g_config.txstale);
         } else if (same_text(value, "OFF")) {
             g_config.txstale = 0u;
             note_config();
-            print_u16(g_config.txstale);
-            serial_puts("\r\n");
+            show_number_or_off(g_config.txstale);
         } else if (set_number("TXSTALE", value, 0u, 255u, &g_config.txstale)) {
-            print_u16(g_config.txstale);
-            serial_puts("\r\n");
+            show_number_or_off(g_config.txstale);
         }
         return;
     }
@@ -1499,15 +1495,15 @@ void config_command(char *line)
     }
     if (same_text(cmd, "BEACON")) {
         if (value == 0) {
-            show_beacon();
+            show_number_or_off(g_config.beacon_every);
         } else if (is_off(value)) {
             g_config.beacon_every = 0u;
             note_config();
             timer_beacon_restart();
-            show_beacon();
+            show_number_or_off(g_config.beacon_every);
         } else if (set_number("BEACON", value, 0u, BEACON_MAX, &g_config.beacon_every)) {
             timer_beacon_restart();
-            show_beacon();
+            show_number_or_off(g_config.beacon_every);
         }
         return;
     }
