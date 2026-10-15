@@ -372,6 +372,7 @@ static void config_cold_boot(void)
     store_u8("TXDELAY", (uint8_t)CFG_TXDELAY, TXDELAY_MIN, TXDELAY_MAX, &g_config.txdelay);
     store_u8("PPERSIST", (uint8_t)CFG_PPERSIST, PERSIST_MIN, PERSIST_MAX, &g_config.persist);
     store_u8("SLOTTIME", (uint8_t)CFG_SLOTTIME, SLOTTIME_MIN, SLOTTIME_MAX, &g_config.slottime);
+    store_u8("TXSTALE", (uint8_t)CFG_TXSTALE, 0u, 255u, &g_config.txstale);
     store_u8("FULLDUPLEX", (uint8_t)CFG_FULLDUPLEX, 0u, 1u, &g_config.fullduplex);
     store_u8("EQUALIZER", (uint8_t)CFG_EQUALIZER, 0u, 1u, &g_config.equalizer);
     store_alias(CFG_ALIAS_0, (uint8_t)CFG_ALIAS_0_SSID, g_config.alias[0], &g_config.alias_ssid[0]);
@@ -1189,6 +1190,9 @@ static void command_display(void)
     show_number("TXDELAY", g_config.txdelay);
     show_number("PPERSIST", g_config.persist);
     show_number("SLOTTIME", g_config.slottime);
+    if (g_config.txstale != TX_STALE_DEFAULT) {
+        show_number("TXSTALE", g_config.txstale);
+    }
     // Shadow configs are silent if they're the default
     if (g_config.fullduplex) {
         serial_puts("FULLDUPLEX ");
@@ -1415,6 +1419,23 @@ void config_command(char *line)
             serial_puts("\r\n");
         } else if (set_number("SLOTTIME", value, SLOTTIME_MIN, SLOTTIME_MAX, &g_config.slottime)) {
             print_u16(g_config.slottime);
+            serial_puts("\r\n");
+        }
+        return;
+    }
+    if (same_text(cmd, "TXSTALE")) {
+        if (value == 0) {
+            if (g_config.txstale != TX_STALE_DEFAULT) {
+                print_u16(g_config.txstale);
+                serial_puts("\r\n");
+            }
+        } else if (same_text(value, "OFF")) {
+            g_config.txstale = 0u;
+            note_config();
+            print_u16(g_config.txstale);
+            serial_puts("\r\n");
+        } else if (set_number("TXSTALE", value, 0u, 255u, &g_config.txstale)) {
+            print_u16(g_config.txstale);
             serial_puts("\r\n");
         }
         return;

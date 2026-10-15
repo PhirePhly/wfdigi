@@ -392,7 +392,8 @@ static bool tx_take(void)
     if (!pktq_take(PKTQ_TX, tx_buf, AX25_MAX, &tx_len, &expire)) {
         return false;
     }
-    if (pktq_expired(expire)) {
+    /* txstale == 0 disables the stale timeout entirely. */
+    if (g_config.txstale != 0u && pktq_expired(expire)) {
         note_drop_s();
         return false;
     }

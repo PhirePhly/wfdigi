@@ -228,7 +228,7 @@ static void send_reply(const uint8_t *to_call, uint8_t to_ssid, const uint8_t *t
         return;
     }
     dupe_remember(frame, n);
-    (void)modem_send(frame, n, TX_EXPIRE_SECONDS);
+    (void)modem_send(frame, n, g_config.txstale);
 }
 
 /* 0 when queued, 1 when the text does not fit, 2 when the transmit queue is full. */
@@ -245,7 +245,7 @@ uint8_t messaging_send_raw(const char *info)
         ++n;
         ++info;
     }
-    if (!modem_send(frame, n, TX_EXPIRE_SECONDS)) {
+    if (!modem_send(frame, n, g_config.txstale)) {
         return 2u;
     }
     return 0u;

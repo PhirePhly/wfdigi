@@ -311,6 +311,14 @@ TNC transmits without waiting for a clear channel. When it is off, transmit
 timing follows carrier detect, `PPERSIST`, and `SLOTTIME`. The cold-boot
 default is `OFF`.
 
+## TXSTALE
+
+Seconds a queued frame may wait before it is counted as stale (`!S`) and
+dropped. Accepts 0–255. A value of 0 or `OFF` disables the stale timeout
+entirely, so a queued frame never goes stale. When it is 10 (the cold-boot
+default), `DISPLAY` does not print it. Set it to any other value and it
+appears in `DISPLAY`.
+
 ## EQUALIZER
 
 Enables the AM7910 receive equalizer. Accepts `ON`, `OFF`, `1`, or `0`.

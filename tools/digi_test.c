@@ -188,6 +188,7 @@ static void setup(void)
         blank(g_config.bpath[a]);
     }
     now = 1000u;
+    g_config.txstale = TX_STALE_DEFAULT;
     dupe_init();
     messaging_init();
     query_cool_left = 0u;

@@ -112,6 +112,8 @@ typedef struct {
     uint8_t txdelay;
     uint8_t persist;
     uint8_t slottime;
+    /* Seconds a frame may sit in the TX queue before it goes stale (!S). */
+    uint8_t txstale;
     uint8_t fullduplex;
     /* A blank call disables that slot. */
     uint8_t alias[ALIAS_COUNT][CALLSIGN_LEN];
@@ -292,8 +294,10 @@ bool pktq_put(uint8_t queue, const uint8_t *data, uint16_t len, uint16_t expire)
  */
 bool pktq_take(uint8_t queue, uint8_t *dest, uint16_t dest_max, uint16_t *len, uint16_t *expire);
 
-/* A transmit frame is stale this many seconds after it is queued. */
-#define TX_EXPIRE_SECONDS 10u
+/* Seconds until a queued TX frame goes stale (!S). Default 10.
+ * Zero disables the timeout.
+ */
+#define TX_STALE_DEFAULT 10u
 
 /* Queue one AX.25 frame on the transmit queue, without the CRC. expires_in is
  * how many seconds until the slot is due. The modem sends it when the radio

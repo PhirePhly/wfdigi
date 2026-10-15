@@ -33,6 +33,8 @@
 #define CFG_TXDELAY 30
 #define CFG_PPERSIST 63
 #define CFG_SLOTTIME 10
+#define CFG_TXSTALE 10
+/* Zero disables the TX queue stale timeout entirely. */
 #define CFG_FULLDUPLEX 0
 #define CFG_EQUALIZER 1
 

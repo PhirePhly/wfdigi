@@ -180,7 +180,7 @@ static bool send_frame(bool once)
         }
         dupe_remember(frame, frame_n);
     }
-    return modem_send(frame, frame_n, TX_EXPIRE_SECONDS);
+    return modem_send(frame, frame_n, g_config.txstale);
 }
 
 static bool send_message(const char *text, const char *extra, bool once)

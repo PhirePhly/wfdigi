@@ -161,7 +161,7 @@ static void send_work_now(void)
 {
     /* Record before the modem finishes sending, so a second copy is caught. */
     dupe_remember(work, work_len);
-    (void)modem_send(work, work_len, TX_EXPIRE_SECONDS);
+    (void)modem_send(work, work_len, g_config.txstale);
 }
 
 static void send_work(void)
@@ -562,8 +562,20 @@ void digi_service(void)
     }
     if (!dupe_recent(work, work_len)) {
         dupe_remember(work, work_len);
-        (void)modem_send(work, work_len,
-                         (uint16_t)(TX_EXPIRE_SECONDS - g_config.viscous_min));
+        /* txstale == 0 disables the stale timeout entirely. Otherwise the
+         * frame expires txstale - viscous_min seconds from now, clamped to
+         * at least 1 so a frame already past its viscous delay goes stale
+         * on the next service pass.
+         */
+        uint16_t expire;
+        if (g_config.txstale == 0u) {
+            expire = PKTQ_EXPIRE_SPAN;
+        } else if (g_config.txstale > g_config.viscous_min) {
+            expire = (uint16_t)(g_config.txstale - g_config.viscous_min);
+        } else {
+            expire = 1u;
+        }
+        (void)modem_send(work, work_len, expire);
     } else {
         telemetry_note_viscous();
         logging_frame('V', work, work_len);
