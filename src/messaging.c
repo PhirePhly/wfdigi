@@ -119,6 +119,7 @@ static bool take_message_id(const uint8_t *text, uint16_t len, uint16_t *body_le
     *body_len = len;
     *id = 0;
     *id_len = 0u;
+    // Scan for the last { in the text
     for (i = 0u; i < len; ++i) {
         if (text[i] == (uint8_t)'{') {
             at = i;
@@ -133,8 +134,11 @@ static bool take_message_id(const uint8_t *text, uint16_t len, uint16_t *body_le
     }
     for (i = 0u; i < n; ++i) {
         if (!alnum(text[(uint16_t)(at + 1u + i)])) {
-            return false;
+            break;
         }
+    }
+    if (i == 0u || i > MSG_ID_MAX) {
+        return false;
     }
     *body_len = at;
     *id = text + (at + 1u);
