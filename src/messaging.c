@@ -113,6 +113,7 @@ static bool take_message_id(const uint8_t *text, uint16_t len, uint16_t *body_le
                             const uint8_t **id, uint8_t *id_len)
 {
     uint16_t i;
+    uint8_t msg_id_len;
     uint16_t at = len;
     uint16_t n;
 
@@ -132,17 +133,17 @@ static bool take_message_id(const uint8_t *text, uint16_t len, uint16_t *body_le
     if (n < 1u || n > MSG_ID_MAX) {
         return false;
     }
-    for (i = 0u; i < n; ++i) {
-        if (!alnum(text[(uint16_t)(at + 1u + i)])) {
+    for (msg_id_len = 0u; msg_id_len < n; ++msg_id_len) {
+        if (!alnum(text[(uint16_t)(at + 1u + msg_id_len)])) {
             break;
         }
     }
-    if (i == 0u || i > MSG_ID_MAX) {
+    if (msg_id_len == 0u || msg_id_len > MSG_ID_MAX) {
         return false;
     }
     *body_len = at;
     *id = text + (at + 1u);
-    *id_len = (uint8_t)n;
+    *id_len = (uint8_t)msg_id_len;
     return true;
 }
 
