@@ -53,7 +53,9 @@ our replacement firmware installed in the IC15 socket.
 
 The terminal port is fixed at 9600 baud, 8 data bits, no parity, and one stop
 bit. There is no autobaud detection. The radio channel is initialized for
-1200 baud AX.25: HDLC, NRZI, and equalized Bell 202. `EQUALIZER OFF` selects Bell 202.
+1200 baud AX.25: HDLC, NRZI, and equalized Bell 202. `EQUALIZER OFF` selects Bell 202
+without the equalization receive filter enabled, which may improve receive performance
+under some conditions.
 
 ## Building
 
