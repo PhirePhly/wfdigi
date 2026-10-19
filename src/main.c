@@ -6,6 +6,7 @@
 #endif
 
 const char wfdigi_version[] = WFDIGI_VERSION;
+const char wfdigi_platform[] = PLATFORM_NAME;
 
 bool rom_checksum_pass;
 
@@ -60,6 +61,8 @@ void firmware_boot(void)
     hardware_set_im2();
     serial_puts("\r\n\r\nWhiskey Fox Digi - version ");
     serial_puts(wfdigi_version);
+    serial_puts(" ");
+    serial_puts(wfdigi_platform);
     serial_puts("\r\nCopyright 2026 - Kenneth Finnegan\r\n");
     lamp_test();
     serial_puts("ROM checksum: ");

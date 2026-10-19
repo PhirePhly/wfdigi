@@ -53,7 +53,7 @@ Power the TNC on. The PK-88 lamps walk once; the TNC-2 tests the two
 software-controlled lamps. The terminal then shows the banner and prompt.
 
 ```
-Whiskey Fox Digi - version <git-describe>
+Whiskey Fox Digi - version <git-describe> <platform>
 Copyright 2026 - Kenneth Finnegan
 Cold boot...
 N0CALL>

@@ -34,9 +34,10 @@ interlock prevents transmission.
 
 * Telemetry support to enable public visibility for the traffic levels in and out of the digipeater.
 
-* APRS messages addressed to `MYCALL` are acknowledged. 
-`?APRS?` general queries, `?APRSP` directed position queries, and `?APRSU` telemetry
-units directed queries are supported.
+* APRS messages addressed to `MYCALL` are acknowledged.
+General `?APRS?` queries, directed `?APRS?` capability queries, `?APRSP`
+position queries, `?APRSU` telemetry definition queries, and `?APRSV` version
+queries are supported.
 
 * All user-facing settings support defaults being baked into the firmware ROM for protection from CMOS battery failure.
 
@@ -123,7 +124,7 @@ It does not need SDCC or a Z80 to run the tests.
 2. A terminal set to 9600 8N1 receives:
 
     ```
-    Whiskey Fox Digi - version <git-describe>
+    Whiskey Fox Digi - version <git-describe> <platform>
     Copyright 2026 - Kenneth Finnegan
     ROM checksum: PASS
     Cold boot...
@@ -131,6 +132,7 @@ It does not need SDCC or a Z80 to run the tests.
 
    `<git-describe>` is the `git describe --tags --always --dirty` string from the
    tree that built the ROM. The same text is the `wfdigi_version` string.
+   `<platform>` is `pk88` or `tnc2`, the `wfdigi_platform` string.
    The checksum is the CRC-16 of `0x0000` through `0x7FFD`. A mismatch prints
    `ROM checksum: FAIL` and the firmware still boots.
 
@@ -237,8 +239,11 @@ matter. A numbered message, whose text ends in `{` and one to five letters or
 digits, is acknowledged with `ack` and that number before any other reply.
 The reply is a UI frame from `MYCALL` to the platform TNCID, via the first `BPATH`
 entry when that entry is a callsign, and it does not advance the beacon path.
+A directed `?APRS?` answers with `?APRSP ?APRSU ?APRSV`.
 `?APRSP` queues the normal position beacon, at most once every 30 seconds.
-`?APRSU` queues the four telemetry definition messages at once. Any other
+`?APRSU` queues the four telemetry definition messages at once.
+`?APRSV` answers with the firmware version and platform, such as
+`v0.2 pk88`. Any other
 `?APRS` letter is answered with `ERR - query type unsupported`. A general
 `?APRS?` may queue that same beacon and is then digipeated. A third-party
 frame begins with `}` and uses the callsign before `>` as the station those

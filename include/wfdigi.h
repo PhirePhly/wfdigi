@@ -151,6 +151,8 @@ extern DigiConfig __at (CONFIG_ADDR) g_config;
  * The boot banner prints this. Telemetry should use this same string.
  */
 extern const char wfdigi_version[];
+/* PLATFORM_NAME from the selected platform.h, such as "pk88" or "tnc2". */
+extern const char wfdigi_platform[];
 
 void firmware_boot(void);
 /* Enter the reset vector. Interrupts stop and the stack is discarded. */

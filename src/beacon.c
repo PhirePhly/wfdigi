@@ -162,7 +162,7 @@ bool beacon_send(void)
         frame[n] = text[i];
         ++n;
     }
-    if (n > FRAME_MAX || !modem_send(frame, n, g_config.txstale)) {
+    if (n > FRAME_MAX || !modem_send(frame, n, g_config.txstale * 2u)) {
         return false;
     }
     advance_path();

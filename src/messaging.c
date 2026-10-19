@@ -10,6 +10,7 @@
 #define MSG_ID_MAX 5u
 
 static uint8_t frame[FRAME_MAX];
+static uint8_t reply_pad[FRAME_MAX];
 
 void messaging_init(void)
 {
@@ -147,7 +148,7 @@ static bool take_message_id(const uint8_t *text, uint16_t len, uint16_t *body_le
     return true;
 }
 
-/* :MYCALL:?APRSX, optionally followed by a space and an argument. */
+/* :MYCALL:?APRSx, optionally followed by a space and an argument. */
 static bool query_letter(const uint8_t *text, uint16_t len, uint8_t *letter)
 {
     char prefix[] = "?APRS";
@@ -159,6 +160,9 @@ static bool query_letter(const uint8_t *text, uint16_t len, uint8_t *letter)
         return false;
     }
     *letter = text[5];
+    if (*letter == (uint8_t)'?') {
+        return true;
+    }
     if (*letter < (uint8_t)'A' || *letter > (uint8_t)'Z') {
         return false;
     }
@@ -200,7 +204,6 @@ static uint16_t begin_ui(void)
     return n;
 }
 
-/* Record the reply before queueing it. A later copy of the same reply is an echo. */
 static void send_reply(const uint8_t *to_call, uint8_t to_ssid, const uint8_t *text, uint8_t text_len)
 {
     uint8_t who[ADDRESSEE_LEN];
@@ -224,11 +227,13 @@ static void send_reply(const uint8_t *to_call, uint8_t to_ssid, const uint8_t *t
         frame[n] = text[i];
         ++n;
     }
+    // Record the reply before queueing it. A later copy of an identical reply
+    // is an answer to an echo of the original question.
     if (dupe_recent(frame, n)) {
         return;
     }
     dupe_remember(frame, n);
-    (void)modem_send(frame, n, g_config.txstale);
+    (void)modem_send(frame, n, g_config.txstale * 2u);
 }
 
 /* 0 when queued, 1 when the text does not fit, 2 when the transmit queue is full. */
@@ -273,13 +278,47 @@ static void send_ack(const uint8_t *to_call, uint8_t to_ssid, const uint8_t *id,
 static void send_unsupported(const uint8_t *to_call, uint8_t to_ssid)
 {
     static const char text[] = "ERR - query type unsupported";
-    uint8_t raw[sizeof text - 1u];
     uint8_t i;
 
     for (i = 0u; i < (uint8_t)(sizeof text - 1u); ++i) {
-        raw[i] = (uint8_t)text[i];
+        reply_pad[i] = (uint8_t)text[i];
     }
-    send_reply(to_call, to_ssid, raw, (uint8_t)(sizeof text - 1u));
+    send_reply(to_call, to_ssid, reply_pad, (uint8_t)(sizeof text - 1u));
+}
+
+static void send_supported_queries(const uint8_t *to_call, uint8_t to_ssid)
+{
+    static const char text[] = "?APRSP ?APRSU ?APRSV";
+    uint8_t i;
+
+    for (i = 0u; i < (uint8_t)(sizeof text - 1u); ++i) {
+        reply_pad[i] = (uint8_t)text[i];
+    }
+    send_reply(to_call, to_ssid, reply_pad, (uint8_t)(sizeof text - 1u));
+}
+
+/* The firmware version, a space, then the platform name, as in "v0.2 pk88". */
+static void send_version_string(const uint8_t *to_call, uint8_t to_ssid)
+{
+    uint8_t n = 0u;
+    uint8_t i = 0u;
+
+    while (wfdigi_version[i] != '\0' && n < FRAME_MAX) {
+        reply_pad[n] = (uint8_t)wfdigi_version[i];
+        ++n;
+        ++i;
+    }
+    if (n < FRAME_MAX) {
+        reply_pad[n] = (uint8_t)' ';
+        ++n;
+    }
+    i = 0u;
+    while (wfdigi_platform[i] != '\0' && n < FRAME_MAX) {
+        reply_pad[n] = (uint8_t)wfdigi_platform[i];
+        ++n;
+        ++i;
+    }
+    send_reply(to_call, to_ssid, reply_pad, n);
 }
 
 static void answer_directed(const uint8_t *from, uint8_t from_ssid, const uint8_t *text, uint16_t len)
@@ -296,11 +335,17 @@ static void answer_directed(const uint8_t *from, uint8_t from_ssid, const uint8_
         return;
     }
     switch (letter) {
+    case (uint8_t)'?':
+        send_supported_queries(from, from_ssid);
+        break;
     case (uint8_t)'P':
         query_beacon();
         break;
     case (uint8_t)'U':
         telemetry_send_definitions();
+        break;
+    case (uint8_t)'V':
+        send_version_string(from, from_ssid);
         break;
     default:
         send_unsupported(from, from_ssid);

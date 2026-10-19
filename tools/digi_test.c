@@ -39,6 +39,8 @@ static int tel_def_count;
 static uint8_t query_cool_left;
 
 const uint8_t tncid[CALLSIGN_LEN] = {'A', 'P', 'W', 'F', 'D', 'P'};
+const char wfdigi_version[] = "v9.9-test";
+const char wfdigi_platform[] = "pk88";
 
 uint16_t timer_seconds(void)
 {
@@ -1370,9 +1372,19 @@ static void test_messaging(void)
     expect_beacon("position query with an argument beacons", 2);
     check_keep("bare APRS is not a query", "N0SRC>APRS::WFDIGI   :?APRS", 0);
     check_keep("spaced APRS is not a query", "N0SRC>APRS::WFDIGI   :?APRS ", 0);
-    check_keep("directed question mark is not a query", "N0SRC>APRS::WFDIGI   :?APRS?", 0);
     check_keep("longer token is not a query", "N0SRC>APRS::WFDIGI   :?APRSPX", 0);
     expect_beacon("only a single query letter beacons", 2);
+
+    setup();
+    check_keep("directed supported query list", "N0SRC>APRS::WFDIGI   :?APRS?",
+               "WFDIGI>APWFDP*::N0SRC    :?APRSP ?APRSU ?APRSV");
+    expect_beacon("directed supported query list does not beacon", 0);
+
+    setup();
+    check_keep("version query", "N0SRC>APRS::WFDIGI   :?APRSV",
+               "WFDIGI>APWFDP*::N0SRC    :v9.9-test pk88");
+    expect_beacon("version query does not beacon", 0);
+    check_keep("version query echo", "N0SRC>APRS::WFDIGI   :?APRSV", 0);
 
     setup();
     check_keep("numbered position query", "N0SRC>APRS::WFDIGI   :?APRSP{9", "WFDIGI>APWFDP*::N0SRC    :ack9");

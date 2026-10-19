@@ -464,12 +464,18 @@ is already aquired and synced.
 
 _A shadow setting you probably don't need to care about_
 
-Number of seconds a queued frame may wait before it is counted as stale
+Number of seconds a frame in the tx queue may wait before it is counted as stale
 (`!S`) and dropped instead of being transmitted late enough to cause issues.
 Accepts 0–255. A value of 0 or `OFF` disables the stale timeout feature
 entirely, so a queued frame never goes stale. When it is 10 (the cold-boot
 default), `DISPLAY` does not print it. Set it to any other value and it
 appears in `DISPLAY`.
+
+Locally originated packets get twice as much time as `TXSTALE` to get on the
+air since we are less concerned about completely original packets falling
+out of the 30 second dupe window. `TXSTALE` still has value in that if our
+DCD state gets stuck for a prolonged time, this prevents us from queuing up
+numerous packets which all get puked onto the air when DCD finally drops.
 
 ## VISCOUS
 
@@ -502,17 +508,20 @@ A numbered message is answered at once with `ack` and that number, before any
 other reply. The number is copied as received. A message without a valid
 number is not acknowledged.
 
-An acknowledgement, and the unsupported-query reply below, is a UI frame from
-`MYCALL` to the platform TNCID. The first `BPATH` entry is its one digipeater when that
-entry is a callsign. A blank first entry, or no beacon path, is sent direct.
-The reply does not advance the beacon-path cycle. It is recorded in the
-duplicate list before it is queued, so the same reply is not sent again for
-30 seconds. The transmitter interlock still discards it while `MYCALL` is
-`N0CALL`.
+An acknowledgement, the supported-query list, the version reply, and the
+unsupported-query reply are UI frames from `MYCALL` to the platform TNCID.
+The first `BPATH` entry is its one digipeater when that entry is a callsign.
+A blank first entry, or no beacon path, is sent direct. The reply does not
+advance the beacon-path cycle. It is recorded in the duplicate list before it
+is queued, so the same reply is not sent again for 30 seconds. The transmitter
+interlock still discards it while `MYCALL` is `N0CALL`.
 
-A directed query is a message whose text is `?APRS` and one letter `A`–`Z`.
-The character after that letter is the end of the text or a space. More text
-may follow the space.
+A directed query is a message whose text is `?APRS` followed by `?` or one
+letter `A`–`Z`. The next character is the end of the text or a space. More
+text may follow the space.
+
+A directed `?APRS?` answers with `?APRSP ?APRSU ?APRSV`. It does not queue a
+beacon or a definition.
 
 `?APRSP` queues the same position beacon as `BEACON` and starts that countdown
 over. Another position query, from any station, does not queue a second beacon
@@ -528,11 +537,15 @@ inside the duplicate window is not queued again. The four-hour definition
 schedule is left where it was. The query sends the definitions even when
 `TELEMETRY` is off.
 
+`?APRSV` answers with the firmware version, a space, and the platform name,
+such as `v0.2 pk88` or `v0.2 tnc2`. The version is the same
+`git describe --tags --always --dirty` string printed in the boot banner.
+
 Any other letter is answered with the unnumbered message
 `ERR - query type unsupported`.
 
-`?APRS`, `?APRS `, and a directed `?APRS?` are ordinary messages. They are
-acknowledged when numbered, and they do not request a beacon or a definition.
+`?APRS` and `?APRS ` are ordinary messages. They are acknowledged when
+numbered, and they do not request a beacon, a definition, or a version.
 
 A general query is an information field whose first word is `?APRS?`. It may
 queue a position beacon under the same 30-second wait, and the received frame
