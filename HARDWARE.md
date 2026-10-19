@@ -1,4 +1,34 @@
-# PK-88 hardware
+# Supported hardware
+
+Both targets use a 32 KiB ROM at `0x0000`, RAM at `0x8000`, an IM2 vector
+table at `0x0100`, and the same channel assignment: channel A is HDLC radio
+and channel B is the asynchronous terminal.
+
+## UIDIGI-compatible TAPR TNC-2
+
+The `tnc2` target follows the UIDIGI/KISS-TNC2 hardware conventions:
+
+| Port | Function |
+|---|---|
+| `0xDC` | SIO channel A radio data |
+| `0xDD` | SIO channel A radio control/status |
+| `0xDE` | SIO channel B terminal data |
+| `0xDF` | SIO channel B terminal control/status |
+
+The SIO uses externally supplied radio and terminal clocks, so the firmware
+does not program SCC baud-rate generators or a DPLL. Channel-B sync/hunt
+supplies a 600 Hz timer interrupt, so six interrupts make one 10 ms tick.
+The TNC-2 has no PK-88-style
+software TX-watchdog strobe.
+
+The two software-controlled front-panel outputs are the SIO channel A and B
+DTR pins (normally labelled STA and CON). WFDIGI uses STA for a successfully
+decoded packet and CON for a packet waiting in the viscous digipeater queue;
+other logical PK-88 lamp states are not displayed. PTT
+itself remains channel A RTS, and terminal flow control remains channel B RTS.
+The TNC-2 image uses TNCID `APWFD2`.
+
+## AEA PK-88
 
 Z80 at 4.9152 MHz. Pin numbers are the Z8530 40-pin DIP from the Zilog SCC Technical Manual (September 1986, Figure 1-4). A leading slash is an active-low pin.
 

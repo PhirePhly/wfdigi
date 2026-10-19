@@ -2,29 +2,13 @@
 #define WFDIGI_H
 
 #include "ax25.h"
+#include "platform.h"
 
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef uint8_t bool;
 #define true 1
 #define false 0
-
-/* Z80 clock and the SCC PCLK are both 4.9152 MHz.
- * Time constant = PCLK / (2 * baud * clocks_per_bit) - 2.
- * Terminal: 4915200 / (2 * 9600 * 16) - 2 = 14.
- * Radio DPLL: 4915200 / (2 * 1200 * 32) - 2 = 62.
- * These are literals because SDCC evaluates preprocessor arithmetic in 16 bits
- * and would truncate 4915200. tools/check-layout.py checks the same formulas.
- */
-#define TERMINAL_BRG_TC 14u
-#define RADIO_DPLL_TC 62u
-
-#define PORT_SCC_B_CTRL 0xF0u
-#define PORT_SCC_B_DATA 0xF1u
-#define PORT_SCC_A_CTRL 0xF2u
-#define PORT_SCC_A_DATA 0xF3u
-#define PORT_LED 0xF4u
-#define PORT_WATCHDOG 0xF8u
 
 #define RR0_RX_CHAR 0x01u
 #define RR0_TX_EMPTY 0x04u
@@ -45,7 +29,7 @@ typedef uint8_t bool;
 #define WR5_BREAK 0x10u
 #define WR5_DTR 0x80u
 
-/* Front-panel latch is active low. These masks are the lamps that should be on. */
+/* Logical lamp states. A platform maps the states it can display to hardware. */
 #define LED_CONV 0x01u
 #define LED_TRANS 0x02u
 #define LED_CMD 0x04u
@@ -59,7 +43,6 @@ typedef uint8_t bool;
  * A CRC-16 is stored in the two bytes immediately after this image.
  * Timing values are in the usual 10 ms TNC units.
  */
-#define CONFIG_ADDR 0x8000u
 #define ALIAS_COUNT 4u
 #define NNALIAS_COUNT 4u
 /* One character of the AX.25 callsign is the hop-limit digit, so the prefix
@@ -83,8 +66,8 @@ typedef uint8_t bool;
 #define MAXHOPS_MAX AX25_MAX_VIAS
 /* Recently transmitted packets kept for the duplicate check. */
 #define DUPE_SLOTS 250u
-/* Software countdown slots, in 10 ms ticks. A tick is 12 interrupts of the 1200 Hz /SYNCB input.
- * One hundred ticks are one second. The duplicate window and the beacon interval use that second.
+/* Software countdown slots, in 10 ms ticks. EDGES_PER_TICK is platform-specific.
+ * One hundred ticks are one second. The duplicate window and beacon interval use that second.
  */
 #define TIMER_TXDELAY 0u
 #define TIMER_TXTAIL 1u
@@ -195,6 +178,22 @@ void hardware_cal_restore(void);
 void hardware_init(void);
 void hardware_lamps(uint8_t lamps_on);
 bool hardware_radio_dcd(void);
+uint8_t hardware_radio_rr0(void);
+uint8_t hardware_radio_rr1(void);
+uint8_t hardware_radio_data_read(void);
+void hardware_radio_data_write(uint8_t value);
+void hardware_radio_command(uint8_t command);
+void hardware_radio_wr1(uint8_t value);
+uint8_t hardware_terminal_rr0(void);
+uint8_t hardware_terminal_data_read(void);
+void hardware_terminal_data_write(uint8_t value);
+void hardware_terminal_command(uint8_t command);
+void hardware_terminal_wr1(uint8_t value);
+/* Handle and acknowledge a terminal external/status interrupt. True is one timer edge. */
+bool hardware_timer_interrupt(void);
+void hardware_timer_arm(void);
+/* Enable any controller-global interrupt gate after modem setup. */
+void hardware_interrupt_master_enable(void);
 /* Refresh the front-panel lamps from the current radio, queue, and interlock state. */
 void lamps_service(bool system_idle);
 
@@ -219,8 +218,6 @@ uint8_t letter_to_upper(uint8_t c);
 uint8_t pearson_hash(const uint8_t *data, uint16_t len);
 /* CRC-16/CCITT-FALSE: polynomial 0x1021, initial value 0xFFFF, no final XOR. */
 uint16_t crc16_feed(uint16_t crc, uint8_t byte);
-/* Bytes of ROM covered by the checksum. The little-endian CRC follows them. */
-#define ROM_CHECK_LEN 0x7FFEu
 /* True when the last boot found a matching ROM checksum. */
 extern bool rom_checksum_pass;
 /* True when the 7-byte AX.25 address matches this callsign and SSID.
@@ -320,7 +317,7 @@ void messaging_init(void);
  * A general ?APRS? may start a beacon and still returns false.
  */
 bool process_frame_for_messaging(const uint8_t *frame, uint16_t len);
-/* Queue one UI frame from MYCALL to APWFDP. The text is the information field.
+/* Queue one UI frame from MYCALL to the platform TNCID. The text is the information field.
  * The first BPATH entry is the digipeater when that entry is a callsign.
  * Returns 0 when queued, 1 when the text does not fit, and 2 when the
  * transmit queue is full.
@@ -343,7 +340,7 @@ void modem_cal_stop(void);
 
 void timer_init(void);
 void timer_service(void);
-/* One edge of the 1200 Hz /SYNCB square wave. Called from the channel B external-status ISR. */
+/* One platform timer interrupt/edge, called from the channel B external-status ISR. */
 void timer_sync_edge(void);
 void timer_set(uint8_t slot, uint16_t ticks_10ms);
 bool timer_running(uint8_t slot);

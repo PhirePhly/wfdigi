@@ -1,7 +1,8 @@
 # Quick start
 
-Whiskey Fox Digi replaces the original PK-88 ROM with a standalone APRS digipeater.
-Build the image, program it into a 27C256, install it in the TNC, and talk to the TNC over the serial port at 9600 baud.
+Whiskey Fox Digi replaces the original PK-88 or TNC-2 ROM
+with a standalone APRS digipeater. Build the image, program it into a 27C256,
+and install it in the matching TNC.
 [COMMANDS](COMMANDS.md) is the command reference. Check [LEDS](LEDS.md) for the meaning
 of each of the front panel LEDs when running the WFDIGI firmware.
 
@@ -12,6 +13,8 @@ It is also possible, and encouraged, to burn a custom build of WFDIGI with your
 desired settings baked in as the cold boot defaults so if your digipeater ever
 loses its SRAM for some reason it can come back up in a working state.
 This can be done by editing the `/include/config.h` file and running `make`.
+The default build creates both `build/wfdigi-pk88.bin` and
+`build/wfdigi-tnc2.bin`; `make pk88` or `make tnc2` builds only one.
 
 ## Build tools
 
@@ -24,8 +27,8 @@ PROM image.
 
 ## Cold-boot defaults
 
-When the PK-88 is powered on for the first time or after removing J6 (or after
-a power cycle when the backup battery is dead) you will see it print `Cold boot...`
+When a TNC is powered on without a valid battery-backed configuration (for
+example, after removing J6 on a PK-88) you will see it print `Cold boot...`
 to the terminal as it is copying the ROM default settings into RAM.
 Subsequent power cycles where a valid config is detected will instead print
 `Warm boot...` to the terminal, indicating that an existing config has been picked
@@ -37,15 +40,17 @@ If you want to blow away all changes made to the configuration, either power off
 the TNC and remove the `J6` jumper to disconnect the backup battery, or
 run the `RESET` command to wipe all of the settings and perform a cold boot.
 
-## Program the PK-88
+## Program a TNC
 
-Burn `build/wfdigi.bin` onto a 27C256 EPROM. Install that PROM in the PK-88
-in place of the original ROM. Connect a terminal at 9600 baud, 8 data bits, no
+Burn `build/wfdigi-pk88.bin` for an AEA PK-88 or `build/wfdigi-tnc2.bin` for
+a UIDIGI-compatible TNC-2 onto a 27C256 EPROM. Install that PROM in place of
+the original ROM. Connect a terminal at 8 data bits, no
 parity, and one stop bit, with RTS/CTS hardware flow control. There is no
-autobaud detection like the original PK-88 firmware.
+autobaud detection. The PK-88 target is fixed at 9600 baud; the TNC-2 terminal
+rate follows its hardware clock/jumper configuration.
 
-Power the TNC on. The front-panel lamps walk once to show they all work and you're
-running WFDIGI firmware and the terminal shows the banner and a callsign prompt.
+Power the TNC on. The PK-88 lamps walk once; the TNC-2 tests the two
+software-controlled lamps. The terminal then shows the banner and prompt.
 
 ```
 Whiskey Fox Digi - version <git-describe>

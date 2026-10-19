@@ -1,10 +1,5 @@
 #include "wfdigi.h"
 
-__sfr __at (PORT_SCC_A_CTRL) scc_a_ctrl;
-__sfr __at (PORT_SCC_A_DATA) scc_a_data;
-__sfr __at (PORT_SCC_B_CTRL) scc_b_ctrl;
-__sfr __at (PORT_SCC_B_DATA) scc_b_data;
-
 typedef enum {
     TX_IDLE,
     TX_WAIT_DCD,
@@ -62,25 +57,22 @@ static void note_drop_s(void);
 
 static uint8_t radio_rr0(void)
 {
-    scc_a_ctrl = 0x00u;
-    return scc_a_ctrl;
+    return hardware_radio_rr0();
 }
 
 static uint8_t radio_rr1(void)
 {
-    scc_a_ctrl = 0x01u;
-    return scc_a_ctrl;
+    return hardware_radio_rr1();
 }
 
 static void radio_cmd(uint8_t cmd)
 {
-    scc_a_ctrl = cmd;
+    hardware_radio_command(cmd);
 }
 
 static void radio_wr1(uint8_t value)
 {
-    scc_a_ctrl = 0x01u;
-    scc_a_ctrl = value;
+    hardware_radio_wr1(value);
 }
 
 static void rx_reset(void)
@@ -145,7 +137,7 @@ static void rx_service(bool special)
             break;
         }
         rr1 = radio_rr1();
-        data = scc_a_data;
+        data = hardware_radio_data_read();
         if ((rr1 & (RR1_END_FRAME | RR1_CRC_ERR | RR1_OVERRUN)) != 0u) {
             need_reset = true;
         }
@@ -159,7 +151,7 @@ static void rx_service(bool special)
 
 static void scc_ius(uint8_t ctrl_write)
 {
-    scc_b_ctrl = ctrl_write;
+    hardware_terminal_command(ctrl_write);
 }
 
 void modem_isr_a_rx(void)
@@ -196,7 +188,7 @@ void modem_isr_a_ext(void)
 void modem_isr_a_tx(void)
 {
     if (tx_state == TX_DATA && tx_i < tx_len) {
-        scc_a_data = tx_buf[tx_i];
+        hardware_radio_data_write(tx_buf[tx_i]);
         ++tx_i;
         hardware_watchdog_pet();
         radio_cmd(0x38u);
@@ -217,10 +209,8 @@ void modem_isr_b_rx(void)
 {
     uint8_t guard = 0u;
 
-    scc_b_ctrl = 0x00u;
-    while ((scc_b_ctrl & RR0_RX_CHAR) != 0u && guard < 4u) {
-        serial_rx_push(scc_b_data);
-        scc_b_ctrl = 0x00u;
+    while ((hardware_terminal_rr0() & RR0_RX_CHAR) != 0u && guard < 4u) {
+        serial_rx_push(hardware_terminal_data_read());
         ++guard;
     }
     scc_ius(0x38u);
@@ -228,9 +218,8 @@ void modem_isr_b_rx(void)
 
 void modem_isr_b_special(void)
 {
-    scc_b_ctrl = 0x00u;
-    if ((scc_b_ctrl & RR0_RX_CHAR) != 0u) {
-        serial_rx_push(scc_b_data);
+    if ((hardware_terminal_rr0() & RR0_RX_CHAR) != 0u) {
+        serial_rx_push(hardware_terminal_data_read());
     }
     scc_ius(0x30u);
     scc_ius(0x38u);
@@ -238,14 +227,9 @@ void modem_isr_b_special(void)
 
 void modem_isr_b_ext(void)
 {
-    uint8_t status;
-
-    scc_b_ctrl = 0x00u;
-    status = scc_b_ctrl;
-    (void)status;
-    timer_sync_edge();
-    scc_b_ctrl = 0x10u; /* arm the next /SYNCB edge */
-    scc_b_ctrl = 0x38u;
+    if (hardware_timer_interrupt()) {
+        timer_sync_edge();
+    }
 }
 
 void modem_isr_b_tx(void)
@@ -339,7 +323,7 @@ static void tx_drain_rx(void)
     uint8_t guard = 0u;
 
     while ((radio_rr0() & RR0_RX_CHAR) != 0u && guard < 8u) {
-        (void)scc_a_data;
+        (void)hardware_radio_data_read();
         ++guard;
     }
     radio_cmd(0x30u);
@@ -373,7 +357,7 @@ static void tx_start_data(void)
     tx_state = TX_DATA;
     radio_wr1(WR1_HDLC_TX);
     radio_cmd(0x80u); /* reset Tx CRC, then load the byte, then arm CRC-on-underrun */
-    scc_a_data = tx_buf[0];
+    hardware_radio_data_write(tx_buf[0]);
     radio_cmd(0xC0u);
     tx_i = 1u;
     tx_mark = 1u;
@@ -824,6 +808,5 @@ void modem_init(void)
      */
     radio_wr1(WR1_HDLC);
     /* VIS was already set. Master interrupt enable turns the receiver loose. */
-    scc_a_ctrl = 0x09u;
-    scc_a_ctrl = 0x09u;
+    hardware_interrupt_master_enable();
 }

@@ -1,8 +1,14 @@
 # Front Panel Display Lights
 
+The PK-88 exposes all eight logical lights described below. On the
+TNC-2, only the two SIO DTR-controlled outputs are available
+to firmware: STA lights after a successfully decoded packet and CON lights
+while a packet is waiting in the viscous digipeater queue.
+The remaining logical states continue to operate but are not shown.
+
 When WFDIGI first powers on, it blinks each light in sequence to make it
-possible to easily validate that the TNC is no longer running the stock
-AEA PK-88 firmware.
+possible to validate the replacement firmware. The TNC-2 test covers only its
+two controllable outputs.
 
 `CONV`: During power-on, the `CONV` light is lit while the TNC is performing the
 CRC validation check of the entire boot ROM, which can take several seconds.

@@ -1,10 +1,8 @@
 #include "wfdigi.h"
 
-/* The /SYNCB interrupt runs at 1200 Hz, so 12 interrupts are 10 ms. */
-#define EDGES_PER_TICK 12u
 #define TICKS_PER_SECOND 100u
 
-__sfr __at (PORT_SCC_B_CTRL) scc_b_ctrl;
+_Static_assert(EDGES_PER_TICK > 0u, "platform timer interrupt rate must be nonzero");
 
 /* Countdown timers in 10 ms units. A uint16 covers a little over 10 minutes. */
 static uint16_t left[TIMER_COUNT];
@@ -21,12 +19,7 @@ static uint8_t query_cool_left;
 
 static void arm_sync_interrupt(void)
 {
-    scc_b_ctrl = 0x0Fu;
-    scc_b_ctrl = 0x10u; /* WR15: Sync/Hunt only */
-    scc_b_ctrl = 0x10u; /* drop a stale external-status latch */
-    scc_b_ctrl = 0x10u;
-    scc_b_ctrl = 0x01u;
-    scc_b_ctrl = 0x01u; /* WR1: external/status; serial_rx_init adds receive */
+    hardware_timer_arm();
 }
 
 void timer_init(void)

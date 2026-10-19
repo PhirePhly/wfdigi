@@ -176,7 +176,7 @@ static void query_beacon(void)
     timer_start_query_cooldown();
 }
 
-/* MYCALL to APWFDP. The first beacon path is the digipeater when it is set.
+/* MYCALL to the platform TNCID. The first beacon path is the digipeater when it is set.
  * Returns the index of the information field.
  */
 static uint16_t begin_ui(void)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject ROM images that violate the PK-88 memory map."""
+"""Reject ROM images that violate a supported WFDIGI platform layout."""
 
 from pathlib import Path
 import re
@@ -75,11 +75,16 @@ def store_rom_checksum(bin_path: Path, image: dict[int, int]) -> int:
 
 
 def main() -> None:
-    if len(sys.argv) != 5:
-        raise SystemExit("usage: check-layout.py firmware.ihx firmware.map version.h firmware.bin")
-    version = load_version(Path(sys.argv[3]))
-    print(f"Whiskey Fox Digi - version {version.decode('ascii')}")
-    image = load_ihx(Path(sys.argv[1]))
+    if len(sys.argv) != 7 or sys.argv[1] != "--platform":
+        raise SystemExit(
+            "usage: check-layout.py --platform pk88|tnc2 "
+            "firmware.ihx firmware.map version.h firmware.bin"
+        )
+    platform = sys.argv[2]
+    require(platform in ("pk88", "tnc2"), f"unknown platform {platform}")
+    version = load_version(Path(sys.argv[5]))
+    print(f"Whiskey Fox Digi {platform} - version {version.decode('ascii')}")
+    image = load_ihx(Path(sys.argv[3]))
     require(image, "ROM image is empty")
     require(max(image) < 0x8000, "ROM overlaps RAM at 0x8000")
     require([image.get(i) for i in range(4)] == [0xF3, 0x31, 0x00, 0x00],
@@ -93,17 +98,10 @@ def main() -> None:
             "all eight IM2 vectors must address ROM stubs")
     require(len(set(vectors)) == 8, "IM2 vectors must be distinct")
 
-    pclk = 4_915_200
-    terminal_tc = pclk // (2 * 9600 * 16) - 2
-    radio_tc = pclk // (2 * 1200 * 32) - 2
-    require(terminal_tc == 14, "9600 8N1 time constant changed")
-    require(radio_tc == 62, "1200 baud DPLL time constant changed")
-
     rom = bytes(image.get(i, 0xFF) for i in range(max(image) + 1))
-    map_text = Path(sys.argv[2]).read_text()
+    map_text = Path(sys.argv[4]).read_text()
     require(b"\xED\x5E" in rom, "IM 2 instruction not found")
     require(b"\xED\x4D" in rom, "RETI instruction not found")
-    require(b"\xDB\xF8" in rom, "watchdog pet (IN A,0xF8) not found")
     require(b"Whiskey Fox Digi - version " in rom, "boot banner missing from ROM")
     require(version + b"\x00" in rom, "WFDIGI_VERSION string missing from ROM")
     version_sym = re.search(r"(?m)^\s*([0-9A-Fa-f]{8})\s+_wfdigi_version\b", map_text)
@@ -115,13 +113,34 @@ def main() -> None:
     require(b"Cold boot...\r\n" in rom, "cold boot line missing from ROM")
     require(re.search(r"00008000.*_g_config|_g_config.*00008000", map_text, re.IGNORECASE),
             "g_config is not fixed at 0x8000")
-    # WR12 in the channel setup tables is the register number 0x0C followed by the time constant.
-    require(bytes((0x0C, terminal_tc)) in rom,
-            "terminal WR12 is not programmed for 9600 baud")
-    require(bytes((0x0C, radio_tc)) in rom,
-            "radio WR12 is not programmed for the 1200 baud DPLL clock")
+    if platform == "pk88":
+        pclk = 4_915_200
+        terminal_tc = pclk // (2 * 9600 * 16) - 2
+        radio_tc = pclk // (2 * 1200 * 32) - 2
+        require(terminal_tc == 14, "9600 8N1 time constant changed")
+        require(radio_tc == 62, "1200 baud DPLL time constant changed")
+        require(b"\xDB\xF8" in rom, "watchdog pet (IN A,0xF8) not found")
+        require(bytes((0x0C, terminal_tc)) in rom,
+                "terminal WR12 is not programmed for 9600 baud")
+        require(bytes((0x0C, radio_tc)) in rom,
+                "radio WR12 is not programmed for the 1200 baud DPLL clock")
+        require(b"APWFDP" in rom, "PK-88 TNCID APWFDP missing")
+    else:
+        require(b"\xDB\xF8" not in rom, "TNC-2 image contains the PK-88 watchdog strobe")
+        for port in (0xDC, 0xDD, 0xDE, 0xDF):
+            port_read = bytes((0xDB, port))
+            port_write = bytes((0xD3, port))
+            require(port_read in rom or port_write in rom,
+                    f"TNC-2 SIO port 0x{port:02X} is not referenced")
+        require(bytes((4, 0x20, 1, 0x00, 7, 0x7E)) in rom,
+                "TNC-2 radio SIO setup missing")
+        require(bytes((4, 0x44, 2, 0x00)) in rom,
+                "TNC-2 terminal SIO setup missing")
+        require(bytes((5, 0xEA, 1, 0x04)) in rom,
+                "TNC-2 status-modified interrupt vector setup missing")
+        require(b"APWFD2" in rom, "TNC-2 TNCID APWFD2 missing")
 
-    crc = store_rom_checksum(Path(sys.argv[4]), image)
+    crc = store_rom_checksum(Path(sys.argv[6]), image)
     print(f"ROM layout: PASS ({max(image) + 1} bytes address span, checksum {crc:04X})")
 
 

@@ -1,8 +1,8 @@
 # Whiskey Fox Digi 🥃🦊📻
 
-Standalone Feature-rich APRS digipeater firmware for the AEA PK-88 packet TNC.
-It is a clean rewrite separate from the OEM AEA firmware, in the same spirit
-as the UIDIGI firmware which was a drop-in replacement for the TAPR TNC-2.
+Standalone feature-rich APRS digipeater firmware for the AEA PK-88 and
+UIDIGI-compatible TAPR TNC-2 packet TNCs. It is a clean rewrite separate from
+the OEM firmware.
 
 It being a stand-alone digipeater means that this software is intended to be run
 on a TNC without a supporting computer and strictly only support digipeating.
@@ -10,13 +10,13 @@ Default settings are able to be baked into a custom firmware build to protect
 against an SRAM battery backup failure, but all digipeater settings are possible
 to be modified via the local serial terminal on the TNC.
 
-Installation is by physically removing the 27C256 ROM in the IC15 socket and
-burning a new EPROM with the WFDIGI firmware to install in the TNC.
+Installation is by replacing the TNC's 27C256 firmware ROM with the matching
+WFDIGI platform image (IC15 on the PK-88).
 It is likely that 29C256 FLASH ROMs would be usable as replacements if one
 lacked a UV ROM eraser, but this has been untested and unqualified.
-When booting the new firmware, you should expect to see all of the LEDs on
-the front panel to scan in a line, then `CMD` will start blinking if the
-transmitter interlock is preventing the station from transmitting.
+At boot the PK-88 scans all eight controllable lamps. The TNC-2 tests its two
+software-controlled lamps. The PK-88 `CMD` lamp then blinks if the transmitter
+interlock prevents transmission.
 
 ## Feature Highlights
 
@@ -40,10 +40,9 @@ units directed queries are supported.
 
 * All user-facing settings support defaults being baked into the firmware ROM for protection from CMOS battery failure.
 
-## Hardware target
+## Hardware targets
 
-An unmodified AEA PK-88 TNC connected to a radio with no host computer and
-our replacement firmware installed in the IC15 socket.
+The `pk88` target supports an unmodified AEA PK-88:
 
 - Z80 at 4.9152 MHz
 - 32 KiB EPROM at `0x0000` and 32 KiB battery-backed SRAM at `0x8000`
@@ -51,7 +50,17 @@ our replacement firmware installed in the IC15 socket.
 - Z8530 channel B (asynchronous RS-232 terminal) at `0xF0`/`0xF1`
 - Front-panel LED latch at `0xF4`, TX watchdog pet at `0xF8`
 
-The terminal port is fixed at 9600 baud, 8 data bits, no parity, and one stop
+The `tnc2` target supports the UIDIGI-compatible TNC-2 layout:
+
+- Z80 SIO/0 channel A (HDLC radio) at `0xDC`/`0xDD`
+- Z80 SIO/0 channel B (asynchronous terminal) at `0xDE`/`0xDF`
+- External radio and terminal clocks, 32 KiB ROM and 32 KiB RAM
+- Channel-B sync transitions provide a 600 Hz timer interrupt
+- No software-serviced TX watchdog
+- The STA output lights after a successfully decoded packet
+- The CON output lights while a packet is in the viscous digipeater queue
+
+The PK-88 terminal port is fixed at 9600 baud, 8 data bits, no parity, and one stop
 bit. There is no autobaud detection. The radio channel is initialized for
 1200 baud AX.25: HDLC, NRZI, and equalized Bell 202. `EQUALIZER OFF` selects Bell 202
 without the equalization receive filter enabled, which may improve receive performance
@@ -65,15 +74,17 @@ under some conditions.
 make
 ```
 
-Build products are placed in `build/`:
+The default `make` builds and validates both platforms. `make pk88` and
+`make tnc2` build one platform. Final products are placed in `build/`:
 
-- `wfdigi.ihx` — Intel HEX image
-- `wfdigi.bin` — 32 KiB ROM image, unused bytes filled with `0xFF`. The last two bytes are the CRC-16 of `0x0000`–`0x7FFD`, written by the layout check
-- `wfdigi.map` — linker map used by the layout check
+- `wfdigi-pk88.bin` — PK-88 32 KiB ROM image
+- `wfdigi-tnc2.bin` — TNC-2 32 KiB ROM image
+- `pk88/` and `tnc2/` — per-platform Intel HEX, map, and object files
 
-`make` rejects a ROM that runs into RAM at `0x8000`, a reset vector other than
+The final two ROM bytes hold a CRC-16 over `0x0000`–`0x7FFD`. `make` rejects a
+ROM that runs into RAM at `0x8000`, a reset vector other than
 `DI` / `LD SP,0`, an incomplete mode-2 vector table, or a baud-rate constant
-other than 9600 on the terminal and the 1200 baud DPLL clock on the radio.
+or hardware signature inconsistent with the selected platform.
 
 `make test` compiles the digipeater, packet queue, duplicate list, and
 messaging on the host and checks alias, n-N, `DIRECTONLY`, `VISCOUS`,
@@ -82,9 +93,9 @@ It does not need SDCC or a Z80 to run the tests.
 
 ## Firmware organization
 
-- `src/startup.s`, `src/isr_stubs.s`: reset, the mode-2 vector table at
-  `0x0100`, and the watchdog strobe
-- `src/hardware.c`: SCC setup, the front-panel lamp latch, radio carrier detect, and PTT
+- `platform/pk88/`, `platform/tnc2/`: target startup, controller setup, I/O,
+  lamps, PTT, watchdog behavior, and TNCID
+- `src/isr_stubs.s`: shared interrupt entry/exit stubs
 - `src/lamps.c`: which front-panel lamps are lit on each service pass
 - `src/serial.c`: terminal I/O, with a receive interrupt and RTS flow control
 - `src/pktq.c`: transmit and viscous queues sharing a pool of 31-byte blocks
@@ -95,7 +106,8 @@ It does not need SDCC or a Z80 to run the tests.
 - `src/util.c`: shared helper functions
 - `src/beacon.c`: APRS position beacon
 - `src/telemetry.c`: 10-minute packet counts and telemetry definitions every four hours
-- `src/timer.c`: 10 ms countdown timers, from the 1200 Hz `/SYNCB` square wave
+- `src/timer.c`: shared 10 ms countdown timers, divided from each platform's
+  channel-B timer interrupt rate
 - `src/cli.c`: callsign line editor. SSID 0 is omitted from the prompt
 - `include/config.h`: cold-boot defaults. Edit this file and run `make`
 - `src/config.c`: range checks and the SRAM image at `0x8000`
@@ -106,7 +118,8 @@ It does not need SDCC or a Z80 to run the tests.
 
 ## What the current ROM does
 
-1. Program `build/wfdigi.bin` into a 32 KiB EPROM and cold-reset the PK-88.
+1. Program `build/wfdigi-pk88.bin` or `build/wfdigi-tnc2.bin` into a 32 KiB
+   EPROM and cold-reset the matching TNC.
 2. A terminal set to 9600 8N1 receives:
 
     ```
@@ -130,8 +143,9 @@ It does not need SDCC or a Z80 to run the tests.
    only when every parameter passes. A CRC-16 is then stored in the next two
    bytes. A later warm boot checks that CRC, keeps the config, and still restarts the
    timers, modem, packet queue, duplicate list, drop counters, and received and transmitted frame counts from zero.
-4. The eight front-panel lamps scan once to indicate you are no longer running the
-   stock PK-88 firmware. CMD then stays lit, unless `MYCALL`
+4. On the PK-88, the eight front-panel lamps scan once to indicate you are no
+   longer running stock firmware. The TNC-2 tests its two controllable outputs.
+   PK-88 CMD then stays lit, unless `MYCALL`
    is still `N0CALL`, in which case CMD blinks at 2 Hz until the callsign is
    changed to unlock the transmitter interlock prevent `N0CALL` on the air.
    The DCD lamp indicates the channel receivier is busy.
@@ -178,7 +192,8 @@ At the callsign `>` prompt, a config name alone prints the value stored in SRAM.
 setting and is an effective way to take a backup of the full digipeater config.
 `HELP` prints where to read the documentation. `ENGSTAT` prints
 low level diagnostics counters of the wfdigi packet engine. `SENDRAW` queues
-one UI frame from `MYCALL` to `APWFDP`, via the first `BPATH` entry when that
+one UI frame from `MYCALL` to the platform TNCID (`APWFDP` on PK-88 or
+`APWFD2` on TNC-2), via the first `BPATH` entry when that
 entry is a callsign.
 `REBOOT`
 starts the firmware over and keeps the stored settings. `RESET` clears the
@@ -220,7 +235,7 @@ An APRS message whose addressee is `MYCALL` is answered and is not digipeated.
 The addressee is nine characters, SSID 0 is omitted, and letter case does not
 matter. A numbered message, whose text ends in `{` and one to five letters or
 digits, is acknowledged with `ack` and that number before any other reply.
-The reply is a UI frame from `MYCALL` to `APWFDP`, via the first `BPATH`
+The reply is a UI frame from `MYCALL` to the platform TNCID, via the first `BPATH`
 entry when that entry is a callsign, and it does not advance the beacon path.
 `?APRSP` queues the normal position beacon, at most once every 30 seconds.
 `?APRSU` queues the four telemetry definition messages at once. Any other

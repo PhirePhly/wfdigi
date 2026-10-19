@@ -206,6 +206,8 @@ kind of bad internal state which can be recovered by a reboot.
 _A shadow setting you probably don't need to care about_
 
 Enables the AM7910 receive equalizer. Accepts `ON`, `OFF`, `1`, or `0`.
+This setting affects only the PK-88; it is retained but has no hardware effect
+on the UIDIGI-compatible TNC-2 target.
 When it is off, the modem uses Bell 202. When it is on, the modem uses Bell
 202 with the DSP equalizer. The cold-boot default is `ON`.
 
@@ -375,11 +377,12 @@ does not appear in `DISPLAY`. A bare `SENDRAW` prints `Huh?`.
 SENDRAW >packet contents
 ```
 
-The frame is `MYCALL` to `APWFDP`. The packet contents are the information
+The frame is `MYCALL` to the platform TNCID (`APWFDP` on PK-88 or `APWFD2`
+on TNC-2). The packet contents are the information
 field, including spaces, and the case is preserved. The packet path is the
 first `BPATH` entry. `SENDRAW` does not advance the
 beacon-path cycle. With `BPATH WIDE1-1`, `SENDRAW >Test` goes out as
-`MYCALL>APWFDP,WIDE1-1:>Test`.
+`MYCALL>APWFDP,WIDE1-1:>Test` on a PK-88.
 
 Missing packet contents prints `Huh?`. Text that does not fit in the frame
 prints `Bad config: SENDRAW`. If the transmit queue cannot take the frame, the
@@ -500,7 +503,7 @@ other reply. The number is copied as received. A message without a valid
 number is not acknowledged.
 
 An acknowledgement, and the unsupported-query reply below, is a UI frame from
-`MYCALL` to `APWFDP`. The first `BPATH` entry is its one digipeater when that
+`MYCALL` to the platform TNCID. The first `BPATH` entry is its one digipeater when that
 entry is a callsign. A blank first entry, or no beacon path, is sent direct.
 The reply does not advance the beacon-path cycle. It is recorded in the
 duplicate list before it is queued, so the same reply is not sent again for

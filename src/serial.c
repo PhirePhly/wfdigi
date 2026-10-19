@@ -11,9 +11,6 @@
 _Static_assert((RX_SIZE & (RX_SIZE - 1u)) == 0u, "receive buffer is a power of two");
 _Static_assert(RX_LOW < RX_HIGH && RX_HIGH < RX_SIZE, "receive flow-control marks");
 
-__sfr __at (PORT_SCC_B_CTRL) scc_b_ctrl;
-__sfr __at (PORT_SCC_B_DATA) scc_b_data;
-
 static volatile uint8_t rx_ring[RX_SIZE];
 static volatile uint8_t rx_head;
 static volatile uint8_t rx_tail;
@@ -26,8 +23,7 @@ static uint8_t scc_b_rr0(void)
 
     /* The sync-edge ISR also uses this channel's register pointer. */
     hardware_irq_off();
-    scc_b_ctrl = 0x00u;
-    status = scc_b_ctrl;
+    status = hardware_terminal_rr0();
     hardware_irq_restore();
     return status;
 }
@@ -44,7 +40,7 @@ void serial_putc(uint8_t byte)
             break;
         }
     }
-    scc_b_data = byte;
+    hardware_terminal_data_write(byte);
 }
 
 void serial_puts(const char *text)
@@ -72,7 +68,7 @@ bool serial_try_putc(uint8_t byte)
     if ((scc_b_rr0() & RR0_TX_EMPTY) == 0u) {
         return false;
     }
-    scc_b_data = byte;
+    hardware_terminal_data_write(byte);
     return true;
 }
 
@@ -86,12 +82,9 @@ void serial_rx_init(void)
     rx_paused = 0u;
     hardware_terminal_rts(true);
     /* External/status stays enabled for /SYNCB. Also interrupt on every byte. */
-    scc_b_ctrl = 0x01u;
-    scc_b_ctrl = 0x11u;
-    scc_b_ctrl = 0x00u;
-    while ((scc_b_ctrl & RR0_RX_CHAR) != 0u && guard < 4u) {
-        serial_rx_push(scc_b_data);
-        scc_b_ctrl = 0x00u;
+    hardware_terminal_wr1(0x11u);
+    while ((hardware_terminal_rr0() & RR0_RX_CHAR) != 0u && guard < 4u) {
+        serial_rx_push(hardware_terminal_data_read());
         ++guard;
     }
 }

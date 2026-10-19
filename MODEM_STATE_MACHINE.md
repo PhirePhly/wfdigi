@@ -2,7 +2,8 @@
 
 `src/modem.c` has one named transmitter state machine, `TxState`, and a receive path that moves a frame through two buffers. The main loop calls `logging_service` and `modem_service`. `modem_service` runs `tx_service` for every state except the ones the transmit interrupt advances. Channel A interrupts feed bytes, watch end-of-frame, and sample carrier.
 
-Time is in 10 ms ticks. Twelve interrupts of the 1200 Hz `/SYNCB` input are one tick.
+Time is in 10 ms ticks. The PK-88 uses 12 interrupts at 1200 Hz per tick;
+the TNC-2 uses 6 interrupts at 600 Hz per tick.
 
 ## Transmitter
 

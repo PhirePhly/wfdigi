@@ -1,0 +1,61 @@
+	.module startup
+
+	.globl _firmware_boot
+	.globl _firmware_reset
+	.globl _hardware_set_im2
+	.globl _hardware_irq_off
+	.globl _hardware_irq_on
+	.globl _hardware_halt
+	.globl _isr_b_tx_stub
+	.globl _isr_b_ext_stub
+	.globl _isr_b_rx_stub
+	.globl _isr_b_special_stub
+	.globl _isr_a_tx_stub
+	.globl _isr_a_ext_stub
+	.globl _isr_a_rx_stub
+	.globl _isr_a_special_stub
+
+	.area _HEADER (ABS)
+	.org 0x0000
+reset:
+	di
+	ld sp,#0x0000
+	call _firmware_boot
+halt_forever:
+	halt
+	jr halt_forever
+
+_hardware_halt:
+	halt
+	ret
+
+	.org 0x0100
+im2_vectors:
+	.dw _isr_b_tx_stub
+	.dw _isr_b_ext_stub
+	.dw _isr_b_rx_stub
+	.dw _isr_b_special_stub
+	.dw _isr_a_tx_stub
+	.dw _isr_a_ext_stub
+	.dw _isr_a_rx_stub
+	.dw _isr_a_special_stub
+
+	.area _CODE
+
+_firmware_reset:
+	di
+	jp 0x0000
+
+_hardware_set_im2:
+	ld a,#0x01
+	ld i,a
+	im 2
+	ret
+
+_hardware_irq_off:
+	di
+	ret
+
+_hardware_irq_on:
+	ei
+	ret
