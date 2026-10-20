@@ -17,7 +17,7 @@
 
 #define FRAME_CAP AX25_MAX
 #define TEXT_CAP 800
-#define TX_KEEP 2
+#define TX_KEEP 4
 
 DigiConfig g_config;
 
@@ -192,6 +192,7 @@ static void setup(void)
     now = 1000u;
     g_config.txstale = TX_STALE_DEFAULT;
     dupe_init();
+    heard_init();
     messaging_init();
     query_cool_left = 0u;
     beacon_now_count = 0;
@@ -672,6 +673,40 @@ static void check_two(const char *name, const char *in, const char *first, const
         snprintf(detail, sizeof detail, "second got %s", got);
         fail(name, detail);
         return;
+    }
+    ++passed;
+}
+
+static void check_frames(const char *name, const char *in, const char **out, int count)
+{
+    uint8_t frame[FRAME_CAP];
+    uint16_t len = 0u;
+    char got[TEXT_CAP];
+    char detail[TEXT_CAP + 80];
+    int i;
+
+    tx_count = 0;
+    if (count > TX_KEEP) {
+        fail(name, "the test keeps too few transmitted frames");
+        return;
+    }
+    if (encode(in, frame, &len) != 0) {
+        fail(name, "could not build the test frame");
+        return;
+    }
+    digi_ingress(frame, len);
+    if (tx_count != count) {
+        snprintf(detail, sizeof detail, "transmitted %d frame(s), want %d", tx_count, count);
+        fail(name, detail);
+        return;
+    }
+    for (i = 0; i < count; ++i) {
+        got[0] = '\0';
+        if (decode(tx_frame[i], tx_len_at[i], got, TEXT_CAP) != 0 || strcmp(got, out[i]) != 0) {
+            snprintf(detail, sizeof detail, "frame %d got %s", i + 1, got);
+            fail(name, detail);
+            return;
+        }
     }
     ++passed;
 }
@@ -1377,7 +1412,7 @@ static void test_messaging(void)
 
     setup();
     check_keep("directed supported query list", "N0SRC>APRS::WFDIGI   :?APRS?",
-               "WFDIGI>APWFDP*::N0SRC    :?APRSP ?APRSU ?APRSV");
+               "WFDIGI>APWFDP*::N0SRC    :?APRSD ?APRSP ?APRSU ?APRSV");
     expect_beacon("directed supported query list does not beacon", 0);
 
     setup();
@@ -1429,6 +1464,143 @@ static void test_messaging(void)
     expect_beacon("third-party general query beacons", 1);
 }
 
+static void expect_heard(const char *name, const char *want)
+{
+    uint8_t text[TEXT_CAP];
+    const void *from = 0;
+    uint16_t n = 0u;
+    char detail[TEXT_CAP + 80];
+
+    do {
+        uint16_t room = (uint16_t)(TEXT_CAP - 1u - n);
+        uint16_t got = heard_list(text + n, room, &from);
+
+        if (got == 0u) {
+            break;
+        }
+        n = (uint16_t)(n + got);
+        if (from != 0 && n < (uint16_t)(TEXT_CAP - 1u)) {
+            text[n] = (uint8_t)' ';
+            ++n;
+        }
+    } while (from != 0 && n < (uint16_t)(TEXT_CAP - 1u));
+    text[n] = '\0';
+    if (strcmp((const char *)text, want) != 0) {
+        snprintf(detail, sizeof detail, "heard \"%s\", want \"%s\"", (const char *)text, want);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
+}
+
+static void hear(const char *in)
+{
+    uint8_t frame[FRAME_CAP];
+    uint16_t len = 0u;
+
+    tx_count = 0;
+    if (encode(in, frame, &len) != 0) {
+        fail(in, "could not build the test frame");
+        return;
+    }
+    digi_ingress(frame, len);
+}
+
+static void test_heard(void)
+{
+    char text[64];
+    char want[TEXT_CAP];
+    int i;
+
+    setup();
+    set_nn(0, "WIDE");
+    hear("N0AAA>APRS:Hi");
+    expect_heard("no path is heard directly", "N0AAA");
+    now = (uint16_t)(now + 1u);
+    hear("N0BBB-7>APRS,WIDE1-1,WIDE2-1:Hi");
+    expect_heard("fresh path is heard directly", "N0AAA N0BBB-7");
+    now = (uint16_t)(now + 1u);
+    hear("N0CCC>APRS,N0DIG*,WIDE2-1:Hi");
+    hear("N0CCC>APRS,N0DIG*,WIDE2*:Hi");
+    expect_heard("repeated path is not direct", "N0AAA N0BBB-7");
+    hear("WFDIGI>APRS:Hi");
+    expect_heard("own source is not listed", "N0AAA N0BBB-7");
+    hear("WFDIGI-1>APRS:Hi");
+    expect_heard("own call with another SSID is listed", "N0AAA N0BBB-7 WFDIGI-1");
+    now = (uint16_t)(now + 1u);
+    hear("N0AAA>APRS:Again");
+    expect_heard("hearing again keeps its place", "N0AAA N0BBB-7 WFDIGI-1");
+
+    setup();
+    g_config.digipeat = 0u;
+    hear("N0AAA>APRS,WIDE1-1:Hi");
+    expect_heard("digipeat off still records", "N0AAA");
+    now = (uint16_t)(now + 1u);
+    check_keep("directed message sender is recorded", "N0SRC-9>APRS::WFDIGI   :Hello", 0);
+    expect_heard("message sender is listed", "N0AAA N0SRC-9");
+
+    setup();
+    hear("N0OLD>APRS:Hi");
+    now = (uint16_t)(now + 1u);
+    hear("N0NEW>APRS:Hi");
+    now = (uint16_t)(now + HEARD_MAX_AGE - 1u);
+    expect_heard("8 hour age limit", "N0NEW");
+    heard_sweep();
+    now = (uint16_t)(now - 1u);
+    expect_heard("sweep clears only expired entries", "N0NEW");
+    now = (uint16_t)(now + 2u);
+    heard_sweep();
+    expect_heard("sweep clears the last entry", "");
+
+    setup();
+    for (i = 0; i < (int)HEARD_SLOTS; ++i) {
+        snprintf(text, sizeof text, "N%dAA>APRS:Hi", i);
+        hear(text);
+        now = (uint16_t)(now + 1u);
+    }
+    hear("N0AA>APRS:Again");
+    now = (uint16_t)(now + 1u);
+    hear("N0NEW>APRS:Hi");
+    want[0] = '\0';
+    strcat(want, "N0AA N0NEW");
+    for (i = 2; i < (int)HEARD_SLOTS; ++i) {
+        snprintf(text, sizeof text, " N%dAA", i);
+        strcat(want, text);
+    }
+    expect_heard("full list drops the oldest entry", want);
+
+    setup();
+    hear("N0AAA>APRS:Hi");
+    now = (uint16_t)(now + 1u);
+    check_keep("directs query", "N0SRC>APRS::WFDIGI   :?APRSD",
+               "WFDIGI>APWFDP*::N0SRC    :Directs= N0AAA N0SRC");
+    check_keep("directs query echo", "N0SRC>APRS::WFDIGI   :?APRSD", 0);
+    now = (uint16_t)(now + 1u);
+    check_two("numbered directs query", "N0OTH>APRS,WIDE1-1::WFDIGI   :?APRSD{2",
+              "WFDIGI>APWFDP*::N0OTH    :ack2", "WFDIGI>APWFDP*::N0OTH    :Directs= N0AAA N0SRC N0OTH");
+
+    setup();
+    check_keep("directs query through a digipeater", "N0SRC>APRS,N0DIG*::WFDIGI   :?APRSD",
+               "WFDIGI>APWFDP*::N0SRC    :Directs= ");
+
+    setup();
+    for (i = 0; i < 12; ++i) {
+        snprintf(text, sizeof text, "N%02dAAA-15>APRS:Hi", i);
+        hear(text);
+        now = (uint16_t)(now + 1u);
+    }
+    {
+        static const char *pages[] = {
+            "WFDIGI>APWFDP*::N0SRC    :Directs= N00AAA-15 N01AAA-15 N02AAA-15 N03AAA-15 N04AAA-15",
+            "WFDIGI>APWFDP*::N0SRC    :Directs= N05AAA-15 N06AAA-15 N07AAA-15 N08AAA-15 N09AAA-15",
+            "WFDIGI>APWFDP*::N0SRC    :Directs= N10AAA-15 N11AAA-15",
+        };
+
+        check_frames("directs reply pages five calls at a time", "N0SRC>APRS,N0DIG*::WFDIGI   :?APRSD", pages, 3);
+    }
+    check_keep("directs pages are not repeated", "N0SRC>APRS,N0DIG*::WFDIGI   :?APRSD", 0);
+}
+
 int main(void)
 {
     test_roundtrip();
@@ -1444,6 +1616,7 @@ int main(void)
     test_dupes();
     test_viscous();
     test_messaging();
+    test_heard();
     if (failed != 0) {
         printf("digi tests: %d passed, %d failed\n", passed, failed);
         return 1;

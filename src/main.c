@@ -71,6 +71,7 @@ void firmware_boot(void)
     config_boot();
     beacon_path_reset();
     messaging_init();
+    heard_init();
     timer_init();
     cli_start();
     logging_init();

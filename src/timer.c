@@ -16,6 +16,7 @@ static uint16_t clock_sec;
 static uint16_t beacon_left;
 static uint8_t cal_left;
 static uint8_t query_cool_left;
+static uint16_t heard_sweep_left;
 
 static void arm_sync_interrupt(void)
 {
@@ -34,6 +35,7 @@ void timer_init(void)
     beacon_left = 0u;
     cal_left = 0u;
     query_cool_left = 0u;
+    heard_sweep_left = HEARD_SWEEP_EVERY;
     prng_init();
     for (i = 0u; i < TIMER_COUNT; ++i) {
         left[i] = 0u;
@@ -119,6 +121,11 @@ static void tock_on_second(void)
     }
     if (query_cool_left != 0u) {
         --query_cool_left;
+    }
+    --heard_sweep_left;
+    if (heard_sweep_left == 0u) {
+        heard_sweep_left = HEARD_SWEEP_EVERY;
+        heard_sweep();
     }
     telemetry_second();
     if (g_config.beacon_every == 0u) {

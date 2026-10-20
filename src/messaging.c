@@ -8,6 +8,8 @@
 #define FRAME_MAX 128u
 #define ADDRESSEE_LEN 9u
 #define MSG_ID_MAX 5u
+/* Longest APRS message text, after the addressee. */
+#define MSG_TEXT_MAX 67u
 
 static uint8_t frame[FRAME_MAX];
 static uint8_t reply_pad[FRAME_MAX];
@@ -288,7 +290,7 @@ static void send_unsupported(const uint8_t *to_call, uint8_t to_ssid)
 
 static void send_supported_queries(const uint8_t *to_call, uint8_t to_ssid)
 {
-    static const char text[] = "?APRSP ?APRSU ?APRSV";
+    static const char text[] = "?APRSD ?APRSP ?APRSU ?APRSV";
     uint8_t i;
 
     for (i = 0u; i < (uint8_t)(sizeof text - 1u); ++i) {
@@ -321,6 +323,29 @@ static void send_version_string(const uint8_t *to_call, uint8_t to_ssid)
     send_reply(to_call, to_ssid, reply_pad, n);
 }
 
+/* Directs= and up to HEARD_PAGE stations, in the order they sit in the heard
+ * table. A longer list continues in another message.
+ */
+static void send_directs(const uint8_t *to_call, uint8_t to_ssid)
+{
+    static const char prefix[] = "Directs= ";
+    const void *from = 0;
+    uint8_t pages = 0u;
+
+    do {
+        uint8_t n;
+        uint16_t got;
+
+        for (n = 0u; n < (uint8_t)(sizeof prefix - 1u); ++n) {
+            reply_pad[n] = (uint8_t)prefix[n];
+        }
+        got = heard_list(reply_pad + n, (uint16_t)(MSG_TEXT_MAX - n), &from);
+        n = (uint8_t)(n + got);
+        send_reply(to_call, to_ssid, reply_pad, n);
+        ++pages;
+    } while (from != 0 && pages < HEARD_SLOTS);
+}
+
 static void answer_directed(const uint8_t *from, uint8_t from_ssid, const uint8_t *text, uint16_t len)
 {
     const uint8_t *id = 0;
@@ -337,6 +362,9 @@ static void answer_directed(const uint8_t *from, uint8_t from_ssid, const uint8_
     switch (letter) {
     case (uint8_t)'?':
         send_supported_queries(from, from_ssid);
+        break;
+    case (uint8_t)'D':
+        send_directs(from, from_ssid);
         break;
     case (uint8_t)'P':
         query_beacon();

@@ -54,12 +54,16 @@ static bool take_frame(const uint8_t *frame, uint16_t len)
     return true;
 }
 
-static bool count_vias(uint8_t *vias)
+/* False when the address field has no end. *overlong is set when that is
+ * because it ran past eight digipeaters, which the caller counts as !F.
+ */
+static bool count_vias(uint8_t *vias, bool *overlong)
 {
     uint16_t at = 0u;
     uint8_t n = 0u;
     uint16_t len = work_len;
 
+    *overlong = false;
     while (n < (uint8_t)(2u + AX25_MAX_VIAS) && (uint16_t)(at + AX25_ADDR) <= len) {
         uint8_t ext = (uint8_t)(work[(uint16_t)(at + 6u)] & AX25_EXT);
 
@@ -74,9 +78,7 @@ static bool count_vias(uint8_t *vias)
         }
     }
     /* Eight digipeaters is the limit. No end bit after that many is a format drop. */
-    if (n >= (uint8_t)(2u + AX25_MAX_VIAS)) {
-        note_drop_f();
-    }
+    *overlong = n >= (uint8_t)(2u + AX25_MAX_VIAS);
     return false;
 }
 
@@ -444,12 +446,20 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
     uint8_t ahead;
     bool direct;
     bool nn_invalid;
+    bool path_ok;
+    bool overlong;
 
     if (!take_frame(frame, len)) {
         // Failed to take the frame, so it is not ingested.
         return false;
     }
     logging_frame('R', work, work_len);
+    path_ok = count_vias(&vias, &overlong);
+    if (path_ok && (vias == 0u || path_is_fresh(vias)) &&
+        !call_eq(work + AX25_ADDR, g_config.mycall, g_config.mycall_ssid)) {
+        // No digipeater has repeated this copy, so we heard the source directly.
+        heard_note(work + AX25_ADDR);
+    }
     // Process frame for messaging / queries
     if (process_frame_for_messaging(work, work_len)) {
         // If we respond to a message, we don't need to digipeat it
@@ -459,9 +469,12 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
         // Digipeating is disabled.
         return true;
     }
-    if (!count_vias(&vias) || vias == 0u) {
+    if (!path_ok || vias == 0u) {
         // We failed to correct a reasonable number of vias
         // or the packet has no vias and is direct only and doesn't need digipeating
+        if (overlong) {
+            note_drop_f();
+        }
         return true;
     }
     if (call_eq(work + AX25_ADDR, g_config.mycall, g_config.mycall_ssid)) {

@@ -508,8 +508,8 @@ A numbered message is answered at once with `ack` and that number, before any
 other reply. The number is copied as received. A message without a valid
 number is not acknowledged.
 
-An acknowledgement, the supported-query list, the version reply, and the
-unsupported-query reply are UI frames from `MYCALL` to the platform TNCID.
+An acknowledgement, the supported-query list, the heard-direct list, the
+version reply, and the unsupported-query reply are UI frames from `MYCALL` to the platform TNCID.
 The first `BPATH` entry is its one digipeater when that entry is a callsign.
 A blank first entry, or no beacon path, is sent direct. The reply does not
 advance the beacon-path cycle. It is recorded in the duplicate list before it
@@ -520,8 +520,21 @@ A directed query is a message whose text is `?APRS` followed by `?` or one
 letter `A`–`Z`. The next character is the end of the text or a space. More
 text may follow the space.
 
-A directed `?APRS?` answers with `?APRSP ?APRSU ?APRSV`. It does not queue a
-beacon or a definition.
+A directed `?APRS?` answers with `?APRSD ?APRSP ?APRSU ?APRSV`. It does not
+queue a beacon or a definition.
+
+`?APRSD` answers with one or more messages. Each is `Directs=` and up to five
+stations heard directly in the last eight hours, in the order they were first
+heard and separated by spaces, such as `Directs= N0ABC-7 N0XYZ`. A longer list
+continues in the next message from where the previous one stopped. Hearing a
+station again keeps its place in the list. SSID 0 is omitted.
+A station is heard directly when its frame has no digipeaters, or when the
+first digipeater has not been repeated yet. Every received frame is checked,
+whether or not `DIGIPEAT` is on and whether or not the frame is a message for
+this station. `MYCALL` with its own SSID is never listed. The list holds 50
+stations; when it is full, the station heard longest ago is dropped and the
+new station takes its place. Once an hour, entries older than eight hours are cleared. With nobody
+heard, the reply is `Directs= `.
 
 `?APRSP` queues the same position beacon as `BEACON` and starts that countdown
 over. Another position query, from any station, does not queue a second beacon

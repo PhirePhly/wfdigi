@@ -31,8 +31,8 @@ test: $(BUILD_ROOT)/digi_test
 $(BUILD_ROOT):
 	mkdir -p $@
 
-$(BUILD_ROOT)/digi_test: src/digi.c src/dupe.c src/pktq.c src/util.c src/messaging.c tools/digi_test.c include/wfdigi.h include/ax25.h platform/pk88/platform.h tools/host_prefix.h | $(BUILD_ROOT)
-	$(HOSTCC) $(HOSTCFLAGS) -DHOST_DIGI_TEST -o $@ src/digi.c src/dupe.c src/pktq.c src/util.c src/messaging.c tools/digi_test.c
+$(BUILD_ROOT)/digi_test: src/digi.c src/dupe.c src/heard.c src/pktq.c src/util.c src/messaging.c tools/digi_test.c include/wfdigi.h include/ax25.h platform/pk88/platform.h tools/host_prefix.h | $(BUILD_ROOT)
+	$(HOSTCC) $(HOSTCFLAGS) -DHOST_DIGI_TEST -o $@ src/digi.c src/dupe.c src/heard.c src/pktq.c src/util.c src/messaging.c tools/digi_test.c
 
 clean:
 	rm -rf $(BUILD_ROOT)
@@ -50,7 +50,7 @@ CPPFLAGS := -Iplatform/$(PLATFORM) -Iinclude -I$(BUILD)
 SDCCFLAGS := -mz80 --std-c11 --opt-code-speed --max-allocs-per-node 10000 $(CPPFLAGS)
 LDFLAGS := -mz80 --nostdlib --no-std-crt0 --code-loc 0x0120 --data-loc 0x8100
 
-COMMON_C_SOURCES := src/lamps.c src/serial.c src/config.c src/cli.c src/util.c src/pktq.c src/beacon.c src/telemetry.c src/timer.c src/logging.c src/modem.c src/digi.c src/dupe.c src/messaging.c src/interrupts.c src/main.c
+COMMON_C_SOURCES := src/lamps.c src/serial.c src/config.c src/cli.c src/util.c src/pktq.c src/beacon.c src/telemetry.c src/timer.c src/logging.c src/modem.c src/digi.c src/dupe.c src/heard.c src/messaging.c src/interrupts.c src/main.c
 PLATFORM_C_SOURCE := platform/$(PLATFORM)/hardware.c
 COMMON_C_OBJECTS := $(patsubst src/%.c,$(BUILD)/%.rel,$(COMMON_C_SOURCES))
 PLATFORM_C_OBJECT := $(BUILD)/hardware.rel

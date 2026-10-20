@@ -35,9 +35,9 @@ interlock prevents transmission.
 * Telemetry support to enable public visibility for the traffic levels in and out of the digipeater.
 
 * APRS messages addressed to `MYCALL` are acknowledged.
-General `?APRS?` queries, directed `?APRS?` capability queries, `?APRSP`
-position queries, `?APRSU` telemetry definition queries, and `?APRSV` version
-queries are supported.
+General `?APRS?` queries, directed `?APRS?` capability queries, `?APRSD`
+heard-direct queries, `?APRSP` position queries, `?APRSU` telemetry definition
+queries, and `?APRSV` version queries are supported.
 
 * All user-facing settings support defaults being baked into the firmware ROM for protection from CMOS battery failure.
 
@@ -87,8 +87,8 @@ ROM that runs into RAM at `0x8000`, a reset vector other than
 `DI` / `LD SP,0`, an incomplete mode-2 vector table, or a baud-rate constant
 or hardware signature inconsistent with the selected platform.
 
-`make test` compiles the digipeater, packet queue, duplicate list, and
-messaging on the host and checks alias, n-N, `DIRECTONLY`, `VISCOUS`,
+`make test` compiles the digipeater, packet queue, duplicate list, heard
+list, and messaging on the host and checks alias, n-N, `DIRECTONLY`, `VISCOUS`,
 `MAXHOPS`, duplicate suppression, message acknowledgements, and APRS queries.
 It does not need SDCC or a Z80 to run the tests.
 
@@ -104,6 +104,7 @@ It does not need SDCC or a Z80 to run the tests.
 - `src/digi.c`: path matching, header rewrite, and the transmit queue for repeats
 - `src/messaging.c`: APRS messages and queries addressed to `MYCALL`, plus general `?APRS?`
 - `src/dupe.c`: the last 250 transmitted packets, used to skip a repeat
+- `src/heard.c`: the last 50 stations heard directly, for `?APRSD`
 - `src/util.c`: shared helper functions
 - `src/beacon.c`: APRS position beacon
 - `src/telemetry.c`: 10-minute packet counts and telemetry definitions every four hours
@@ -239,7 +240,9 @@ matter. A numbered message, whose text ends in `{` and one to five letters or
 digits, is acknowledged with `ack` and that number before any other reply.
 The reply is a UI frame from `MYCALL` to the platform TNCID, via the first `BPATH`
 entry when that entry is a callsign, and it does not advance the beacon path.
-A directed `?APRS?` answers with `?APRSP ?APRSU ?APRSV`.
+A directed `?APRS?` answers with `?APRSD ?APRSP ?APRSU ?APRSV`.
+`?APRSD` answers with one or more `Directs=` messages listing the stations
+heard directly in the last eight hours, five per message.
 `?APRSP` queues the normal position beacon, at most once every 30 seconds.
 `?APRSU` queues the four telemetry definition messages at once.
 `?APRSV` answers with the firmware version and platform, such as

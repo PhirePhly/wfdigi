@@ -333,6 +333,29 @@ void dupe_remember(const uint8_t *frame, uint16_t len);
 bool dupe_recent(const uint8_t *frame, uint16_t len);
 /* Occupied duplicate slots. An aged entry stays until the next scan clears it. */
 uint16_t dupe_count(void);
+/* Stations heard directly. When the list is full, the oldest entry makes room. */
+#define HEARD_SLOTS 50u
+/* An entry is answered for 8 hours. timer_seconds wraps after about 18 hours,
+ * so the sweep must clear an entry well before its age can wrap.
+ */
+#define HEARD_MAX_AGE 28800u
+#define HEARD_SWEEP_EVERY 3600u
+/* Stations named in one ?APRSD reply. A longer list takes another message. */
+#define HEARD_PAGE 5u
+/* Clear the heard list. Battery SRAM is not wiped, so call this at boot. */
+void heard_init(void);
+/* Note the 7-byte AX.25 source address of a frame no digipeater has repeated yet. */
+void heard_note(const uint8_t *ax_source);
+/* Clear entries HEARD_MAX_AGE seconds old or older. */
+void heard_sweep(void);
+/* The next page of calls heard within HEARD_MAX_AGE, in table order and
+ * separated by spaces. *from is 0 to start at the first slot, and is left
+ * pointing at the last call written when another page remains, or 0 when the
+ * list is finished. That point is only good until the next heard_note or
+ * heard_sweep. At most HEARD_PAGE whole calls that fit in dest_max are
+ * written. Returns the length, 0 when nothing remains.
+ */
+uint16_t heard_list(uint8_t *dest, uint16_t dest_max, const void **from);
 bool modem_keyed(void);
 bool modem_dcd(void);
 /* Key and send one calibration tone for the given number of seconds. */
