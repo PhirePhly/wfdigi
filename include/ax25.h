@@ -4,6 +4,8 @@
 /* Six callsign characters, then the SSID byte. The SSID is 0 through 15. */
 #define CALLSIGN_LEN 6u
 #define SSID_MAX 15u
+/* Config-only: match every SSID of a callsign. Not an on-air SSID value. */
+#define SSID_ANY 16u
 #define AX25_ADDR 7u
 
 /* Destination, source, and up to eight digipeaters. */

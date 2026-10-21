@@ -335,6 +335,57 @@ static bool path_is_fresh(uint8_t vias)
     return (via_ptr(0u)[6] & AX25_H) == 0u;
 }
 
+/* True when the AX.25 address matches a DROPLIST entry. SSID_ANY matches any SSID. */
+static bool droplist_match_ax(const uint8_t *ax)
+{
+    uint8_t d;
+
+    for (d = 0u; d < DROP_COUNT; ++d) {
+        uint8_t i;
+
+        if (g_config.droplist[d][0] == (uint8_t)' ') {
+            continue;
+        }
+        for (i = 0u; i < CALLSIGN_LEN; ++i) {
+            if (ax[i] != (uint8_t)(g_config.droplist[d][i] << 1)) {
+                break;
+            }
+        }
+        if (i != CALLSIGN_LEN) {
+            continue;
+        }
+        if (g_config.droplist_ssid[d] == SSID_ANY) {
+            return true;
+        }
+        if ((uint8_t)((ax[6] >> 1) & 0x0Fu) == g_config.droplist_ssid[d]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* Drop when the source is listed, or when a digipeater that already repeated is listed. */
+static bool droplist_hit(uint8_t vias, bool path_ok)
+{
+    uint8_t i;
+    uint8_t *p;
+
+    if (droplist_match_ax(work + AX25_ADDR)) {
+        return true;
+    }
+    if (!path_ok) {
+        return false;
+    }
+    p = via_ptr(0u);
+    for (i = 0u; i < vias; ++i) {
+        if ((p[6] & AX25_H) != 0u && droplist_match_ax(p)) {
+            return true;
+        }
+        p += AX25_ADDR;
+    }
+    return false;
+}
+
 /* A configured n-N address counts as its remaining SSID. Anything else counts as one. */
 static uint8_t requested_hops(const uint8_t *ax)
 {
@@ -459,6 +510,10 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
         !call_eq(work + AX25_ADDR, g_config.mycall, g_config.mycall_ssid)) {
         // No digipeater has repeated this copy, so we heard the source directly.
         heard_note(work + AX25_ADDR);
+    }
+    if (droplist_hit(vias, path_ok)) {
+        // Source or a used digipeater hop is on DROPLIST.
+        return true;
     }
     // Process frame for messaging / queries
     if (process_frame_for_messaging(work, work_len)) {

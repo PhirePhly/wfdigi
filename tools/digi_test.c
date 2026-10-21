@@ -189,6 +189,10 @@ static void setup(void)
     for (a = 0u; a < BPATH_SLOTS; ++a) {
         blank(g_config.bpath[a]);
     }
+    for (a = 0u; a < DROP_COUNT; ++a) {
+        blank(g_config.droplist[a]);
+        g_config.droplist_ssid[a] = 0u;
+    }
     now = 1000u;
     g_config.txstale = TX_STALE_DEFAULT;
     dupe_init();
@@ -215,6 +219,12 @@ static void set_alias(uint8_t slot, const char *text, uint8_t ssid)
 static void set_nn(uint8_t slot, const char *text)
 {
     put_text(g_config.nnalias[slot], text);
+}
+
+static void set_drop(uint8_t slot, const char *text, uint8_t ssid)
+{
+    put_text(g_config.droplist[slot], text);
+    g_config.droplist_ssid[slot] = ssid;
 }
 
 static int hex_nibble(char c)
@@ -1601,6 +1611,41 @@ static void test_heard(void)
     check_keep("directs pages are not repeated", "N0SRC>APRS,N0DIG*::WFDIGI   :?APRSD", 0);
 }
 
+static void test_droplist(void)
+{
+    setup();
+    set_nn(0, "WIDE");
+    set_drop(0, "N0BAD", 0u);
+    check("drop listed source", "N0BAD>APRS,WIDE1-1:Hi", 0);
+    check("other source is digipeated", "N0SRC>APRS,WIDE1-1:Hi", "N0SRC>APRS,WFDIGI*:Hi");
+
+    setup();
+    set_nn(0, "WIDE");
+    set_drop(0, "N0BAD", 2u);
+    check("ssid must match", "N0BAD>APRS,WIDE1-1:Hi", "N0BAD>APRS,WFDIGI*:Hi");
+    check("matching ssid is dropped", "N0BAD-2>APRS,WIDE1-1:Hi", 0);
+
+    setup();
+    set_nn(0, "WIDE");
+    set_drop(0, "N0BAD", SSID_ANY);
+    check("wildcard matches ssid 0", "N0BAD>APRS,WIDE1-1:Hi", 0);
+    check("wildcard matches ssid 15", "N0BAD-15>APRS,WIDE1-1:Hi", 0);
+
+    setup();
+    set_nn(0, "WIDE");
+    set_drop(0, "N0BAD", 0u);
+    check("unused via is not a used hop", "N0SRC>APRS,N0BAD,WIDE1-1:Hi", "N0SRC>APRS,N0BAD*,WFDIGI*:Hi");
+    check("used via is dropped", "N0SRC>APRS,N0BAD*,WIDE1-1:Hi", 0);
+
+    setup();
+    set_nn(0, "WIDE");
+    set_drop(0, "N0BAD", 0u);
+    check_keep("drop listed message is not answered", "N0BAD>APRS::WFDIGI   :Hello{1", 0);
+    expect_dupe_count("drop listed message leaves no ack", 0u);
+    check_keep("drop listed station is still heard", "N0BAD>APRS:Hi", 0);
+    expect_heard("drop listed source remains in heard list", "N0BAD");
+}
+
 int main(void)
 {
     test_roundtrip();
@@ -1617,6 +1662,7 @@ int main(void)
     test_viscous();
     test_messaging();
     test_heard();
+    test_droplist();
     if (failed != 0) {
         printf("digi tests: %d passed, %d failed\n", passed, failed);
         return 1;

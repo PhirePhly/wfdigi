@@ -163,6 +163,7 @@ Cold-boot defaults:
 | MYCALL | `N0CALL-0` | AX.25 call, SSID 0–15 |
 | DIGIPEAT | on | off or on |
 | DIRECTONLY | off | off or on |
+| DROPLIST | `-` | 0–10 calls; `-SSID` or `-*` for every SSID; `-` clears the list |
 | VISCOUS | off | off, or minimum and maximum seconds from 1–9 |
 | LOGGING | on | off or on |
 | TELEMETRY | on | off or on |
@@ -201,7 +202,7 @@ entry is a callsign.
 `REBOOT`
 starts the firmware over and keeps the stored settings. `RESET` clears the
 stored settings and reboots, so the boot loads the defaults. Unknown commands
-print `Huh?`; lines longer than 79 characters print
+print `Huh?`; lines longer than 127 characters print
 `Too long?`. [COMMANDS.md](COMMANDS.md) describes the line editor and the
 meaning of each command.
 

@@ -26,7 +26,7 @@ line prints the prompt again.
 
 Printable characters are echoed. Backspace (`0x08`) and DEL (`0x7F`) erase
 the last character. Other control characters are ignored. A line of more than
-79 characters is discarded, and the TNC prints `Too long?`.
+127 characters is discarded, and the TNC prints `Too long?`.
 
 The command name is not case sensitive. Callsigns and n-N prefixes are stored
 in uppercase. Beacon text keeps the case you type. On `MYSYMBOL`, a lowercase
@@ -165,6 +165,25 @@ which is different from some other direct-only APRS implementations.
 
 A packet addressed to `MYCALL` is repeated even when the first hop has
 already been used.
+
+## DROPLIST
+
+Stations whose traffic this digipeater ignores. Enter zero to ten callsigns,
+separated by spaces. Each entry is an AX.25 callsign, optionally with `-SSID`,
+or with `-*` to match every SSID of that call. A bare call matches SSID 0.
+`OFF` or `-` clears the list. More than ten entries is rejected. The cold-boot
+default is `-`.
+
+A received frame is discarded when its AX.25 source is listed, or when a
+digipeater that already has the has-been-repeated bit is listed. An unused
+via does not match. The frame is still logged and may still update the heard
+list, but it is not digipeated and messages from a listed source are not
+answered.
+
+```
+N0CALL> DROPLIST AAA BBB-2 CCC-*
+AAA-0 BBB-2 CCC-*
+```
 
 ## DISPLAY
 

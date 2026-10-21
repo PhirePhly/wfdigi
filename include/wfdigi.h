@@ -51,6 +51,8 @@ typedef uint8_t bool;
 #define NNALIAS_LEN 5u
 #define BTEXT_LEN 64u
 #define BPATH_SLOTS 4u
+/* Stations whose source or used digipeater hop causes a received frame to be dropped. */
+#define DROP_COUNT 10u
 
 #define TXDELAY_MIN 0u
 #define TXDELAY_MAX 120u
@@ -89,6 +91,11 @@ typedef struct {
     uint8_t digipeat;
     /* When set, alias and n-N repeats require an unused first hop. MYCALL does not. */
     uint8_t directonly;
+    /* Calls that discard a received frame when they are the source or a used hop.
+     * A blank call disables that slot. SSID_ANY matches every SSID of that call.
+     */
+    uint8_t droplist[DROP_COUNT][CALLSIGN_LEN];
+    uint8_t droplist_ssid[DROP_COUNT];
     /* Both zero disables viscous delay. Otherwise 1 <= min <= max <= 9 seconds. */
     uint8_t viscous_min;
     uint8_t viscous_max;

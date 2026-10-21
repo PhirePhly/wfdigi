@@ -17,6 +17,8 @@
  * VISCOUS is off when both limits are 0. Otherwise both are 1 through 9,
  * and the minimum cannot be greater than the maximum.
  * EQUALIZER is 1 for Bell 202 with the compromise equalizer, or 0 for Bell 202.
+ * DROPLIST is zero to ten calls, separated by spaces. "-" is an empty list.
+ * A call may end in -SSID or -* to match every SSID of that call.
  */
 
 #define CFG_MYCALL "N0CALL"
@@ -59,5 +61,6 @@
 #define CFG_MYLOC "00 00.00 N 000 00.00 E"
 #define CFG_MAXHOPS 3
 #define CFG_MYSYMBOL "/#"
+#define CFG_DROPLIST "-"
 
 #endif

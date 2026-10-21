@@ -1,6 +1,7 @@
 #include "wfdigi.h"
 
-#define LINE_MAX 80u
+/* Long enough for DROPLIST and ten CALL-SSID tokens on one line. */
+#define LINE_MAX 128u
 
 static char line[LINE_MAX];
 static uint8_t line_len;

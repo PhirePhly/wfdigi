@@ -331,6 +331,7 @@ static bool store_myloc(const char *text);
 static bool store_symbol(const char *text);
 static bool store_bpath(const char *text);
 static bool store_telpath(const char *text);
+static bool store_droplist(const char *text);
 static void load_btext(void)
 {
     uint8_t raw[BTEXT_LEN];
@@ -389,6 +390,7 @@ static void config_cold_boot(void)
     store_myloc(CFG_MYLOC);
     store_u8("MAXHOPS", (uint8_t)CFG_MAXHOPS, MAXHOPS_MIN, MAXHOPS_MAX, &g_config.maxhops);
     store_symbol(CFG_MYSYMBOL);
+    store_droplist(CFG_DROPLIST);
 
     g_config.valid = g_ok ? 1u : 0u;
     if (g_ok) {
@@ -528,7 +530,8 @@ static void upper_inplace(char *text)
     }
 }
 
-static bool parse_call(char *text, char *body, uint8_t *ssid)
+/* allow_star accepts CALL-* and stores SSID_ANY. Other callers keep 0-15 only. */
+static bool parse_call(char *text, char *body, uint8_t *ssid, bool allow_star)
 {
     uint8_t i = 0u;
     uint8_t n = 0u;
@@ -551,6 +554,11 @@ static bool parse_call(char *text, char *body, uint8_t *ssid)
             body[n] = c;
             ++n;
             continue;
+        }
+        if (allow_star && c == '*' && !saw_digit && text[i] == '\0') {
+            body[n] = '\0';
+            *ssid = SSID_ANY;
+            return n != 0u;
         }
         if (c < '0' || c > '9') {
             return false;
@@ -668,7 +676,7 @@ static void command_call(const char *name, char *value, uint8_t *call, uint8_t *
         }
         return;
     }
-    if (!parse_call(value, body, &new_ssid)) {
+    if (!parse_call(value, body, &new_ssid, false)) {
         reject(name);
         return;
     }
@@ -982,7 +990,103 @@ static void print_path(const uint8_t *call, uint8_t ssid)
         serial_putc(call[i]);
     }
     serial_putc('-');
+    if (ssid == SSID_ANY) {
+        serial_putc('*');
+        return;
+    }
     print_u16(ssid);
+}
+
+static void show_droplist(void)
+{
+    uint8_t i;
+    bool any = false;
+
+    for (i = 0u; i < DROP_COUNT; ++i) {
+        if (call_is_blank(g_config.droplist[i])) {
+            continue;
+        }
+        if (any) {
+            serial_putc(' ');
+        }
+        print_path(g_config.droplist[i], g_config.droplist_ssid[i]);
+        any = true;
+    }
+    if (!any) {
+        serial_putc('-');
+    }
+    serial_puts("\r\n");
+}
+
+static bool store_droplist(const char *text)
+{
+    uint8_t calls[DROP_COUNT][CALLSIGN_LEN];
+    uint8_t ssids[DROP_COUNT];
+    uint8_t count = 0u;
+    uint8_t i;
+
+    if (is_off(text)) {
+        for (i = 0u; i < DROP_COUNT; ++i) {
+            pad_call(g_config.droplist[i], "");
+            g_config.droplist_ssid[i] = 0u;
+        }
+        note_config();
+        return true;
+    }
+    while (*text != '\0') {
+        char token[CALLSIGN_LEN + 4u];
+        uint8_t n = 0u;
+        char body[CALLSIGN_LEN + 1u];
+        uint8_t ssid = 0u;
+
+        if (count >= DROP_COUNT) {
+            reject("DROPLIST");
+            return false;
+        }
+        while (*text != '\0' && *text != ' ') {
+            if (n + 1u >= (uint8_t)sizeof(token)) {
+                reject("DROPLIST");
+                return false;
+            }
+            token[n] = *text;
+            ++n;
+            ++text;
+        }
+        token[n] = '\0';
+        if (!parse_call(token, body, &ssid, true)) {
+            reject("DROPLIST");
+            return false;
+        }
+        pad_call(calls[count], body);
+        if (!callsign_ok(calls[count])) {
+            reject("DROPLIST");
+            return false;
+        }
+        ssids[count] = ssid;
+        ++count;
+        while (*text == ' ') {
+            ++text;
+        }
+    }
+    if (count == 0u) {
+        reject("DROPLIST");
+        return false;
+    }
+    for (i = 0u; i < DROP_COUNT; ++i) {
+        uint8_t c;
+
+        if (i < count) {
+            for (c = 0u; c < CALLSIGN_LEN; ++c) {
+                g_config.droplist[i][c] = calls[i][c];
+            }
+            g_config.droplist_ssid[i] = ssids[i];
+        } else {
+            pad_call(g_config.droplist[i], "");
+            g_config.droplist_ssid[i] = 0u;
+        }
+    }
+    note_config();
+    return true;
 }
 
 static void show_bpath(void)
@@ -1034,7 +1138,7 @@ static bool store_bpath(const char *text)
             pad_call(calls[count], "");
             ssids[count] = 0u;
         } else {
-            if (!parse_call(token, body, &ssid)) {
+            if (!parse_call(token, body, &ssid, false)) {
                 reject("BPATH");
                 return false;
             }
@@ -1106,7 +1210,7 @@ static bool store_telpath(const char *text)
         pad_call(raw, "");
         ssid = 0u;
     } else {
-        if (!parse_call(token, body, &ssid)) {
+        if (!parse_call(token, body, &ssid, false)) {
             reject("TELPATH");
             return false;
         }
@@ -1166,6 +1270,8 @@ static void command_display(void)
     show_number("MAXHOPS", g_config.maxhops);
     serial_puts("DIRECTONLY ");
     show_flag(g_config.directonly);
+    serial_puts("DROPLIST ");
+    show_droplist();
     serial_puts("VISCOUS ");
     show_viscous();
     serial_puts("ALIAS0 ");
@@ -1362,6 +1468,14 @@ void config_command(char *line)
                 note_config();
             }
             show_flag(g_config.directonly);
+        }
+        return;
+    }
+    if (same_text(cmd, "DROPLIST")) {
+        if (value == 0) {
+            show_droplist();
+        } else if (store_droplist(value)) {
+            show_droplist();
         }
         return;
     }
