@@ -49,7 +49,7 @@ static void lamp_test(void)
         }
         bit = (uint8_t)(bit << 1);
     } while (bit != 0u);
-    hardware_lamps(0u);
+    hardware_lamps(LED_CONV);
 }
 
 void firmware_boot(void)
