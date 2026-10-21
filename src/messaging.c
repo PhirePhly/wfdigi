@@ -290,7 +290,7 @@ static void send_unsupported(const uint8_t *to_call, uint8_t to_ssid)
 
 static void send_supported_queries(const uint8_t *to_call, uint8_t to_ssid)
 {
-    static const char text[] = "?APRSD ?APRSP ?APRSU ?APRSV";
+    static const char text[] = " ?APRSD ?APRSP ?APRSU ?APRSV";
     uint8_t i;
 
     for (i = 0u; i < (uint8_t)(sizeof text - 1u); ++i) {
