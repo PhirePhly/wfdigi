@@ -1,8 +1,8 @@
 # Whiskey Fox Digi 🥃🦊📻
 
 Standalone feature-rich APRS digipeater firmware for the AEA PK-88 and
-UIDIGI-compatible TAPR TNC-2 packet TNCs. It is a clean rewrite separate from
-the OEM firmware.
+TAPR TNC-2 compatible packet TNCs. It is a clean rewrite separate from
+the OEM firmware dedicated to only being an APRS digipeater.
 
 It being a stand-alone digipeater means that this software is intended to be run
 on a TNC without a supporting computer and strictly only support digipeating.
@@ -39,6 +39,8 @@ General `?APRS?` queries, directed `?APRS?` capability queries, `?APRSD`
 heard-direct queries, `?APRSP` position queries, `?APRSU` telemetry definition
 queries, and `?APRSV` version queries are supported.
 
+* `DROPLIST` supporting 10 different station or callsigns with SSID wildcard supported to enable traffic engineering to drop known problematic stations or specific out-of-area digipeaters from being picked up and fed into the local network.
+
 * All user-facing settings support defaults being baked into the firmware ROM for protection from CMOS battery failure.
 
 ## Hardware targets
@@ -51,7 +53,7 @@ The `pk88` target supports an unmodified AEA PK-88:
 - Z8530 channel B (asynchronous RS-232 terminal) at `0xF0`/`0xF1`
 - Front-panel LED latch at `0xF4`, TX watchdog pet at `0xF8`
 
-The `tnc2` target supports the UIDIGI-compatible TNC-2 layout:
+The `tnc2` target supports the standard TNC-2 layout:
 
 - Z80 SIO/0 channel A (HDLC radio) at `0xDC`/`0xDD`
 - Z80 SIO/0 channel B (asynchronous terminal) at `0xDE`/`0xDF`
@@ -66,6 +68,10 @@ bit. There is no autobaud detection. The radio channel is initialized for
 1200 baud AX.25: HDLC, NRZI, and equalized Bell 202. `EQUALIZER OFF` selects Bell 202
 without the equalization receive filter enabled, which may improve receive performance
 under some conditions.
+
+TNC2 lacks support for the same inidicator LEDs nor some of the modem features
+available in the AEA PK-88, and relies on hardware jumpers for the serial
+port baud rate, but digipeater logic and functionality is the same.
 
 ## Building
 
