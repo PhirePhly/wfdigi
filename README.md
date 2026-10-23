@@ -247,7 +247,7 @@ matter. A numbered message, whose text ends in `{` and one to five letters or
 digits, is acknowledged with `ack` and that number before any other reply.
 The reply is a UI frame from `MYCALL` to the platform TNCID, via the first `BPATH`
 entry when that entry is a callsign, and it does not advance the beacon path.
-A directed `?APRS?` answers with `?APRSD ?APRSP ?APRSU ?APRSV`.
+A directed `?APRS?` answers with ` ?APRSD ?APRSP ?APRSU ?APRSV`.
 `?APRSD` answers with one or more `Directs=` messages listing the stations
 heard directly in the last eight hours, five per message.
 `?APRSP` queues the normal position beacon, at most once every 30 seconds.

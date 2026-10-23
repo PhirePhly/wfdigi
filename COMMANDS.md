@@ -539,7 +539,7 @@ A directed query is a message whose text is `?APRS` followed by `?` or one
 letter `A`–`Z`. The next character is the end of the text or a space. More
 text may follow the space.
 
-A directed `?APRS?` answers with `?APRSD ?APRSP ?APRSU ?APRSV`. It does not
+A directed `?APRS?` answers with ` ?APRSD ?APRSP ?APRSU ?APRSV`. It does not
 queue a beacon or a definition.
 
 `?APRSD` answers with one or more messages. Each is `Directs=` and up to five

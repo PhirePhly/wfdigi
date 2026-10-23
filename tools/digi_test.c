@@ -1422,7 +1422,7 @@ static void test_messaging(void)
 
     setup();
     check_keep("directed supported query list", "N0SRC>APRS::WFDIGI   :?APRS?",
-               "WFDIGI>APWFDP*::N0SRC    :?APRSD ?APRSP ?APRSU ?APRSV");
+               "WFDIGI>APWFDP*::N0SRC    : ?APRSD ?APRSP ?APRSU ?APRSV");
     expect_beacon("directed supported query list does not beacon", 0);
 
     setup();
