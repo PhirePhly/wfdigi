@@ -186,7 +186,7 @@ Cold-boot defaults:
 | BTEXT | empty | printable ASCII, NUL terminated |
 | BPATH | `-` | 1–4 paths; a callsign, or `-` for no path |
 | MYLOC | `00 00.00 N 000 00.00 E` | 0-90 0.0-59.99 [NS] 0-180 0.0-59.99 [EW] |
-| MAXHOPS | 3 | 1-8 |
+| MAXHOPS | 3 | 0-8; 0 or OFF disables the hop limit |
 | MYSYMBOL | `/#` | two characters: primary `/`, alternate `\`, or overlay `0-9`/`A-Z`, then a symbol code |
 
 Every transmission ends with 3 HDLC flags. The radio is unkeyed when nothing
@@ -228,12 +228,14 @@ is still at least 1. `WIDE2-2` goes out as `MYCALL*,WIDE2-1`. `WIDE2-1` goes
 out as `MYCALL*`. `DIRECTONLY` limits alias and n-N repeats to a path whose
 first hop has not been used yet.
 A path that already has `MAXHOPS` repeated digipeaters
-is not repeated. An unused address counts as one hop unless it matches a
-configured n-N prefix, in which case it counts as the remaining hop count. A
-used digipeater counts as one hop. The hop total is those used hops plus the
-remaining request. A total equal to `MAXHOPS` is repeated normally. A larger
-total is quashed: the matched n-N is decremented by one, every digipeater is
-marked used, and `MYCALL` is appended so the last repeated hop is this station.
+is not repeated. `MAXHOPS OFF` repeats a packet no matter how many
+digipeaters are already used. An unused address counts as one hop unless it
+matches a configured n-N prefix, in which case it counts as the remaining hop
+count. A used digipeater counts as one hop. The hop total is those used hops
+plus the remaining request. A total equal to `MAXHOPS` is repeated normally.
+A larger total is quashed: the matched n-N is decremented by one, every
+digipeater is marked used, and `MYCALL` is appended so the last repeated hop
+is this station. `MAXHOPS OFF` does not quash that longer request.
 An unused n-N with the SSID above N is quashed the same way, except that hop
 count is left unchanged.
 One used hop followed by `WIDE2-2` therefore goes out as `AAA,WIDE2-1*,MYCALL*`

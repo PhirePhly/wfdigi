@@ -30,7 +30,7 @@ _Static_assert(sizeof(CFG_NNALIAS_2) <= NNALIAS_LEN + 1u, "NNALIAS 2 is longer t
 _Static_assert(sizeof(CFG_NNALIAS_3) <= NNALIAS_LEN + 1u, "NNALIAS 3 is longer than 5 characters");
 _Static_assert(CFG_BEACON <= BEACON_MAX, "BEACON is above 60 minutes");
 _Static_assert(sizeof(CFG_BTEXT) <= BTEXT_LEN, "BTEXT is longer than 63 characters");
-_Static_assert(CFG_MAXHOPS >= MAXHOPS_MIN && CFG_MAXHOPS <= MAXHOPS_MAX, "MAXHOPS is out of range");
+_Static_assert(CFG_MAXHOPS <= MAXHOPS_MAX, "MAXHOPS is out of range");
 _Static_assert(sizeof(CFG_MYLOC) <= 32u, "MYLOC default is too long");
 _Static_assert(sizeof(CFG_MYSYMBOL) == 3u, "MYSYMBOL must be two characters");
 _Static_assert(CFG_LOGGING <= 1u, "LOGGING must be 0 or 1");
@@ -388,7 +388,7 @@ static void config_cold_boot(void)
     load_btext();
     store_bpath(CFG_BPATH);
     store_myloc(CFG_MYLOC);
-    store_u8("MAXHOPS", (uint8_t)CFG_MAXHOPS, MAXHOPS_MIN, MAXHOPS_MAX, &g_config.maxhops);
+    store_u8("MAXHOPS", (uint8_t)CFG_MAXHOPS, 0u, MAXHOPS_MAX, &g_config.maxhops);
     store_symbol(CFG_MYSYMBOL);
     store_droplist(CFG_DROPLIST);
 
@@ -1267,7 +1267,8 @@ static void command_display(void)
 
     serial_puts("DIGIPEAT ");
     show_flag(g_config.digipeat);
-    show_number("MAXHOPS", g_config.maxhops);
+    serial_puts("MAXHOPS ");
+    show_number_or_off(g_config.maxhops);
     serial_puts("DIRECTONLY ");
     show_flag(g_config.directonly);
     serial_puts("DROPLIST ");
@@ -1643,11 +1644,13 @@ void config_command(char *line)
     }
     if (same_text(cmd, "MAXHOPS")) {
         if (value == 0) {
-            print_u16(g_config.maxhops);
-            serial_puts("\r\n");
-        } else if (set_number("MAXHOPS", value, MAXHOPS_MIN, MAXHOPS_MAX, &g_config.maxhops)) {
-            print_u16(g_config.maxhops);
-            serial_puts("\r\n");
+            show_number_or_off(g_config.maxhops);
+        } else if (same_text(value, "OFF")) {
+            g_config.maxhops = 0u;
+            note_config();
+            show_number_or_off(g_config.maxhops);
+        } else if (set_number("MAXHOPS", value, 0u, MAXHOPS_MAX, &g_config.maxhops)) {
+            show_number_or_off(g_config.maxhops);
         }
         return;
     }

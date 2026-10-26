@@ -1152,6 +1152,31 @@ static void test_maxhops(void)
     g_config.directonly = 0u;
     check("two used hops still quash WIDE5-5", "N0SRC>APRS,AAA*,BBB*,WIDE5-5:Hi",
           "N0SRC>APRS,AAA*,BBB*,WIDE5-4*,WFDIGI*:Hi");
+
+    g_config.maxhops = 0u;
+    check("MAXHOPS off repeats WIDE7-7", "N0SRC>APRS,WIDE7-7:Hi", "N0SRC>APRS,WFDIGI*,WIDE7-6:Hi");
+    check("MAXHOPS off repeats WIDE5-5", "N0SRC>APRS,WIDE5-5:Hi", "N0SRC>APRS,WFDIGI*,WIDE5-4:Hi");
+    check("MAXHOPS off repeats two WIDE2-2 requests", "N0SRC>APRS,WIDE2-2,WIDE2-2:Hi",
+          "N0SRC>APRS,WFDIGI*,WIDE2-2,WIDE2-1:Hi");
+    check("MAXHOPS off repeats a used hop plus WIDE2-2", "N0SRC>APRS,AAA*,WIDE2-2:Hi",
+          "N0SRC>APRS,AAA*,WFDIGI*,WIDE2-1:Hi");
+    check("MAXHOPS off repeats after many used hops", "N0SRC>APRS,AAA*,BBB*,WIDE1-1:Hi",
+          "N0SRC>APRS,AAA*,BBB*,WFDIGI*:Hi");
+    check("MAXHOPS off repeats WIDE5-5 after used hops", "N0SRC>APRS,AAA*,BBB*,CCC*,WIDE5-5:Hi",
+          "N0SRC>APRS,AAA*,BBB*,CCC*,WFDIGI*,WIDE5-4:Hi");
+    check("MAXHOPS off repeats MYCALL after many used hops", "N0SRC>APRS,AAA*,BBB*,CCC*,WFDIGI:Hi",
+          "N0SRC>APRS,AAA*,BBB*,CCC*,WFDIGI*:Hi");
+    check("MAXHOPS off repeats nine requested hops", "N0SRC>APRS,WIDE7-7,WIDE2-2:Hi",
+          "N0SRC>APRS,WFDIGI*,WIDE2-2,WIDE7-6:Hi");
+    check("MAXHOPS off still quashes WIDE1-2", "N0SRC>APRS,WIDE1-2:Hi",
+          "N0SRC>APRS,WIDE1-2*,WFDIGI*:Hi");
+    format_drops = 0;
+    check("MAXHOPS off cannot grow a full path", "N0SRC>APRS,A,B,C,D,E,F,G,WIDE2-2:Hi", 0);
+    if (format_drops != 1) {
+        fail("MAXHOPS off cannot grow a full path", "missing !F");
+    } else {
+        ++passed;
+    }
 }
 
 static void fill_char(char *dest, int n, char c)

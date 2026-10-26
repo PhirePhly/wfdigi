@@ -134,7 +134,8 @@ anywhere in the path, including when earlier hops are already used. Every
 digipeater up through `MYCALL` is marked repeated. `DIRECTONLY` does not
 change that match. If `MYCALL` is already marked repeated, the packet has
 looped and is left alone, even when `MYCALL` appears again later. A path that
-already has `MAXHOPS` repeated digipeaters is not repeated.
+already has `MAXHOPS` repeated digipeaters is not repeated. `MAXHOPS OFF`
+does not apply that limit.
 
 If `MYCALL` is not in the path, the first unused alias is replaced with
 `MYCALL`, marked repeated, and every digipeater before it is marked repeated
@@ -289,12 +290,14 @@ serial port.
 ## MAXHOPS
 
 The most digipeater hops a packet may request/ take for this station to repeat it.
-The range is 1–8. The cold-boot default is 3. One n-N address is still at most
-7. Eight is the most digipeater addresses an AX.25 path can hold.
+The range is 0–8. `0` or `OFF` disables the limit. The cold-boot default is 3.
+One n-N address is still at most 7. Eight is the most digipeater addresses an
+AX.25 path can hold.
 
 Each digipeater that has already been repeated counts as one used hop,
 including a used n-N address such as `WIDE5-5*`. When that count is already
-`MAXHOPS` or more, the packet is not repeated.
+`MAXHOPS` or more, the packet is not repeated. `MAXHOPS OFF` repeats a packet
+no matter how many digipeaters are already used.
 
 An unused address that matches a configured n-N prefix counts as its remaining
 hop count. Any other unused address counts as one, including a call that looks
@@ -309,6 +312,11 @@ hop is this station. An alias is marked repeated in place the same way, and
 `MYCALL` is still appended after it. `WIDE5-5` when this setting is 3 goes
 out as `WIDE5-4*,MYCALL*`. If the path already has eight digipeaters, `MYCALL`
 replaces the last one. A ninth address is not added.
+
+`MAXHOPS OFF` does not quash a long request. `WIDE7-7` goes out as
+`MYCALL*,WIDE7-6`. An SSID above N, such as `WIDE1-2`, is still quashed.
+A path that already holds eight digipeaters cannot grow, so a reduced n-N
+that would need another address is not sent.
 
 ## MYCALL
 

@@ -64,7 +64,7 @@ typedef uint8_t bool;
 #define TX_CLOSING_FLAGS 3u
 #define BEACON_MAX 60u
 #define MAXHOPS_MIN 1u
-/* Eight digipeater addresses is the AX.25 path limit. */
+/* Eight digipeater addresses is the AX.25 path limit. Zero in the setting disables it. */
 #define MAXHOPS_MAX AX25_MAX_VIAS
 /* Recently transmitted packets kept for the duplicate check. */
 #define DUPE_SLOTS 250u
@@ -134,6 +134,7 @@ typedef struct {
     uint8_t loc_lon_min;
     uint8_t loc_lon_hund;
     uint8_t loc_lon_ew;
+    /* 1 through MAXHOPS_MAX, or 0 to repeat any hop count. */
     uint8_t maxhops;
     /* APRS symbol table ('/', '\\', or overlay 0-9/A-Z) and code ('!'..'~'). */
     uint8_t symbol_table;

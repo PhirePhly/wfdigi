@@ -497,6 +497,7 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
     uint8_t ahead;
     bool direct;
     bool nn_invalid;
+    bool over_limit;
     bool path_ok;
     bool overlong;
 
@@ -555,8 +556,9 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
     }
 
     used = used_hops(vias);
-    if (used >= g_config.maxhops) {
-        // Already used at least MAXHOPS digipeaters, so we silently drop it
+    if (g_config.maxhops != 0u && used >= g_config.maxhops) {
+        // Already used at least MAXHOPS digipeaters, so we silently drop it.
+        // Zero leaves every used-hop count alone.
         return true;
     }
 
@@ -588,7 +590,12 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
     }
     // How many unused hops are still in the path?
     ahead = pending_hops(vias);
-    if (nn_invalid || (uint8_t)(255u - used) < ahead || (uint8_t)(used + ahead) > g_config.maxhops) {
+    over_limit = false;
+    if (g_config.maxhops != 0u) {
+        over_limit = (uint8_t)(255u - used) < ahead ||
+                     (uint8_t)(used + ahead) > g_config.maxhops;
+    }
+    if (nn_invalid || over_limit) {
         /* An SSID above N is already invalid, so leave every hop count alone.
          * A request past MAXHOPS still gives up one hop before the quash.
          */
