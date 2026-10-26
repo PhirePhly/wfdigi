@@ -1,8 +1,8 @@
 #include "hardware.h"
 
 /* Directed APRS messages and queries, and one-off UI frames from the terminal.
- * A message for MYCALL is consumed. A general ?APRS? may start the normal
- * beacon and is then left for the digipeater, so this file never records a
+ * A message for MYCALL is consumed. A general ?APRS? may shorten the beacon
+ * countdown and is then left for the digipeater, so this file never records a
  * received frame.
  */
 #define FRAME_MAX 128u
@@ -180,6 +180,46 @@ static void query_beacon(void)
         return;
     }
     timer_start_query_cooldown();
+}
+
+/* One delay in 0..GENERAL_QUERY_WINDOW. Two spans fit in a byte, so the rest
+ * of the draw is discarded and the upper span folds back by subtraction.
+ */
+static uint16_t general_query_delay(void)
+{
+    uint8_t span = (uint8_t)(GENERAL_QUERY_WINDOW + 1u);
+    uint8_t limit = (uint8_t)(span + span);
+    uint8_t draw;
+
+    prng_stir(timer_seconds());
+    do {
+        draw = prng_u8();
+    } while (draw >= limit);
+    if (draw >= span) {
+        draw = (uint8_t)(draw - span);
+    }
+    return draw;
+}
+
+/* The first general query in a beacon cycle picks the delay and marks the
+ * cycle. A later copy must not pick again. The mark clears when the
+ * countdown reaches zero.
+ */
+static void general_query(void)
+{
+    uint16_t delay;
+    uint16_t left;
+
+    if (g_config.beacon_every == 0u || timer_beacon_accelerated()) {
+        return;
+    }
+    delay = general_query_delay();
+    left = timer_beacon_left();
+    if (delay < left) {
+        left = delay;
+    }
+    timer_beacon_set(left);
+    timer_beacon_accelerate();
 }
 
 /* MYCALL to the platform TNCID. The first beacon path is the digipeater when it is set.
@@ -498,7 +538,7 @@ bool process_frame_for_messaging(const uint8_t *rx, uint16_t len)
         return false;
     }
     if (same_text(info, info_len, "?APRS?")) {
-        query_beacon();
+        general_query();
         return false;
     }
     if (info_len < (uint16_t)(ADDRESSEE_LEN + 2u) || info[0] != (uint8_t)':' ||

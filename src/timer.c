@@ -16,6 +16,7 @@ static uint16_t clock_sec;
 static uint16_t beacon_left;
 static uint8_t cal_left;
 static uint8_t query_cool_left;
+static uint8_t beacon_accelerated;
 static uint16_t heard_sweep_left;
 
 static void arm_sync_interrupt(void)
@@ -35,6 +36,7 @@ void timer_init(void)
     beacon_left = 0u;
     cal_left = 0u;
     query_cool_left = 0u;
+    beacon_accelerated = 0u;
     heard_sweep_left = HEARD_SWEEP_EVERY;
     prng_init();
     for (i = 0u; i < TIMER_COUNT; ++i) {
@@ -138,6 +140,7 @@ static void tock_on_second(void)
         return;
     }
     if (beacon_send()) {
+        beacon_accelerated = 0u;
         beacon_left = beacon_next_wait();
     }
 }
@@ -171,6 +174,26 @@ bool timer_beacon_now(void)
     }
     beacon_left = beacon_next_wait();
     return true;
+}
+
+uint16_t timer_beacon_left(void)
+{
+    return beacon_left;
+}
+
+void timer_beacon_set(uint16_t seconds)
+{
+    beacon_left = seconds;
+}
+
+bool timer_beacon_accelerated(void)
+{
+    return beacon_accelerated != 0u;
+}
+
+void timer_beacon_accelerate(void)
+{
+    beacon_accelerated = 1u;
 }
 
 void timer_cal_start(uint8_t seconds)

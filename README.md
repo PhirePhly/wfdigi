@@ -254,8 +254,10 @@ heard directly in the last eight hours, five per message.
 `?APRSU` queues the four telemetry definition messages at once.
 `?APRSV` answers with the firmware version and platform, such as
 `v0.2 pk88`. Any other
-`?APRS` letter is answered with `ERR - query type unsupported`. A general
-`?APRS?` may queue that same beacon and is then digipeated. A third-party
+`?APRS` letter is answered with `ERR - query type unsupported`.
+A general `?APRS?` sets the beacon countdown to the shorter of its current
+value and one random delay of 0 to 120 seconds, and the frame is then
+digipeated. `BEACON` off ignores it. A third-party
 frame begins with `}` and uses the callsign before `>` as the station those
 rules apply to. [COMMANDS.md](COMMANDS.md) describes the replies, the cooldown,
 and which frames are still digipeated.

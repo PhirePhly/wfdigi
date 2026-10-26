@@ -37,6 +37,8 @@ static int failed;
 static int beacon_now_count;
 static int tel_def_count;
 static uint8_t query_cool_left;
+static bool beacon_accelerated;
+static uint16_t beacon_left;
 
 const uint8_t tncid[CALLSIGN_LEN] = {'A', 'P', 'W', 'F', 'D', 'P'};
 const char wfdigi_version[] = "v9.9-test";
@@ -79,6 +81,33 @@ bool timer_beacon_now(void)
     return true;
 }
 
+uint16_t timer_beacon_left(void)
+{
+    return beacon_left;
+}
+
+void timer_beacon_set(uint16_t seconds)
+{
+    beacon_left = seconds;
+}
+
+bool timer_beacon_accelerated(void)
+{
+    return beacon_accelerated;
+}
+
+void timer_beacon_accelerate(void)
+{
+    beacon_accelerated = true;
+}
+
+/* The firmware clears the mark when the beacon countdown reaches zero. */
+static void beacon_timer_expired(void)
+{
+    beacon_left = 0u;
+    beacon_accelerated = false;
+}
+
 void telemetry_send_definitions(void)
 {
     ++tel_def_count;
@@ -94,7 +123,7 @@ bool timer_query_cooling(void)
     return query_cool_left != 0u;
 }
 
-/* The host clock is assigned, not ticked, so tests step this countdown themselves. */
+/* The host clock is assigned, not ticked, so tests step these countdowns themselves. */
 static void pass_query_seconds(uint8_t seconds)
 {
     if (seconds >= query_cool_left) {
@@ -199,6 +228,8 @@ static void setup(void)
     heard_init();
     messaging_init();
     query_cool_left = 0u;
+    beacon_accelerated = false;
+    beacon_left = 0u;
     beacon_now_count = 0;
     tel_def_count = 0;
     pktq_init();
@@ -624,6 +655,44 @@ static void expect_beacon(const char *name, int want)
 
     if (beacon_now_count != want) {
         snprintf(detail, sizeof detail, "beacon calls %d, want %d", beacon_now_count, want);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
+}
+
+static void expect_beacon_left(const char *name, uint16_t want)
+{
+    uint16_t got = timer_beacon_left();
+    char detail[80];
+
+    if (got != want) {
+        snprintf(detail, sizeof detail, "beacon countdown %u, want %u", (unsigned)got, (unsigned)want);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
+}
+
+static void expect_accelerated(const char *name, bool want)
+{
+    bool got = timer_beacon_accelerated();
+    char detail[80];
+
+    if (got != want) {
+        snprintf(detail, sizeof detail, "accelerated %u, want %u", (unsigned)got, (unsigned)want);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
+}
+
+static void expect_draws(const char *name, uint8_t want)
+{
+    char detail[80];
+
+    if (random_at != want) {
+        snprintf(detail, sizeof detail, "random draws %u, want %u", (unsigned)random_at, (unsigned)want);
         fail(name, detail);
         return;
     }
@@ -1355,27 +1424,79 @@ static void test_viscous(void)
     judge("VISCOUS later expiry follows", "N0ONE>APRS,WFDIGI*:Late");
 }
 
+static void arm_beacon(uint16_t left)
+{
+    g_config.beacon_every = 10u;
+    timer_beacon_set(left);
+}
+
 static void test_messaging(void)
 {
     setup();
+    arm_beacon(600u);
+    random_draw[0] = 45u;
+    random_count = 1u;
     check_keep("direct general query is not digipeated without a path", "N0SRC>APRS:?APRS?", 0);
-    expect_beacon("direct general query beacons", 1);
+    expect_beacon("direct general query does not beacon now", 0);
+    expect_beacon_left("direct general query shortens the countdown", 45u);
+    expect_accelerated("direct general query marks the cycle", true);
+    expect_draws("direct general query draws once", 1u);
     expect_dupe_count("general query is not recorded", 0u);
 
     setup();
-    set_nn(0, "WIDE");
-    check_keep("general query is digipeated", "N0SRC>APRS,WIDE1-1:?APRS?", "N0SRC>APRS,WFDIGI*:?APRS?");
-    expect_beacon("general query beacons", 1);
+    arm_beacon(600u);
+    random_draw[0] = 250u;
+    random_draw[1] = 200u;
+    random_count = 2u;
+    check_keep("general query folds a draw into 0..120", "N0SRC>APRS:?APRS?", 0);
+    expect_beacon_left("general query delay is the folded draw", 79u);
+    expect_draws("general query discards a draw past two spans", 2u);
+
+    setup();
+    arm_beacon(20u);
+    random_draw[0] = 80u;
+    random_draw[1] = 1u;
+    random_count = 2u;
+    check_keep("general query leaves a sooner beacon", "N0SRC>APRS:?APRS?", 0);
+    expect_beacon_left("sooner beacon countdown stays", 20u);
+    expect_beacon("sooner beacon is not sent now", 0);
+    expect_accelerated("sooner beacon marks the cycle", true);
     pass_query_seconds(30u);
+    check_keep("general query echo keeps the first delay", "N0OTH>APRS:?APRS?", 0);
+    expect_beacon_left("echo does not shorten the countdown", 20u);
+    expect_accelerated("echo leaves the cycle accelerated", true);
+    expect_draws("echo does not draw again", 1u);
+    beacon_timer_expired();
+    timer_beacon_set(600u);
+    check_keep("general query after the beacon may delay again", "N0NEW>APRS:?APRS?", 0);
+    expect_beacon_left("later query shortens the countdown", 1u);
+    expect_accelerated("later query marks the new cycle", true);
+    expect_draws("later query draws once", 2u);
+
+    setup();
+    timer_beacon_set(600u);
+    random_draw[0] = 10u;
+    random_count = 1u;
+    check_keep("general query with beacon off is ignored", "N0SRC>APRS:?APRS?", 0);
+    expect_beacon_left("beacon off leaves the countdown", 600u);
+    expect_accelerated("beacon off does not mark the cycle", false);
+    expect_draws("beacon off does not draw", 0u);
+    expect_beacon("beacon off does not beacon", 0);
+
+    setup();
+    set_nn(0, "WIDE");
+    arm_beacon(600u);
+    random_draw[0] = 90u;
+    random_draw[1] = 5u;
+    random_count = 2u;
+    check_keep("general query is digipeated", "N0SRC>APRS,WIDE1-1:?APRS?", "N0SRC>APRS,WFDIGI*:?APRS?");
+    expect_beacon_left("digipeated general query shortens the countdown", 90u);
+    expect_beacon("digipeated general query does not beacon now", 0);
     check_keep("general query with an argument is digipeated", "N0SRC>APRS,WIDE1-1:?APRS? extra",
                "N0SRC>APRS,WFDIGI*:?APRS? extra");
-    expect_beacon("general query with an argument beacons", 2);
-    pass_query_seconds(29u);
-    check_keep("another station during cooldown", "N0OTH>APRS,WIDE1-1:?APRS?", "N0OTH>APRS,WFDIGI*:?APRS?");
-    expect_beacon("cooldown holds the beacon", 2);
-    pass_query_seconds(1u);
-    check_keep("cooldown expires at 30 seconds", "N0NEW>APRS,WIDE1-1:?APRS?", "N0NEW>APRS,WFDIGI*:?APRS?");
-    expect_beacon("cooldown allows another beacon", 3);
+    expect_beacon_left("argument echo keeps the first delay", 90u);
+    expect_accelerated("argument echo leaves the cycle accelerated", true);
+    expect_draws("argument echo does not draw again", 1u);
 
     setup();
     check_keep("numbered message", "N0SRC>APRS::WFDIGI   :Hello{12", "WFDIGI>APWFDP*::N0SRC    :ack12");
@@ -1412,6 +1533,7 @@ static void test_messaging(void)
     setup();
     check_keep("directed position query", "N0SRC>APRS::WFDIGI   :?APRSP", 0);
     expect_beacon("directed position query beacons", 1);
+    expect_accelerated("directed position query is not a general query", false);
     pass_query_seconds(30u);
     check_keep("position query with an argument", "N0OTH>APRS::WFDIGI   :?APRSP please", 0);
     expect_beacon("position query with an argument beacons", 2);
@@ -1469,9 +1591,15 @@ static void test_messaging(void)
                "IGATE>APRS,WFDIGI*:}N0SRC>APRS::N0OTH    :Hello{1");
     check_keep("malformed third-party is digipeated", "N0SRC>APRS,WIDE1-1:}not-a-header",
                "N0SRC>APRS,WFDIGI*:}not-a-header");
+    arm_beacon(600u);
+    random_draw[0] = 30u;
+    random_count = 1u;
+    random_at = 0u;
     check_keep("third-party general query is digipeated", "N0SRC>APRS,WIDE1-1:}N0OTH>BEACON:?APRS?",
                "N0SRC>APRS,WFDIGI*:}N0OTH>BEACON:?APRS?");
-    expect_beacon("third-party general query beacons", 1);
+    expect_beacon("third-party general query does not beacon now", 0);
+    expect_beacon_left("third-party general query shortens the countdown", 30u);
+    expect_accelerated("third-party general query marks the cycle", true);
 }
 
 static void expect_heard(const char *name, const char *want)

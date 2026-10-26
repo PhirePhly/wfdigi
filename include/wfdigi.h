@@ -323,7 +323,7 @@ void digi_service(void);
 /* Messaging has no cooldown of its own. Call before any packet is received. */
 void messaging_init(void);
 /* True when this frame is a directed message for MYCALL and must not be digipeated.
- * A general ?APRS? may start a beacon and still returns false.
+ * A general ?APRS? may shorten the beacon countdown and still returns false.
  */
 bool process_frame_for_messaging(const uint8_t *frame, uint16_t len);
 /* Queue one UI frame from MYCALL to the platform TNCID. The text is the information field.
@@ -387,6 +387,16 @@ bool timer_in_dupe_window(uint16_t heard_at);
 void timer_beacon_restart(void);
 /* Queue one beacon now and arm the next interval. False if the queue did not accept it. */
 bool timer_beacon_now(void);
+/* Seconds left on the beacon countdown. Zero when it is due or beacons are off. */
+uint16_t timer_beacon_left(void);
+/* Replace that countdown. The next second sends when it is zero and beacons are on. */
+void timer_beacon_set(uint16_t seconds);
+/* A general ?APRS? draws one delay in 0..GENERAL_QUERY_WINDOW seconds. */
+#define GENERAL_QUERY_WINDOW 120u
+/* True after a general query has already adjusted this beacon countdown. */
+bool timer_beacon_accelerated(void);
+/* Mark this countdown. Cleared when the beacon countdown reaches zero. */
+void timer_beacon_accelerate(void);
 /* Count down in tock_on_second, then modem_cal_stop runs. */
 void timer_cal_start(uint8_t seconds);
 /* Hold query position beacons for DUPE_WINDOW seconds. The timer counts it down. */

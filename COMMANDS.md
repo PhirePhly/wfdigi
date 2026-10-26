@@ -576,13 +576,9 @@ such as `v0.2 pk88` or `v0.2 tnc2`. The version is the same
 Any other letter is answered with the unnumbered message
 `ERR - query type unsupported`.
 
-`?APRS` and `?APRS ` are ordinary messages. They are acknowledged when
-numbered, and they do not request a beacon, a definition, or a version.
-
-A general query is an information field whose first word is `?APRS?`. It may
-queue a position beacon under the same 30-second wait, and the received frame
-then continues through digipeating. Digipeating still has to be on and the
-path still has to match.
+A general query is an information field whose first word is `?APRS?`. When
+`BEACON` is off it is ignored. Otherwise the query accelerates the beacon
+to fire at some point in the next 120 seconds.
 
 A third-party packet has an information field that starts with `}`. The
 originator is the callsign before `>` in that TNC-2 header, and the text after
