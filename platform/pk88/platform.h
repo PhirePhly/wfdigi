@@ -3,6 +3,7 @@
 
 #define PLATFORM_NAME "pk88"
 #define CONFIG_ADDR 0x8000u
+#define COMPILER_RAM 0x8100u
 #define ROM_CHECK_LEN 0x7FFEu
 #define HARDWARE_LAMP_MASK 0xFFu
 /* /SYNCB generates 1200 interrupts per second: 12 make one 10 ms tick. */

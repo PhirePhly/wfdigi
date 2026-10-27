@@ -1,4 +1,4 @@
-PLATFORMS := pk88 tnc2
+PLATFORMS := pk88 tnc2 pk232
 BUILD_ROOT := build
 
 SDCC ?= $(shell command -v sdcc 2>/dev/null || test ! -x "$(HOME)/bin/sdcc" || printf '%s' "$(HOME)/bin/sdcc")
@@ -9,15 +9,18 @@ PYTHON ?= python3
 HOSTCC ?= gcc
 HOSTCFLAGS := -std=c11 -Wall -Wextra -Werror -Iplatform/pk88 -Iinclude -include tools/host_prefix.h
 
-.PHONY: all pk88 tnc2 firmware clean require-sdcc layout test FORCE
+.PHONY: all pk88 tnc2 pk232 firmware clean require-sdcc layout test FORCE
 
-all: pk88 tnc2
+all: pk88 tnc2 pk232
 
 pk88:
 	$(MAKE) PLATFORM=pk88 firmware
 
 tnc2:
 	$(MAKE) PLATFORM=tnc2 firmware
+
+pk232:
+	$(MAKE) PLATFORM=pk232 firmware
 
 require-sdcc:
 	@if test -z "$(SDCC)" || test -z "$(SDAS)" || test -z "$(MAKEBIN)"; then \
@@ -48,7 +51,13 @@ BUILD := $(BUILD_ROOT)/$(PLATFORM)
 OUTPUT_BIN := $(BUILD_ROOT)/$(PROJECT).bin
 CPPFLAGS := -Iplatform/$(PLATFORM) -Iinclude -I$(BUILD)
 SDCCFLAGS := -mz80 --std-c11 --opt-code-speed --max-allocs-per-node 10000 $(CPPFLAGS)
-LDFLAGS := -mz80 --nostdlib --no-std-crt0 --code-loc 0x0120 --data-loc 0x8100
+# Battery SRAM starts at 0x8000 on PK-88 and TNC-2, and at 0xC000 on PK-232.
+# Compiler RAM is the next page after the 256-byte config image.
+DATA_LOC := 0x8100
+ifeq ($(PLATFORM),pk232)
+DATA_LOC := 0xC100
+endif
+LDFLAGS := -mz80 --nostdlib --no-std-crt0 --code-loc 0x0120 --data-loc $(DATA_LOC)
 
 COMMON_C_SOURCES := src/lamps.c src/serial.c src/config.c src/cli.c src/util.c src/pktq.c src/beacon.c src/telemetry.c src/timer.c src/logging.c src/modem.c src/digi.c src/dupe.c src/heard.c src/messaging.c src/interrupts.c src/main.c
 PLATFORM_C_SOURCE := platform/$(PLATFORM)/hardware.c

@@ -13,8 +13,9 @@ It is also possible, and encouraged, to burn a custom build of WFDIGI with your
 desired settings baked in as the cold boot defaults so if your digipeater ever
 loses its SRAM for some reason it can come back up in a working state.
 This can be done by editing the `/include/config.h` file and running `make`.
-The default build creates both `build/wfdigi-pk88.bin` and
-`build/wfdigi-tnc2.bin`; `make pk88` or `make tnc2` builds only one.
+The default build creates `build/wfdigi-pk88.bin`, `build/wfdigi-tnc2.bin`,
+and `build/wfdigi-pk232.bin`. `make pk88`, `make tnc2`, or `make pk232` builds
+only one.
 
 ## Build tools
 
@@ -42,12 +43,13 @@ run the `RESET` command to wipe all of the settings and perform a cold boot.
 
 ## Program a TNC
 
-Burn `build/wfdigi-pk88.bin` for an AEA PK-88 or `build/wfdigi-tnc2.bin` for
-a UIDIGI-compatible TNC-2 onto a 27C256 EPROM. Install that PROM in place of
+Burn `build/wfdigi-pk88.bin` for an AEA PK-88, `build/wfdigi-tnc2.bin` for
+a UIDIGI-compatible TNC-2, or `build/wfdigi-pk232.bin` for an AEA PK-232 onto
+a 27C256 EPROM. Install that PROM in place of
 the original ROM. Connect a terminal at 8 data bits, no
 parity, and one stop bit, with RTS/CTS hardware flow control. There is no
-autobaud detection. The PK-88 target is fixed at 9600 baud; the TNC-2 terminal
-rate follows its hardware clock/jumper configuration.
+autobaud detection. The PK-88 and PK-232 targets are fixed at 9600 baud; the
+TNC-2 terminal rate follows its hardware clock/jumper configuration.
 
 Power the TNC on. The PK-88 lamps walk once; the TNC-2 tests the two
 software-controlled lamps. The terminal then shows the banner and prompt.

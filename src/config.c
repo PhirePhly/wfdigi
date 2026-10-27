@@ -121,8 +121,9 @@ static void clear_config(void)
     }
 }
 
-/* The image, its CRC, and the padding up to compiler RAM at 0x8100. */
-_Static_assert(CONFIG_ADDR + 0x100u == 0x8100u, "config page is the 256 bytes below compiler RAM");
+/* The image, its CRC, and the padding up to compiler RAM. */
+_Static_assert(CONFIG_ADDR + 0x100u == COMPILER_RAM,
+               "config page is the 256 bytes below compiler RAM");
 
 static void wipe_config_page(void)
 {

@@ -415,8 +415,8 @@ does not appear in `DISPLAY`. A bare `SENDRAW` prints `Huh?`.
 SENDRAW >packet contents
 ```
 
-The frame is `MYCALL` to the platform TNCID (`APWFDP` on PK-88 or `APWFD2`
-on TNC-2). The packet contents are the information
+The frame is `MYCALL` to the platform TNCID (`APWFDP` on PK-88, `APWFD2`
+on TNC-2, or `APWFD3` on PK-232). The packet contents are the information
 field, including spaces, and the case is preserved. The packet path is the
 first `BPATH` entry. `SENDRAW` does not advance the
 beacon-path cycle. With `BPATH WIDE1-1`, `SENDRAW >Test` goes out as
@@ -595,7 +595,7 @@ schedule is left where it was. The query sends the definitions even when
 `TELEMETRY` is off.
 
 `?APRSV` answers with the firmware version, a space, and the platform name,
-such as `v0.2 pk88` or `v0.2 tnc2`. The version is the same
+such as `v0.2 pk88`, `v0.2 tnc2`, or `v0.2 pk232`. The version is the same
 `git describe --tags --always --dirty` string printed in the boot banner.
 
 Any other letter is answered with the unnumbered message

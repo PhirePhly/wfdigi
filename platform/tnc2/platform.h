@@ -3,6 +3,7 @@
 
 #define PLATFORM_NAME "tnc2"
 #define CONFIG_ADDR 0x8000u
+#define COMPILER_RAM 0x8100u
 #define ROM_CHECK_LEN 0x7FFEu
 /* The two SIO DTR-driven lamps display STA and CON. */
 #define HARDWARE_LAMP_MASK ((uint8_t)(LED_STA | LED_CON))

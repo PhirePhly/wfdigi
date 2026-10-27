@@ -77,11 +77,11 @@ def store_rom_checksum(bin_path: Path, image: dict[int, int]) -> int:
 def main() -> None:
     if len(sys.argv) != 7 or sys.argv[1] != "--platform":
         raise SystemExit(
-            "usage: check-layout.py --platform pk88|tnc2 "
+            "usage: check-layout.py --platform pk88|tnc2|pk232 "
             "firmware.ihx firmware.map version.h firmware.bin"
         )
     platform = sys.argv[2]
-    require(platform in ("pk88", "tnc2"), f"unknown platform {platform}")
+    require(platform in ("pk88", "tnc2", "pk232"), f"unknown platform {platform}")
     version = load_version(Path(sys.argv[5]))
     print(f"Whiskey Fox Digi {platform} - version {version.decode('ascii')}")
     image = load_ihx(Path(sys.argv[3]))
@@ -111,8 +111,9 @@ def main() -> None:
     require(b"ROM checksum: " in rom, "ROM checksum line missing from ROM")
     require(b"PASS\r\n" in rom and b"FAIL\r\n" in rom, "ROM checksum result missing from ROM")
     require(b"Cold boot...\r\n" in rom, "cold boot line missing from ROM")
-    require(re.search(r"00008000.*_g_config|_g_config.*00008000", map_text, re.IGNORECASE),
-            "g_config is not fixed at 0x8000")
+    config_at = "0000C000" if platform == "pk232" else "00008000"
+    require(re.search(rf"{config_at}.*_g_config|_g_config.*{config_at}", map_text, re.IGNORECASE),
+            f"g_config is not fixed at 0x{config_at}")
     if platform == "pk88":
         pclk = 4_915_200
         terminal_tc = pclk // (2 * 9600 * 16) - 2
@@ -125,6 +126,26 @@ def main() -> None:
         require(bytes((0x0C, radio_tc)) in rom,
                 "radio WR12 is not programmed for the 1200 baud DPLL clock")
         require(b"APWFDP" in rom, "PK-88 TNCID APWFDP missing")
+    elif platform == "pk232":
+        require(b"\xDB\xF8" not in rom, "PK-232 image contains the PK-88 watchdog strobe")
+        for port in (0x7C, 0x7D, 0x7E, 0x7F, 0xBF):
+            port_read = bytes((0xDB, port))
+            port_write = bytes((0xD3, port))
+            require(port_read in rom or port_write in rom,
+                    f"PK-232 port 0x{port:02X} is not referenced")
+        pclk = 2_457_600
+        terminal_tc = pclk // (2 * 9600 * 16) - 2
+        radio_tc = pclk // (2 * 1200 * 32) - 2
+        require(terminal_tc == 6, "9600 8N1 time constant changed")
+        require(radio_tc == 30, "1200 baud DPLL time constant changed")
+        require(b"\x4E\x20" in rom, "CIO 10 ms time constant 0x4E20 missing")
+        require(bytes((4, 0x20)) in rom, "PK-232 radio WR4 SDLC setup missing")
+        require(bytes((4, 0x44)) in rom, "PK-232 terminal WR4 async setup missing")
+        require(bytes((0x0C, terminal_tc)) in rom,
+                "terminal WR12 is not programmed for 9600 baud")
+        require(bytes((0x0C, radio_tc)) in rom,
+                "radio WR12 is not programmed for the 1200 baud DPLL clock")
+        require(b"APWFD3" in rom, "PK-232 TNCID APWFD3 missing")
     else:
         require(b"\xDB\xF8" not in rom, "TNC-2 image contains the PK-88 watchdog strobe")
         for port in (0xDC, 0xDD, 0xDE, 0xDF):

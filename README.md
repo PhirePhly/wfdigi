@@ -46,23 +46,31 @@ supported.
 
 ## Hardware targets
 
-The `pk88` target supports an unmodified AEA PK-88:
+Ports, clocks, and front-panel wiring for each board are in
+[platform/pk88/HARDWARE.md](platform/pk88/HARDWARE.md),
+[platform/tnc2/HARDWARE.md](platform/tnc2/HARDWARE.md), and
+[platform/pk232/HARDWARE.md](platform/pk232/HARDWARE.md).
 
-- Z80 at 4.9152 MHz
-- 32 KiB EPROM at `0x0000` and 32 KiB battery-backed SRAM at `0x8000`
-- Z8530 channel A (HDLC, 7910 Bell 202 modem) at `0xF2`/`0xF3`
-- Z8530 channel B (asynchronous RS-232 terminal) at `0xF0`/`0xF1`
-- Front-panel LED latch at `0xF4`, TX watchdog pet at `0xF8`
+The `pk88` target supports an unmodified AEA PK-88. The Z80 runs at 4.9152 MHz,
+with 32 KiB of EPROM and 32 KiB of battery-backed SRAM. A Z8530 SCC drives the
+HDLC radio channel, through a 7910 Bell 202 modem, and the asynchronous
+terminal. Front-panel lamps sit on an octal latch, and the firmware pets a TX
+watchdog while the radio is keyed.
 
-The `tnc2` target supports the standard TNC-2 layout:
+The `tnc2` target supports the standard TNC-2 layout. A Z80 SIO/0 drives the
+HDLC radio channel and the asynchronous terminal from external clocks. There
+is no software-serviced TX watchdog. The STA output lights after a
+successfully decoded packet, and the CON output lights while a packet is in
+the viscous digipeater queue.
 
-- Z80 SIO/0 channel A (HDLC radio) at `0xDC`/`0xDD`
-- Z80 SIO/0 channel B (asynchronous terminal) at `0xDE`/`0xDF`
-- External radio and terminal clocks, 32 KiB ROM and 32 KiB RAM
-- Channel-B sync transitions provide a 600 Hz timer interrupt
-- No software-serviced TX watchdog
-- The STA output lights after a successfully decoded packet
-- The CON output lights while a packet is in the viscous digipeater queue
+The `pk232` target supports an AEA PK-232. The Z80 and the CIO run at 4 MHz,
+with 32 KiB of EPROM and 16 KiB of battery-backed SRAM at `0xC000`. A Z8530
+SCC, clocked separately at 2.4576 MHz, drives the HDLC radio channel and the
+asynchronous terminal. A Z8536 CIO drives the STA,
+CON, MULT, and SEND lamps, and its counter/timer 3 supplies the 10 ms tick.
+Radio PTT is the SCC's channel A `/RTS` pin, and the firmware pets the TX
+watchdog on channel A `/DTR` while the radio is keyed. The configuration page is at
+`0xC000`. The image uses TNCID `APWFD3`.
 
 The PK-88 terminal port is fixed at 9600 baud, 8 data bits, no parity, and one stop
 bit. There is no autobaud detection. The radio channel is initialized for
@@ -82,12 +90,13 @@ port baud rate, but digipeater logic and functionality is the same.
 make
 ```
 
-The default `make` builds and validates both platforms. `make pk88` and
-`make tnc2` build one platform. Final products are placed in `build/`:
+The default `make` builds and validates every platform. `make pk88`,
+`make tnc2`, and `make pk232` build one platform. Final products are placed in `build/`:
 
 - `wfdigi-pk88.bin` — PK-88 32 KiB ROM image
 - `wfdigi-tnc2.bin` — TNC-2 32 KiB ROM image
-- `pk88/` and `tnc2/` — per-platform Intel HEX, map, and object files
+- `wfdigi-pk232.bin` — PK-232 32 KiB ROM image
+- `pk88/`, `tnc2/`, and `pk232/` — per-platform Intel HEX, map, and object files
 
 The final two ROM bytes hold a CRC-16 over `0x0000`–`0x7FFD`. `make` rejects a
 ROM that runs into RAM at `0x8000`, a reset vector other than
@@ -101,8 +110,8 @@ It does not need SDCC or a Z80 to run the tests.
 
 ## Firmware organization
 
-- `platform/pk88/`, `platform/tnc2/`: target startup, controller setup, I/O,
-  lamps, PTT, watchdog behavior, and TNCID
+- `platform/pk88/`, `platform/tnc2/`, `platform/pk232/`: target startup, controller setup, lamps,
+  PTT, watchdog behavior, TNCID, and that board's `HARDWARE.md`
 - `src/isr_stubs.s`: shared interrupt entry/exit stubs
 - `src/lamps.c`: which front-panel lamps are lit on each service pass
 - `src/serial.c`: terminal I/O, with a receive interrupt and RTS flow control
@@ -116,18 +125,21 @@ It does not need SDCC or a Z80 to run the tests.
 - `src/beacon.c`: APRS position beacon
 - `src/telemetry.c`: 10-minute packet counts and telemetry definitions every four hours
 - `src/timer.c`: shared 10 ms countdown timers, divided from each platform's
-  channel-B timer interrupt rate
+  timer interrupt rate
 - `src/cli.c`: callsign line editor. SSID 0 is omitted from the prompt
 - `include/config.h`: cold-boot defaults. Edit this file and run `make`
-- `src/config.c`: range checks and the SRAM image at `0x8000`
+- `src/config.c`: range checks and the SRAM image (`0x8000` on PK-88 and TNC-2,
+  `0xC000` on PK-232)
 - `src/main.c`: boot banner, lamp test, and the service loop
 - `src/interrupts.c`: mode-2 handlers. The radio channel interrupts for HDLC
   receive and transmit. The terminal channel interrupts on each received
-  character and on each `/SYNCB` edge
+  character. PK-88 and TNC-2 also take the tick from the terminal channel's
+  sync edge. PK-232 takes it from the CIO timer
 
 ## What the current ROM does
 
-1. Program `build/wfdigi-pk88.bin` or `build/wfdigi-tnc2.bin` into a 32 KiB
+1. Program `build/wfdigi-pk88.bin`, `build/wfdigi-tnc2.bin`, or
+   `build/wfdigi-pk232.bin` into a 32 KiB
    EPROM and cold-reset the matching TNC.
 2. A terminal set to 9600 8N1 receives:
 
@@ -140,14 +152,14 @@ It does not need SDCC or a Z80 to run the tests.
 
    `<git-describe>` is the `git describe --tags --always --dirty` string from the
    tree that built the ROM. The same text is the `wfdigi_version` string.
-   `<platform>` is `pk88` or `tnc2`, the `wfdigi_platform` string.
+   `<platform>` is `pk88`, `tnc2`, or `pk232`, the `wfdigi_platform` string.
    The checksum is the CRC-16 of `0x0000` through `0x7FFD`. A mismatch prints
    `ROM checksum: FAIL` and the firmware still boots.
 
    A later reset with a matching configuration CRC prints `Warm boot...` instead
    and keeps the settings entered at the prompt.
 
-3. Cold boot copies the defaults from `include/config.h` into the battery SRAM image at `0x8000`.
+3. Cold boot copies the defaults from `include/config.h` into the battery SRAM image.
    Each value is range-checked as it is stored. A value outside its limits is
    left clear and reported as `Bad config: NAME`. The image is marked valid
    only when every parameter passes. A CRC-16 is then stored in the next two
@@ -203,8 +215,8 @@ At the callsign `>` prompt, a config name alone prints the value stored in SRAM.
 setting and is an effective way to take a backup of the full digipeater config.
 `HELP` prints where to read the documentation. `ENGSTAT` prints
 low level diagnostics counters of the wfdigi packet engine. `SENDRAW` queues
-one UI frame from `MYCALL` to the platform TNCID (`APWFDP` on PK-88 or
-`APWFD2` on TNC-2), via the first `BPATH` entry when that
+one UI frame from `MYCALL` to the platform TNCID (`APWFDP` on PK-88,
+`APWFD2` on TNC-2, or `APWFD3` on PK-232), via the first `BPATH` entry when that
 entry is a callsign.
 `REBOOT`
 starts the firmware over and keeps the stored settings. `RESET` clears the

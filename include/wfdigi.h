@@ -152,8 +152,8 @@ typedef struct {
 } DigiConfig;
 
 _Static_assert(sizeof(DigiConfig) <= 255u, "config image must fit in one clear loop");
-_Static_assert(CONFIG_ADDR + sizeof(DigiConfig) + 2u <= 0x8100u,
-               "config image and CRC overlap compiler RAM at 0x8100");
+_Static_assert(CONFIG_ADDR + sizeof(DigiConfig) + 2u <= COMPILER_RAM,
+               "config image and CRC overlap compiler RAM");
 
 extern DigiConfig __at (CONFIG_ADDR) g_config;
 
