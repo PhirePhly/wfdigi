@@ -6,7 +6,6 @@
  * received frame.
  */
 #define FRAME_MAX 128u
-#define ADDRESSEE_LEN 9u
 #define MSG_ID_MAX 5u
 /* Longest APRS message text, after the addressee. */
 #define MSG_TEXT_MAX 67u
@@ -30,15 +29,6 @@ static bool call_blank(const uint8_t *call)
     return true;
 }
 
-static bool alnum(uint8_t c)
-{
-    if (c >= (uint8_t)'0' && c <= (uint8_t)'9') {
-        return true;
-    }
-    c = letter_to_upper(c);
-    return c >= (uint8_t)'A' && c <= (uint8_t)'Z';
-}
-
 static void encode_call(uint8_t *dest, const uint8_t *call, uint8_t ssid, uint8_t flags)
 {
     uint8_t i;
@@ -49,40 +39,12 @@ static void encode_call(uint8_t *dest, const uint8_t *call, uint8_t ssid, uint8_
     dest[6] = (uint8_t)(0x60u | (uint8_t)((ssid & 0x0Fu) << 1) | flags);
 }
 
-/* :CALLSIGN : uses nine characters. SSID 0 is omitted. */
-static void format_addressee(const uint8_t *call, uint8_t ssid, uint8_t dest[ADDRESSEE_LEN])
-{
-    uint8_t n = 0u;
-    uint8_t i;
-
-    for (i = 0u; i < ADDRESSEE_LEN; ++i) {
-        dest[i] = (uint8_t)' ';
-    }
-    for (i = 0u; i < CALLSIGN_LEN && call[i] != (uint8_t)' ' && n < ADDRESSEE_LEN; ++i) {
-        dest[n] = letter_to_upper(call[i]);
-        ++n;
-    }
-    if (ssid == 0u || n >= ADDRESSEE_LEN) {
-        return;
-    }
-    dest[n] = (uint8_t)'-';
-    ++n;
-    if (ssid >= 10u && n < ADDRESSEE_LEN) {
-        dest[n] = (uint8_t)'1';
-        ++n;
-        ssid = (uint8_t)(ssid - 10u);
-    }
-    if (n < ADDRESSEE_LEN) {
-        dest[n] = (uint8_t)('0' + ssid);
-    }
-}
-
-static bool same_addressee(const uint8_t *got, const uint8_t *want)
+static bool same_addressee(const uint8_t *got, const tnc2_callsign *want)
 {
     uint8_t i;
 
-    for (i = 0u; i < ADDRESSEE_LEN; ++i) {
-        if (letter_to_upper(got[i]) != want[i]) {
+    for (i = 0u; i < TNC2_CALLSIGN_LEN; ++i) {
+        if (letter_to_upper(got[i]) != want->text[i]) {
             return false;
         }
     }
@@ -91,10 +53,10 @@ static bool same_addressee(const uint8_t *got, const uint8_t *want)
 
 static bool mine(const uint8_t *addressee)
 {
-    uint8_t want[ADDRESSEE_LEN];
+    tnc2_callsign want;
 
-    format_addressee(g_config.mycall, g_config.mycall_ssid, want);
-    return same_addressee(addressee, want);
+    format_tnc2_callsign(&want, g_config.mycall, g_config.mycall_ssid, (uint8_t)' ');
+    return same_addressee(addressee, &want);
 }
 
 /* lit is the first word: it matches through the end of text or a space. */
@@ -137,7 +99,7 @@ static bool take_message_id(const uint8_t *text, uint16_t len, uint16_t *body_le
         return false;
     }
     for (msg_id_len = 0u; msg_id_len < n; ++msg_id_len) {
-        if (!alnum(text[(uint16_t)(at + 1u + msg_id_len)])) {
+        if (!is_alphanumeric(text[(uint16_t)(at + 1u + msg_id_len)])) {
             break;
         }
     }
@@ -246,18 +208,16 @@ static uint16_t begin_ui(void)
     return n;
 }
 
-static void send_reply(const uint8_t *to_call, uint8_t to_ssid, const uint8_t *text, uint8_t text_len)
+static void send_reply(const tnc2_callsign *to, const uint8_t *text, uint8_t text_len)
 {
-    uint8_t who[ADDRESSEE_LEN];
     uint16_t n;
     uint8_t i;
 
     n = begin_ui();
     frame[n] = (uint8_t)':';
     ++n;
-    format_addressee(to_call, to_ssid, who);
-    for (i = 0u; i < ADDRESSEE_LEN; ++i) {
-        frame[n] = who[i];
+    for (i = 0u; i < TNC2_CALLSIGN_LEN; ++i) {
+        frame[n] = to->text[i];
         ++n;
     }
     frame[n] = (uint8_t)':';
@@ -298,7 +258,7 @@ uint8_t messaging_send_raw(const char *info)
     return 0u;
 }
 
-static void send_ack(const uint8_t *to_call, uint8_t to_ssid, const uint8_t *id, uint8_t id_len)
+static void send_ack(const tnc2_callsign *to, const uint8_t *id, uint8_t id_len)
 {
     uint8_t text[3u + MSG_ID_MAX];
     uint8_t n = 0u;
@@ -314,10 +274,10 @@ static void send_ack(const uint8_t *to_call, uint8_t to_ssid, const uint8_t *id,
         text[n] = id[i];
         ++n;
     }
-    send_reply(to_call, to_ssid, text, n);
+    send_reply(to, text, n);
 }
 
-static void send_unsupported(const uint8_t *to_call, uint8_t to_ssid)
+static void send_unsupported(const tnc2_callsign *to)
 {
     static const char text[] = "ERR - query type unsupported";
     uint8_t i;
@@ -325,10 +285,10 @@ static void send_unsupported(const uint8_t *to_call, uint8_t to_ssid)
     for (i = 0u; i < (uint8_t)(sizeof text - 1u); ++i) {
         reply_pad[i] = (uint8_t)text[i];
     }
-    send_reply(to_call, to_ssid, reply_pad, (uint8_t)(sizeof text - 1u));
+    send_reply(to, reply_pad, (uint8_t)(sizeof text - 1u));
 }
 
-static void send_supported_queries(const uint8_t *to_call, uint8_t to_ssid)
+static void send_supported_queries(const tnc2_callsign *to)
 {
     static const char text[] = " ?APRSD ?APRSP ?APRSU ?APRSV";
     uint8_t i;
@@ -336,11 +296,11 @@ static void send_supported_queries(const uint8_t *to_call, uint8_t to_ssid)
     for (i = 0u; i < (uint8_t)(sizeof text - 1u); ++i) {
         reply_pad[i] = (uint8_t)text[i];
     }
-    send_reply(to_call, to_ssid, reply_pad, (uint8_t)(sizeof text - 1u));
+    send_reply(to, reply_pad, (uint8_t)(sizeof text - 1u));
 }
 
 /* The firmware version, a space, then the platform name, as in "v0.2 pk88". */
-static void send_version_string(const uint8_t *to_call, uint8_t to_ssid)
+static void send_version_string(const tnc2_callsign *to)
 {
     uint8_t n = 0u;
     uint8_t i = 0u;
@@ -360,13 +320,13 @@ static void send_version_string(const uint8_t *to_call, uint8_t to_ssid)
         ++n;
         ++i;
     }
-    send_reply(to_call, to_ssid, reply_pad, n);
+    send_reply(to, reply_pad, n);
 }
 
 /* Directs= and up to HEARD_PAGE stations, in the order they sit in the heard
  * table. A longer list continues in another message.
  */
-static void send_directs(const uint8_t *to_call, uint8_t to_ssid)
+static void send_directs(const tnc2_callsign *to)
 {
     static const char prefix[] = "Directs= ";
     const void *from = 0;
@@ -381,12 +341,12 @@ static void send_directs(const uint8_t *to_call, uint8_t to_ssid)
         }
         got = heard_list(reply_pad + n, (uint16_t)(MSG_TEXT_MAX - n), &from);
         n = (uint8_t)(n + got);
-        send_reply(to_call, to_ssid, reply_pad, n);
+        send_reply(to, reply_pad, n);
         ++pages;
     } while (from != 0 && pages < HEARD_SLOTS);
 }
 
-static void answer_directed(const uint8_t *from, uint8_t from_ssid, const uint8_t *text, uint16_t len)
+static void answer_directed(const tnc2_callsign *from, const uint8_t *text, uint16_t len)
 {
     const uint8_t *id = 0;
     uint8_t id_len = 0u;
@@ -394,17 +354,17 @@ static void answer_directed(const uint8_t *from, uint8_t from_ssid, const uint8_
     uint16_t body_len = len;
 
     if (take_message_id(text, len, &body_len, &id, &id_len)) {
-        send_ack(from, from_ssid, id, id_len);
+        send_ack(from, id, id_len);
     }
     if (!query_letter(text, body_len, &letter)) {
         return;
     }
     switch (letter) {
     case (uint8_t)'?':
-        send_supported_queries(from, from_ssid);
+        send_supported_queries(from);
         break;
     case (uint8_t)'D':
-        send_directs(from, from_ssid);
+        send_directs(from);
         break;
     case (uint8_t)'P':
         query_beacon();
@@ -413,20 +373,21 @@ static void answer_directed(const uint8_t *from, uint8_t from_ssid, const uint8_
         telemetry_send_definitions();
         break;
     case (uint8_t)'V':
-        send_version_string(from, from_ssid);
+        send_version_string(from);
         break;
     default:
-        send_unsupported(from, from_ssid);
+        send_unsupported(from);
         break;
     }
 }
 
-static bool ui_payload(const uint8_t *rx, uint16_t len, uint8_t from[CALLSIGN_LEN], uint8_t *from_ssid,
-                       const uint8_t **info, uint16_t *info_len)
+static bool ui_payload(const uint8_t *rx, uint16_t len, tnc2_callsign *from, const uint8_t **info,
+                       uint16_t *info_len)
 {
     uint16_t at = 0u;
     uint8_t n = 0u;
     uint8_t i;
+    uint8_t call[CALLSIGN_LEN];
     const uint8_t *src;
 
     if (rx == 0 || len < (uint16_t)(AX25_ADDR + AX25_ADDR + 2u)) {
@@ -449,74 +410,56 @@ static bool ui_payload(const uint8_t *rx, uint16_t len, uint8_t from[CALLSIGN_LE
     }
     src = rx + AX25_ADDR;
     for (i = 0u; i < CALLSIGN_LEN; ++i) {
-        from[i] = (uint8_t)(src[i] >> 1);
+        call[i] = (uint8_t)(src[i] >> 1);
     }
-    *from_ssid = (uint8_t)((src[6] >> 1) & 0x0Fu);
+    format_tnc2_callsign(from, call, (uint8_t)((src[6] >> 1) & 0x0Fu), (uint8_t)' ');
     *info = rx + (uint16_t)(at + 2u);
     *info_len = (uint16_t)(len - (uint16_t)(at + 2u));
     return true;
 }
 
-/* }CALL>DEST,PATH:payload. The originator replaces the AX.25 source. */
-static bool third_party(const uint8_t **info, uint16_t *info_len, uint8_t from[CALLSIGN_LEN], uint8_t *from_ssid)
+/* }CALL>DEST,PATH:payload. CALL is copied as TNC2 text and padded with spaces.
+ * The originator replaces the AX.25 source.
+ */
+static bool third_party(const uint8_t **info, uint16_t *info_len, tnc2_callsign *from)
 {
     const uint8_t *raw = *info;
     uint16_t len = *info_len;
-    uint16_t i = 1u;
-    uint8_t n = 0u;
-    uint8_t ssid = 0u;
+    uint16_t raw_index = 1u;
+    uint8_t n;
 
+    // Are we a third party message with a payload?
     if (len < 2u || raw[0] != (uint8_t)'}') {
         return false;
     }
-    for (n = 0u; n < CALLSIGN_LEN; ++n) {
-        from[n] = (uint8_t)' ';
+    // Clear the destination callsign.
+    for (n = 0u; n < TNC2_CALLSIGN_LEN; ++n) {
+        from->text[n] = (uint8_t)' ';
     }
+    // Copy the originator callsign.
     n = 0u;
-    while (i < len && alnum(raw[i]) && n < CALLSIGN_LEN) {
-        from[n] = letter_to_upper(raw[i]);
-        ++n;
-        ++i;
-    }
-    if (n == 0u) {
-        return false;
-    }
-    if (i < len && raw[i] == (uint8_t)'-') {
-        uint8_t digits = 0u;
-
-        ++i;
-        while (i < len && raw[i] >= (uint8_t)'0' && raw[i] <= (uint8_t)'9') {
-            ssid = (uint8_t)((uint8_t)(ssid * 10u) + (uint8_t)(raw[i] - (uint8_t)'0'));
-            ++digits;
-            ++i;
-            if (digits > 2u) {
-                return false;
-            }
-        }
-        if (digits == 0u || ssid > 15u) {
+    while (raw_index < len && raw[raw_index] != (uint8_t)'>') {
+        if (n == TNC2_CALLSIGN_LEN) {
             return false;
         }
+        from->text[n] = letter_to_upper(raw[raw_index]);
+        ++n;
+        ++raw_index;
     }
-    if (i >= len || raw[i] != (uint8_t)'>') {
+    // This is overly permissive allowing 1-2 character callsigns.
+    if (n == 0u || raw_index >= len) {
         return false;
     }
-    ++i;
-    while (i < len && raw[i] != (uint8_t)':' && raw[i] != (uint8_t)',') {
-        ++i;
+    // Scan to the third party payload
+    while (raw_index < len && raw[raw_index] != (uint8_t)':') {
+        ++raw_index;
     }
-    while (i < len && raw[i] == (uint8_t)',') {
-        ++i;
-        while (i < len && raw[i] != (uint8_t)':' && raw[i] != (uint8_t)',') {
-            ++i;
-        }
-    }
-    if (i >= len || raw[i] != (uint8_t)':') {
+    if (raw_index >= len || raw[raw_index] != (uint8_t)':') {
         return false;
     }
-    ++i;
-    *from_ssid = ssid;
-    *info = raw + i;
-    *info_len = (uint16_t)(len - i);
+    ++raw_index;
+    *info = raw + raw_index;
+    *info_len = (uint16_t)(len - raw_index);
     return true;
 }
 
@@ -524,31 +467,30 @@ static bool third_party(const uint8_t **info, uint16_t *info_len, uint8_t from[C
 // Returns false if the frame should still be considered for digipeating.
 bool process_frame_for_messaging(const uint8_t *rx, uint16_t len)
 {
-    uint8_t from[CALLSIGN_LEN];
-    uint8_t from_ssid = 0u;
+    tnc2_callsign from;
     const uint8_t *info;
     uint16_t info_len;
     bool wrapped;
 
-    if (!ui_payload(rx, len, from, &from_ssid, &info, &info_len)) {
+    if (!ui_payload(rx, len, &from, &info, &info_len)) {
         return false;
     }
     wrapped = info_len != 0u && info[0] == (uint8_t)'}';
-    if (wrapped && !third_party(&info, &info_len, from, &from_ssid)) {
+    if (wrapped && !third_party(&info, &info_len, &from)) {
         return false;
     }
     if (same_text(info, info_len, "?APRS?")) {
         general_query();
         return false;
     }
-    if (info_len < (uint16_t)(ADDRESSEE_LEN + 2u) || info[0] != (uint8_t)':' ||
-        info[ADDRESSEE_LEN + 1u] != (uint8_t)':') {
+    if (info_len < (uint16_t)(TNC2_CALLSIGN_LEN + 2u) || info[0] != (uint8_t)':' ||
+        info[TNC2_CALLSIGN_LEN + 1u] != (uint8_t)':') {
         return false;
     }
     if (!mine(info + 1u)) {
         return false;
     }
-    answer_directed(from, from_ssid, info + (uint16_t)(ADDRESSEE_LEN + 2u),
-                    (uint16_t)(info_len - (uint16_t)(ADDRESSEE_LEN + 2u)));
+    answer_directed(&from, info + (uint16_t)(TNC2_CALLSIGN_LEN + 2u),
+                    (uint16_t)(info_len - (uint16_t)(TNC2_CALLSIGN_LEN + 2u)));
     return true;
 }

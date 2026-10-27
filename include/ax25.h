@@ -4,6 +4,10 @@
 /* Six callsign characters, then the SSID byte. The SSID is 0 through 15. */
 #define CALLSIGN_LEN 6u
 #define SSID_MAX 15u
+/* TNC2 text form of an APRS callsign, including a hyphen and SSID.
+ * APRS-IS callsigns may use all nine characters and an alphanumeric SSID.
+ */
+#define TNC2_CALLSIGN_LEN 9u
 /* Config-only: match every SSID of a callsign. Not an on-air SSID value. */
 #define SSID_ANY 16u
 #define AX25_ADDR 7u

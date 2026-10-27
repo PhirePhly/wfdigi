@@ -81,23 +81,16 @@ static void print_hex_byte(uint8_t value)
 
 static void print_call(const uint8_t *raw)
 {
+    uint8_t call[CALLSIGN_LEN];
     uint8_t i;
-    uint8_t ssid;
+    tnc2_callsign shown;
 
-    for (i = 0u; i < 6u; ++i) {
-        uint8_t c = (uint8_t)((raw[i] >> 1) & 0x7Fu);
-        if (c != ' ') {
-            trace_char(c);
-        }
+    for (i = 0u; i < CALLSIGN_LEN; ++i) {
+        call[i] = (uint8_t)((raw[i] >> 1) & 0x7Fu);
     }
-    ssid = (uint8_t)((raw[6] >> 1) & 0x0Fu);
-    if (ssid != 0u) {
-        trace_char('-');
-        if (ssid >= 10u) {
-            trace_char('1');
-            ssid = (uint8_t)(ssid - 10u);
-        }
-        trace_char((uint8_t)('0' + ssid));
+    format_tnc2_callsign(&shown, call, (uint8_t)((raw[6] >> 1) & 0x0Fu), 0u);
+    for (i = 0u; i < TNC2_CALLSIGN_LEN && shown.text[i] != 0u; ++i) {
+        trace_char(shown.text[i]);
     }
 }
 

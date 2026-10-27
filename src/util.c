@@ -50,6 +50,44 @@ uint8_t letter_to_upper(uint8_t c)
     return c;
 }
 
+bool is_alphanumeric(uint8_t c)
+{
+    if (c >= (uint8_t)'0' && c <= (uint8_t)'9') {
+        return true;
+    }
+    c = letter_to_upper(c);
+    return c >= (uint8_t)'A' && c <= (uint8_t)'Z';
+}
+
+_Static_assert(TNC2_CALLSIGN_LEN >= CALLSIGN_LEN + 3u, "an AX.25 callsign and SSID fit in TNC2 text");
+
+void format_tnc2_callsign(tnc2_callsign *dest, const uint8_t *call, uint8_t ssid, uint8_t pad)
+{
+    uint8_t n = 0u;
+    uint8_t i;
+
+    for (i = 0u; i < TNC2_CALLSIGN_LEN; ++i) {
+        dest->text[i] = pad;
+    }
+    for (i = 0u; i < CALLSIGN_LEN && call[i] != (uint8_t)' ' && n < TNC2_CALLSIGN_LEN; ++i) {
+        dest->text[n] = letter_to_upper(call[i]);
+        ++n;
+    }
+    if (ssid == 0u || n >= TNC2_CALLSIGN_LEN) {
+        return;
+    }
+    dest->text[n] = (uint8_t)'-';
+    ++n;
+    if (ssid >= 10u && n < TNC2_CALLSIGN_LEN) {
+        dest->text[n] = (uint8_t)'1';
+        ++n;
+        ssid = (uint8_t)(ssid - 10u);
+    }
+    if (n < TNC2_CALLSIGN_LEN) {
+        dest->text[n] = (uint8_t)('0' + ssid);
+    }
+}
+
 /* The address callsign is each character shifted left by one. The SSID is
  * the low four bits of the shifted seventh byte.
  */

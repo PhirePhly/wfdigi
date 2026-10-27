@@ -1616,6 +1616,15 @@ static void test_messaging(void)
                "IGATE>APRS,WFDIGI*:}N0SRC>APRS::N0OTH    :Hello{1");
     check_keep("malformed third-party is digipeated", "N0SRC>APRS,WIDE1-1:}not-a-header",
                "N0SRC>APRS,WFDIGI*:}not-a-header");
+    check_keep("third-party alphanumeric ssid", "IGATE>APRS,WIDE1-1:}N0SRC-AP>APRS::WFDIGI   :Hello{8",
+               "WFDIGI>APWFDP*::N0SRC-AP :ack8");
+    check_keep("third-party callsign longer than ax.25", "IGATE>APRS,WIDE1-1:}STATION-1>APRS::WFDIGI   :Hello{4",
+               "WFDIGI>APWFDP*::STATION-1:ack4");
+    check_keep("third-party ssid above 15", "IGATE>APRS,WIDE1-1:}N0SRC-16>APRS::WFDIGI   :Hello{5",
+               "WFDIGI>APWFDP*::N0SRC-16 :ack5");
+    check_keep("third-party callsign is copied as written",
+               "IGATE>APRS,WIDE1-1:}N0SRC-0A>APRS::WFDIGI   :Hello{1",
+               "WFDIGI>APWFDP*::N0SRC-0A :ack1");
     arm_beacon(600u);
     random_draw[0] = 30u;
     random_count = 1u;

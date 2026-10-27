@@ -224,6 +224,20 @@ uint8_t format_u16(uint16_t value, uint8_t width, uint8_t *dest);
 void print_u16(uint16_t value);
 /* A lowercase letter becomes uppercase. Any other byte is returned unchanged. */
 uint8_t letter_to_upper(uint8_t c);
+/* True for an ASCII letter or decimal digit. */
+bool is_alphanumeric(uint8_t c);
+/* ASCII APRS callsign in TNC2 form. An AX.25 station fits in six characters
+ * plus a numeric SSID. An APRS-IS station may use the whole nine characters,
+ * and its SSID may be one or two alphanumeric characters.
+ */
+typedef struct {
+    uint8_t text[TNC2_CALLSIGN_LEN];
+} tnc2_callsign;
+/* Write an AX.25 callsign and SSID as TNC2 text. SSID 0 is omitted. pad fills
+ * the unused tail: a space in an APRS message, or 0 when the text is printed.
+ * A nine-character result fills dest and leaves no trailing NUL.
+ */
+void format_tnc2_callsign(tnc2_callsign *dest, const uint8_t *call, uint8_t ssid, uint8_t pad);
 /* 8-bit Pearson hash of len bytes at data. An empty range hashes to 0. */
 uint8_t pearson_hash(const uint8_t *data, uint16_t len);
 /* CRC-16/CCITT-FALSE: polynomial 0x1021, initial value 0xFFFF, no final XOR. */

@@ -136,33 +136,13 @@ static void start_frame(void)
 /* :CALLSIGN : with the callsign padded to nine characters. SSID 0 is omitted. */
 static void put_addressee(void)
 {
-    uint8_t raw[9];
-    uint8_t n = 0u;
+    tnc2_callsign who;
     uint8_t i;
-    uint8_t ssid = g_config.mycall_ssid;
 
-    for (i = 0u; i < 9u; ++i) {
-        raw[i] = (uint8_t)' ';
-    }
-    for (i = 0u; i < CALLSIGN_LEN && g_config.mycall[i] != (uint8_t)' ' && n < 9u; ++i) {
-        raw[n] = g_config.mycall[i];
-        ++n;
-    }
-    if (ssid != 0u && n < 9u) {
-        raw[n] = (uint8_t)'-';
-        ++n;
-        if (ssid >= 10u && n < 9u) {
-            raw[n] = (uint8_t)'1';
-            ++n;
-            ssid = (uint8_t)(ssid - 10u);
-        }
-        if (n < 9u) {
-            raw[n] = (uint8_t)('0' + ssid);
-        }
-    }
+    format_tnc2_callsign(&who, g_config.mycall, g_config.mycall_ssid, (uint8_t)' ');
     put_byte((uint8_t)':');
-    for (i = 0u; i < 9u; ++i) {
-        put_byte(raw[i]);
+    for (i = 0u; i < TNC2_CALLSIGN_LEN; ++i) {
+        put_byte(who.text[i]);
     }
     put_byte((uint8_t)':');
 }
