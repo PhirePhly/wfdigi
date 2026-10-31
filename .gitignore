@@ -55,3 +55,6 @@ $RECYCLE.BIN/
 .Trash-*
 .fuse_hidden*
 .nfs*
+
+# Local agent instructions; not part of the shipped firmware
+AGENTS.md

@@ -105,6 +105,88 @@ bool call_eq(const uint8_t *ax, const uint8_t *call, uint8_t ssid)
     return got == ssid;
 }
 
+/* Append one character to a formatter buffer, stopping at the capacity. */
+static void tnc2_header_char(uint8_t *out, uint16_t *len, uint16_t cap, char c)
+{
+    if (*len < cap) {
+        out[*len] = (uint8_t)c;
+        *len = (uint16_t)(*len + 1u);
+    }
+}
+
+/* Decode one 7-byte AX.25 address as TNC2 text and append it. */
+static void tnc2_header_call(const uint8_t *raw, uint8_t *out, uint16_t *len, uint16_t cap)
+{
+    uint8_t call[CALLSIGN_LEN];
+    uint8_t i;
+    tnc2_callsign shown;
+
+    for (i = 0u; i < CALLSIGN_LEN; ++i) {
+        call[i] = (uint8_t)((raw[i] >> 1) & 0x7Fu);
+    }
+    format_tnc2_callsign(&shown, call, (uint8_t)((raw[6] >> 1) & 0x0Fu), 0u);
+    for (i = 0u; i < TNC2_CALLSIGN_LEN && shown.text[i] != 0u; ++i) {
+        tnc2_header_char(out, len, cap, (char)shown.text[i]);
+    }
+}
+
+uint16_t format_tnc2_header(const uint8_t *frame, uint16_t frame_len, uint8_t *out, uint16_t out_len,
+                            uint16_t *info_off, uint8_t *ctl)
+{
+    uint16_t at[AX25_MAX_ADDRS];
+    uint16_t i = 0u;
+    uint16_t len = 0u;
+    uint8_t n = 0u;
+    uint8_t d;
+    uint8_t last_h = 0u;
+    bool saw_h = false;
+    uint16_t cap;
+
+    if (out == 0 || out_len < 1u) {
+        return 0u;
+    }
+    cap = (uint16_t)(out_len - 1u);
+
+    while (n < AX25_MAX_ADDRS && (uint16_t)(i + AX25_ADDR) <= frame_len) {
+        at[n] = i;
+        ++n;
+        i = (uint16_t)(i + AX25_ADDR);
+        if ((frame[i - 1u] & 0x01u) != 0u) {
+            break;
+        }
+    }
+    if (n < 2u || (frame[at[n - 1u] + 6u] & 0x01u) == 0u) {
+        out[0] = 0u;
+        return 0u;
+    }
+
+    tnc2_header_call(&frame[at[1]], out, &len, cap);
+    tnc2_header_char(out, &len, cap, '>');
+    tnc2_header_call(&frame[at[0]], out, &len, cap);
+    for (d = 2u; d < n; ++d) {
+        if ((frame[at[d] + 6u] & 0x80u) != 0u) {
+            last_h = d;
+            saw_h = true;
+        }
+    }
+    for (d = 2u; d < n; ++d) {
+        tnc2_header_char(out, &len, cap, ',');
+        tnc2_header_call(&frame[at[d]], out, &len, cap);
+        if (saw_h && d == last_h) {
+            tnc2_header_char(out, &len, cap, '*');
+        }
+    }
+    out[len] = 0u;
+
+    if (info_off != 0) {
+        *info_off = i;
+    }
+    if (ctl != 0) {
+        *ctl = (uint8_t)((i < frame_len) ? frame[i] : 0u);
+    }
+    return len;
+}
+
 /* Permutation of 0..255. The Pearson step is table[hash XOR byte], so the
  * order of the bytes changes the result.
  */

@@ -79,72 +79,41 @@ static void print_hex_byte(uint8_t value)
     trace_char((uint8_t)(lo < 10u ? '0' + lo : 'A' + (lo - 10u)));
 }
 
-static void print_call(const uint8_t *raw)
-{
-    uint8_t call[CALLSIGN_LEN];
-    uint8_t i;
-    tnc2_callsign shown;
-
-    for (i = 0u; i < CALLSIGN_LEN; ++i) {
-        call[i] = (uint8_t)((raw[i] >> 1) & 0x7Fu);
-    }
-    format_tnc2_callsign(&shown, call, (uint8_t)((raw[6] >> 1) & 0x0Fu), 0u);
-    for (i = 0u; i < TNC2_CALLSIGN_LEN && shown.text[i] != 0u; ++i) {
-        trace_char(shown.text[i]);
-    }
-}
+/* A full TNC2 header: one call (up to TNC2_CALLSIGN_LEN) plus one separator
+ * per address, the one repeating-hop star, and a NUL. */
+#define TNC2_HEADER_MAX (AX25_MAX_ADDRS * (TNC2_CALLSIGN_LEN + 1u) + 2u)
 
 static bool print_tnc2(const uint8_t *frame, uint16_t len)
 {
-    uint16_t at[AX25_MAX_ADDRS];
-    uint8_t n = 0u;
-    uint16_t i = 0u;
-    uint8_t d;
-    uint8_t last_h = 0u;
-    bool saw_h = false;
+    /* Static so the header staging does not grow the Z80 stack frame. */
+    static uint8_t header[TNC2_HEADER_MAX];
+    uint16_t n;
+    uint16_t info_off;
     uint8_t ctl;
+    uint16_t i;
+    uint8_t c;
 
-    while (n < AX25_MAX_ADDRS && (uint16_t)(i + AX25_ADDR) <= len) {
-        at[n] = i;
-        ++n;
-        i = (uint16_t)(i + AX25_ADDR);
-        if ((frame[i - 1u] & 0x01u) != 0u) {
-            break;
-        }
-    }
-    if (n < 2u || (frame[at[n - 1u] + 6u] & 0x01u) == 0u) {
+    n = format_tnc2_header(frame, len, header, (uint16_t)(sizeof header), &info_off, &ctl);
+    if (n == 0u) {
         return false;
     }
-    print_call(&frame[at[1]]);
-    trace_char('>');
-    print_call(&frame[at[0]]);
-    for (d = 2u; d < n; ++d) {
-        if ((frame[at[d] + 6u] & 0x80u) != 0u) {
-            last_h = d;
-            saw_h = true;
+    for (i = 0u; i < n; ++i) {
+        trace_char(header[i]);
+        if (trace_shed != 0u) {
+            return true;
         }
     }
-    for (d = 2u; d < n; ++d) {
-        trace_char(',');
-        print_call(&frame[at[d]]);
-        if (saw_h && d == last_h) {
-            trace_char('*');
-        }
-    }
-    if (i >= len) {
+    if (info_off >= len) {
         return true;
     }
-    ctl = frame[i];
-    ++i;
     trace_char(':');
+    i = (uint16_t)(info_off + 1u);
     if (((ctl & 0x01u) == 0u) || ((ctl & 0xEFu) == AX25_UI)) {
         if (i < len) {
             ++i;
         }
     }
     while (i < len) {
-        uint8_t c;
-
         if (trace_shed != 0u) {
             return true;
         }

@@ -51,6 +51,8 @@ typedef uint8_t bool;
 #define NNALIAS_LEN 5u
 #define BTEXT_LEN 64u
 #define BPATH_SLOTS 4u
+/* Longest quashed-path status text, including the ">Quashed path: " prefix. */
+#define STATUS_MAX 128u
 /* Stations whose source or used digipeater hop causes a received frame to be dropped. */
 #define DROP_COUNT 10u
 
@@ -238,6 +240,16 @@ typedef struct {
  * A nine-character result fills dest and leaves no trailing NUL.
  */
 void format_tnc2_callsign(tnc2_callsign *dest, const uint8_t *call, uint8_t ssid, uint8_t pad);
+/* Format the full TNC2 header "SRC>DEST,via1,via2" of an AX.25 frame, marking
+ * the one repeated digipeater with a trailing '*'. Writes at most out_len-1
+ * characters into out, then a NUL (out_len must be at least one). Returns how
+ * many characters were written, 0 when the frame has no source and destination
+ * pair, in which case out is untouched. When info_off and ctl are not null they
+ * receive the offset of the control byte after the address block and that
+ * control byte, so a caller can then format the information field.
+ */
+uint16_t format_tnc2_header(const uint8_t *frame, uint16_t frame_len, uint8_t *out, uint16_t out_len,
+                            uint16_t *info_off, uint8_t *ctl);
 /* 8-bit Pearson hash of len bytes at data. An empty range hashes to 0. */
 uint8_t pearson_hash(const uint8_t *data, uint16_t len);
 /* CRC-16/CCITT-FALSE: polynomial 0x1021, initial value 0xFFFF, no final XOR. */
@@ -427,8 +439,26 @@ uint8_t prng_u8(void);
 uint16_t beacon_next_wait(void);
 /* The beacon path cycle starts at the first path. */
 void beacon_path_reset(void);
-/* Build the position beacon and hand it to the modem. */
+/* Build the position beacon and hand it to the modem. When a status is
+ * pending it is sent as a second packet on the same path slot. Used by the
+ * beacon timer, BSEND, and ?APRSP.
+ */
 bool beacon_send(void);
+/* Send and clear a pending status as its own packet, on the current path slot.
+ * No position beacon, no change to the beacon countdown, and it does not
+ * advance the BPATH cycle. ?APRSS uses this. Returns false, sending nothing,
+ * when there is no status to report.
+ */
+bool beacon_send_status(void);
+/* Record a quashed-path status to send with the next beacon or on ?APRSS.
+ * Overwrites any pending status, so only the last quashed path is reported.
+ */
+void beacon_status_set(const uint8_t *text);
+/* Clear any pending quashed-path status and reset the beacon path cycle. The
+ * SRAM is not zeroed at boot, so call this in firmware_boot before the first
+ * beacon. Not for use when reconfiguring the beacon path.
+ */
+void beacon_init(void);
 
 /* Count one CRC-good received frame. The count runs with telemetry off. */
 void telemetry_note_rx(void);

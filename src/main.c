@@ -69,7 +69,10 @@ void firmware_boot(void)
     rom_checksum_verify();
     serial_puts(rom_checksum_pass ? "PASS\r\n" : "FAIL\r\n");
     config_boot();
-    beacon_path_reset();
+    /* Clears the pending quashed-path status (uninitialized SRAM) and resets
+     * the beacon path cycle before the first beacon is sent.
+     */
+    beacon_init();
     messaging_init();
     heard_init();
     timer_init();

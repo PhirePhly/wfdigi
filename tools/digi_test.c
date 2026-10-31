@@ -35,6 +35,9 @@ static uint8_t random_at;
 static int passed;
 static int failed;
 static int beacon_now_count;
+/* A quashed-path status awaiting a beacon or ?APRSS. set by beacon_status_set. */
+static bool status_pending;
+static int status_send_count;
 static int tel_def_count;
 static uint8_t query_cool_left;
 static bool beacon_accelerated;
@@ -77,7 +80,22 @@ void serial_putc(uint8_t byte)
 
 bool timer_beacon_now(void)
 {
+    /* beacon_send sends the position and, when one is pending, a status too. */
     ++beacon_now_count;
+    if (status_pending) {
+        status_pending = false;
+        ++status_send_count;
+    }
+    return true;
+}
+
+bool beacon_send_status(void)
+{
+    if (!status_pending) {
+        return false;
+    }
+    status_pending = false;
+    ++status_send_count;
     return true;
 }
 
@@ -179,6 +197,12 @@ void logging_frame(char kind, const uint8_t *frame, uint16_t len)
     }
 }
 
+void beacon_status_set(const uint8_t *text)
+{
+    (void)text;
+    status_pending = true;
+}
+
 static void blank(uint8_t *call)
 {
     uint8_t i;
@@ -231,6 +255,8 @@ static void setup(void)
     beacon_accelerated = false;
     beacon_left = 0u;
     beacon_now_count = 0;
+    status_pending = false;
+    status_send_count = 0;
     tel_def_count = 0;
     pktq_init();
     tx_count = 0;
@@ -655,6 +681,31 @@ static void expect_beacon(const char *name, int want)
 
     if (beacon_now_count != want) {
         snprintf(detail, sizeof detail, "beacon calls %d, want %d", beacon_now_count, want);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
+}
+
+static void expect_status(const char *name, int want)
+{
+    char detail[80];
+
+    if (status_send_count != want) {
+        snprintf(detail, sizeof detail, "status sends %d, want %d", status_send_count, want);
+        fail(name, detail);
+        return;
+    }
+    ++passed;
+}
+
+static void expect_status_pending(const char *name, bool want)
+{
+    char detail[80];
+
+    if (status_pending != want) {
+        snprintf(detail, sizeof detail, "status pending %u, want %u",
+                 (unsigned)status_pending, (unsigned)want);
         fail(name, detail);
         return;
     }
@@ -1569,8 +1620,15 @@ static void test_messaging(void)
     expect_beacon("only a single query letter beacons", 2);
 
     setup();
+    beacon_status_set((const uint8_t *)">Quashed path: N0SRC>APRS,WIDE2-3*");
+    check_keep("position query carries a pending status", "N0SRC>APRS::WFDIGI   :?APRSP", 0);
+    expect_beacon("position query with a pending status beacons", 1);
+    expect_status("position query also sends the pending status", 1);
+    expect_status_pending("position query clears the pending status", false);
+
+    setup();
     check_keep("directed supported query list", "N0SRC>APRS::WFDIGI   :?APRS?",
-               "WFDIGI>APWFDP*::N0SRC    : ?APRSD ?APRSP ?APRSU ?APRSV");
+               "WFDIGI>APWFDP*::N0SRC    : ?APRSD ?APRSP ?APRSS ?APRSU ?APRSV");
     expect_beacon("directed supported query list does not beacon", 0);
 
     setup();
@@ -1596,11 +1654,22 @@ static void test_messaging(void)
                "WFDIGI>APWFDP*::N0SRC    :ack5");
     expect_tel_defs("numbered telemetry definition query sends the definitions", 1);
 
+    /* ?APRSS reports the pending quashed-path status. It sends no APRS text
+     * reply and no position beacon, and leaves the beacon countdown alone. */
     setup();
-    check_keep("unsupported query", "N0SRC>APRS::WFDIGI   :?APRSS",
-               "WFDIGI>APWFDP*::N0SRC    :ERR - query type unsupported");
-    expect_beacon("unsupported query does not beacon", 0);
-    check_keep("unsupported query echo", "N0SRC>APRS::WFDIGI   :?APRSS", 0);
+    check_keep("status query with no status", "N0SRC>APRS::WFDIGI   :?APRSS", 0);
+    expect_status("status query with no status sends nothing", 0);
+    expect_beacon("status query sends no beacon", 0);
+    expect_status_pending("status query with no status leaves nothing pending", false);
+
+    setup();
+    beacon_status_set((const uint8_t *)">Quashed path: N0SRC>APRS,WIDE2-3*");
+    check_keep("status query reports the pending status", "N0SRC>APRS::WFDIGI   :?APRSS", 0);
+    expect_status("status query sends the pending status", 1);
+    expect_status_pending("status query clears the pending status", false);
+    expect_beacon("status query sends no position beacon", 0);
+
+    setup();
     check_keep("unsupported query with an argument", "N0OTH>APRS::WFDIGI   :?APRSH N0ZZZ",
                "WFDIGI>APWFDP*::N0OTH    :ERR - query type unsupported");
     setup();

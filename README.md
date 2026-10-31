@@ -26,7 +26,7 @@ interlock prevents transmission.
 
 * Proportional pathing so location beacons alternate between 1-4 different path settings
 
-* Max Hop policy enforcement so abusive WIDE7-7 paths are quashed but still digipeated once
+* Max Hop policy enforcement so abusive WIDE7-7 paths are quashed but still digipeated once, with the quashed path recorded and reported in a beacon status and available on demand via the `?APRSS` query
 
 * Direct-Only alias digipeating so as a fill-in digipeater we only digipeat packets with zero used VIA hops reagrdless of what alias users specify in their path. This relieves us from relying on every end user correctly using paths like `WIDE1-1,WIDE2-1` to enable low-level fill-in digipeaters.
 
@@ -36,8 +36,9 @@ interlock prevents transmission.
 
 * APRS messages addressed to `MYCALL` are acknowledged.
 General `?APRS?` queries, directed `?APRS?` capability queries, `?APRSD`
-heard-direct queries, `?APRSP` position queries, `?APRSU` telemetry definition
-queries, and `?APRSV` version queries are supported.
+heard-direct queries, `?APRSP` position queries, `?APRSS` status queries,
+`?APRSU` telemetry definition queries, and `?APRSV` version queries are
+supported.
 
 * `DROPLIST` supporting 10 different station or callsigns with SSID wildcard supported to enable traffic engineering to drop known problematic stations or specific out-of-area digipeaters from being picked up and fed into the local network.
 
@@ -243,16 +244,25 @@ when `MAXHOPS` is 2. When the path already
 holds eight digipeaters, `MYCALL` replaces the last one. A path with no
 matching address is left alone.
 
+When a path is quashed for any reason, the path as received is also recorded
+and reported with the next beacon (or on a `?APRSS` query) as a
+`>Quashed path:` status showing the full header of the incoming frame; only
+the last quashed path is kept until it is sent.
+
 An APRS message whose addressee is `MYCALL` is answered and is not digipeated.
 The addressee is nine characters, SSID 0 is omitted, and letter case does not
 matter. A numbered message, whose text ends in `{` and one to five letters or
 digits, is acknowledged with `ack` and that number before any other reply.
 The reply is a UI frame from `MYCALL` to the platform TNCID, via the first `BPATH`
 entry when that entry is a callsign, and it does not advance the beacon path.
-A directed `?APRS?` answers with ` ?APRSD ?APRSP ?APRSU ?APRSV`.
+A directed `?APRS?` answers with ` ?APRSD ?APRSP ?APRSS ?APRSU ?APRSV`.
 `?APRSD` answers with one or more `Directs=` messages listing the stations
 heard directly in the last eight hours, five per message.
-`?APRSP` queues the normal position beacon, at most once every 30 seconds.
+`?APRSP` queues the normal position beacon, and carries a pending
+quashed-path status when one is set, at most once every 30 seconds.
+`?APRSS` reports the pending quashed-path status with no position beacon,
+cleared the moment it is sent, without restarting the countdown or advancing
+the BPATH cycle.
 `?APRSU` queues the four telemetry definition messages at once.
 `?APRSV` answers with the firmware version and platform, such as
 `v0.2 pk88`. Any other

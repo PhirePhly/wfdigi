@@ -290,7 +290,7 @@ static void send_unsupported(const tnc2_callsign *to)
 
 static void send_supported_queries(const tnc2_callsign *to)
 {
-    static const char text[] = " ?APRSD ?APRSP ?APRSU ?APRSV";
+    static const char text[] = " ?APRSD ?APRSP ?APRSS ?APRSU ?APRSV";
     uint8_t i;
 
     for (i = 0u; i < (uint8_t)(sizeof text - 1u); ++i) {
@@ -368,6 +368,9 @@ static void answer_directed(const tnc2_callsign *from, const uint8_t *text, uint
         break;
     case (uint8_t)'P':
         query_beacon();
+        break;
+    case (uint8_t)'S':
+        (void)beacon_send_status();
         break;
     case (uint8_t)'U':
         telemetry_send_definitions();

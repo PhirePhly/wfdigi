@@ -77,8 +77,10 @@ The interval is reduced by a random 0-15 seconds on every beacon interval
 as to introduce some entropy into the local RF network and avoid undesirable
 synchronization issues.
 
-Every time a beacon is sent, one of the path options from `BPATH` is used, and
-an internal counter is incremented to use the next option on the next beacon.
+Every time a position beacon is sent — the periodic beacon, `BSEND`, or a
+`?APRSP` query — one of the path options from `BPATH` is used, and an internal
+counter is incremented to use the next option on the next beacon. A status
+beacon from a `?APRSS` query does not advance that counter.
 
 ## BPATH
 
@@ -99,9 +101,10 @@ used by the APRS messaging system to send APRS message `ack` packets.
 ## BSEND
 
 Queues a beacon immediately, the same way the beacon timer does when its
-countdown reaches zero. `BSEND` takes no value; extra text prints `Huh?`. It
-sends even when `BEACON` is 0. After the frame is queued, the countdown
-starts over from the current interval.
+countdown reaches zero: the position beacon and, when a quashed-path status is
+pending, that status as well, which is then cleared. `BSEND` takes no value;
+extra text prints `Huh?`. It sends even when `BEACON` is 0. After the frame is
+queued, the countdown starts over from the current interval.
 
 ## BTEXT
 
@@ -318,6 +321,13 @@ replaces the last one. A ninth address is not added.
 A path that already holds eight digipeaters cannot grow, so a reduced n-N
 that would need another address is not sent.
 
+When a path is quashed for any reason — exceeding `MAXHOPS` or carrying an
+invalid n-N — the path exactly as received is also recorded and reported with
+the next position beacon, or on a directed `?APRSS` query, as a
+`>Quashed path:` status showing the full header of the incoming frame. Only
+the last quashed path is kept until it is sent, and that status is cleared
+once it has been reported.
+
 ## MYCALL
 
 This station's AX.25 address. Enter `CALL` or `CALL-SSID`. The callsign is
@@ -369,8 +379,9 @@ On the air, the callsign is the prefix plus one digit N from 1 to 7, and the
 SSID is the remaining hop count n, with n from 1 through N. `WIDE` matches
 `WIDE2-2` and `WIDE2-1`. It does not match a bare `WIDE`. An SSID above n,
 such as `WIDE1-2`, is invalid and quashed in place without taking a hop:
-the address stays `WIDE1-2*`, every digipeater is marked repeated, and 
-`MYCALL*` is appended. That quash does not depend on `MAXHOPS`.
+the address stays `WIDE1-2*`, every digipeater is marked repeated, and
+`MYCALL*` is appended. As with any other quash, this path is also recorded
+and reported as a `>Quashed path:` status. That quash does not depend on `MAXHOPS`.
 
 ## PPERSIST
 
@@ -547,8 +558,8 @@ A directed query is a message whose text is `?APRS` followed by `?` or one
 letter `A`–`Z`. The next character is the end of the text or a space. More
 text may follow the space.
 
-A directed `?APRS?` answers with ` ?APRSD ?APRSP ?APRSU ?APRSV`. It does not
-queue a beacon or a definition.
+A directed `?APRS?` answers with ` ?APRSD ?APRSP ?APRSS ?APRSU ?APRSV`. It
+does not queue a beacon or a definition.
 
 `?APRSD` answers with one or more messages. Each is `Directs=` and up to five
 stations heard directly in the last eight hours, in the order they were first
@@ -564,12 +575,18 @@ new station takes its place. Once an hour, entries older than eight hours are cl
 heard, the reply is `Directs= `.
 
 `?APRSP` queues the same position beacon as `BEACON` and starts that countdown
-over. Another position query, from any station, does not queue a second beacon
-until 30 seconds have passed. A numbered query is still acknowledged during
-that wait, and an unsupported query is still answered. A periodic beacon does
-not start or reset the wait. If the transmit queue cannot take the beacon, the
-wait is not started and the beacon countdown stays at zero so the next second
-tries again while `BEACON` is non-zero.
+over. When a quashed-path status is pending it is sent with the position
+beacon and cleared. Another position query, from any station, does not queue a
+second beacon until 30 seconds have passed. A numbered query is still
+acknowledged during that wait, and an unsupported query is still answered. A
+periodic beacon does not start or reset the wait. If the transmit queue cannot
+take the beacon, the wait is not started and the beacon countdown stays at zero
+so the next second tries again while `BEACON` is non-zero.
+
+`?APRSS` reports the pending quashed-path status. It sends only a status
+beacon, with no position beacon, and does not start or reset the beacon
+countdown or advance the BPATH cycle. The status is cleared once it is sent.
+When there is no pending status it answers nothing and leaves none pending.
 
 `?APRSU` queues all four telemetry definition messages at once, in the order
 `BITS`, `EQNS`, `PARM`, `UNIT`. A copy of one of those messages that is still

@@ -324,6 +324,31 @@ static bool path_nn_invalid(uint8_t vias)
     return false;
 }
 
+/* Build the ">Quashed path: SRC>DEST,via1,via2,..." status from the received
+ * frame and queue it as a pending beacon status. The header uses the same
+ * shared formatter as the trace log, so both read the same way. Only the last
+ * quashed path is kept by beacon_status_set.
+ */
+static void report_quashed_path(void)
+{
+    uint8_t status[STATUS_MAX];
+    static const char prefix[] = ">Quashed path: ";
+    uint16_t slen = 0u;
+    uint8_t k;
+
+    for (k = 0u; prefix[k] != '\0' && slen < (uint16_t)(STATUS_MAX - 1u); ++k) {
+        status[slen] = (uint8_t)prefix[k];
+        ++slen;
+    }
+    /* Append the full header right after the prefix. STATUS_MAX already leaves
+     * room for the prefix plus the longest header, so this cannot overflow.
+     */
+    slen = (uint16_t)(slen + format_tnc2_header(work, work_len, &status[slen],
+                                                (uint16_t)(STATUS_MAX - slen), 0u, 0u));
+    status[slen] = 0u;
+    beacon_status_set(status);
+}
+
 /* DIRECTONLY: the first digipeater has not been repeated yet. A later
  * WIDE2-1 is still direct when the sender wrote it that way.
  */
@@ -596,6 +621,11 @@ bool digi_ingress(const uint8_t *frame, uint16_t len)
                      (uint8_t)(used + ahead) > g_config.maxhops;
     }
     if (nn_invalid || over_limit) {
+        /* Record the quashed path as received, before it is rewritten, so it
+         * can be reported in the next beacon. Only the last quashed path is kept.
+         */
+        report_quashed_path();
+
         /* An SSID above N is already invalid, so leave every hop count alone.
          * A request past MAXHOPS still gives up one hop before the quash.
          */
