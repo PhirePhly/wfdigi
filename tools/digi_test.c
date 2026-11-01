@@ -1103,6 +1103,7 @@ static void test_maxhops(void)
 
     g_config.maxhops = 2u;
     check("MAXHOPS 2 quashes WIDE3-3", "N0SRC>APRS,WIDE3-3:Hi", "N0SRC>APRS,WIDE3-2*,WFDIGI*:Hi");
+    check("MAXHOPS 2 quashes WIDE1-1,WIDE2-2", "N0SRC>APRS,WIDE1-1,WIDE2-2:Hi", "N0SRC>APRS,WIDE1-1*,WIDE2-2*,WFDIGI*:Hi");
     check("MAXHOPS 2 quashes three alias hops", "N0SRC>APRS,AAA,BBB,TEMP:Hi", "N0SRC>APRS,AAA*,BBB*,TEMP*,WFDIGI*:Hi");
     check("MAXHOPS 2 still repeats two hops", "N0SRC>APRS,AAA,TEMP:Hi", "N0SRC>APRS,AAA*,WFDIGI*:Hi");
     check("MAXHOPS 2 still repeats an unconfigured two-hop call", "N0SRC>APRS,TEMP,RELAY2-2:Hi",
