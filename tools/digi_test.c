@@ -43,7 +43,6 @@ static uint8_t query_cool_left;
 static bool beacon_accelerated;
 static uint16_t beacon_left;
 
-const uint8_t tncid[CALLSIGN_LEN] = {'A', 'P', 'W', 'F', 'D', 'P'};
 const char wfdigi_version[] = "v9.9-test";
 const char wfdigi_platform[] = "pk88";
 
@@ -1576,7 +1575,7 @@ static void test_messaging(void)
     expect_draws("argument echo does not draw again", 1u);
 
     setup();
-    check_keep("numbered message", "N0SRC>APRS::WFDIGI   :Hello{12", "WFDIGI>APWFDP*::N0SRC    :ack12");
+    check_keep("numbered message", "N0SRC>APRS::WFDIGI   :Hello{12", "WFDIGI>APWFDG*::N0SRC    :ack12");
     expect_dupe_count("ack is recorded", 1u);
     expect_beacon("ordinary message does not beacon", 0);
     check_keep("echo is not answered again", "N0SRC>APRS::WFDIGI   :Hello{12", 0);
@@ -1593,19 +1592,19 @@ static void test_messaging(void)
     put_text(g_config.bpath[0], "WIDE1");
     g_config.bpath_ssid[0] = 1u;
     check_keep("ack uses the first beacon path", "N0SRC>APRS::WFDIGI   :Hello{4",
-               "WFDIGI>APWFDP*,WIDE1-1::N0SRC    :ack4");
+               "WFDIGI>APWFDG*,WIDE1-1::N0SRC    :ack4");
 
     setup();
     g_config.mycall_ssid = 3u;
     check_keep("ssid is part of the addressee", "N0SRC-2>APRS::WFDIGI-3 :Ping{7",
-               "WFDIGI-3>APWFDP*::N0SRC-2  :ack7");
+               "WFDIGI-3>APWFDG*::N0SRC-2  :ack7");
     setup();
     set_nn(0, "WIDE");
     check_keep("ssid 0 omits the dash", "N0SRC>APRS,WIDE1-1::WFDIGI-0 :Hi{1",
                "N0SRC>APRS,WFDIGI*::WFDIGI-0 :Hi{1");
 
     setup();
-    check_keep("lowercase addressee matches", "N0SRC>APRS::wfdigi   :Hello{1", "WFDIGI>APWFDP*::N0SRC    :ack1");
+    check_keep("lowercase addressee matches", "N0SRC>APRS::wfdigi   :Hello{1", "WFDIGI>APWFDG*::N0SRC    :ack1");
 
     setup();
     check_keep("directed position query", "N0SRC>APRS::WFDIGI   :?APRSP", 0);
@@ -1628,17 +1627,17 @@ static void test_messaging(void)
 
     setup();
     check_keep("directed supported query list", "N0SRC>APRS::WFDIGI   :?APRS?",
-               "WFDIGI>APWFDP*::N0SRC    : ?APRSD ?APRSP ?APRSS ?APRSU ?APRSV");
+               "WFDIGI>APWFDG*::N0SRC    : ?APRSD ?APRSP ?APRSS ?APRSU ?APRSV");
     expect_beacon("directed supported query list does not beacon", 0);
 
     setup();
     check_keep("version query", "N0SRC>APRS::WFDIGI   :?APRSV",
-               "WFDIGI>APWFDP*::N0SRC    :v9.9-test pk88");
+               "WFDIGI>APWFDG*::N0SRC    :v9.9-test pk88");
     expect_beacon("version query does not beacon", 0);
     check_keep("version query echo", "N0SRC>APRS::WFDIGI   :?APRSV", 0);
 
     setup();
-    check_keep("numbered position query", "N0SRC>APRS::WFDIGI   :?APRSP{9", "WFDIGI>APWFDP*::N0SRC    :ack9");
+    check_keep("numbered position query", "N0SRC>APRS::WFDIGI   :?APRSP{9", "WFDIGI>APWFDG*::N0SRC    :ack9");
     expect_beacon("numbered position query beacons after the ack", 1);
     check_keep("echo of a numbered position query", "N0SRC>APRS::WFDIGI   :?APRSP{9", 0);
     expect_beacon("echo does not beacon again", 1);
@@ -1651,7 +1650,7 @@ static void test_messaging(void)
     expect_tel_defs("telemetry definition argument sends the definitions", 2);
     setup();
     check_keep("numbered telemetry definition query", "N0SRC>APRS::WFDIGI   :?APRSU{5",
-               "WFDIGI>APWFDP*::N0SRC    :ack5");
+               "WFDIGI>APWFDG*::N0SRC    :ack5");
     expect_tel_defs("numbered telemetry definition query sends the definitions", 1);
 
     /* ?APRSS reports the pending quashed-path status. It sends no APRS text
@@ -1671,30 +1670,30 @@ static void test_messaging(void)
 
     setup();
     check_keep("unsupported query with an argument", "N0OTH>APRS::WFDIGI   :?APRSH N0ZZZ",
-               "WFDIGI>APWFDP*::N0OTH    :ERR - query type unsupported");
+               "WFDIGI>APWFDG*::N0OTH    :ERR - query type unsupported");
     setup();
-    check_two("numbered unsupported query", "N0SRC>APRS::WFDIGI   :?APRSM{3", "WFDIGI>APWFDP*::N0SRC    :ack3",
-              "WFDIGI>APWFDP*::N0SRC    :ERR - query type unsupported");
+    check_two("numbered unsupported query", "N0SRC>APRS::WFDIGI   :?APRSM{3", "WFDIGI>APWFDG*::N0SRC    :ack3",
+              "WFDIGI>APWFDG*::N0SRC    :ERR - query type unsupported");
     check_keep("numbered unsupported echo", "N0SRC>APRS::WFDIGI   :?APRSM{3", 0);
 
     setup();
     set_nn(0, "WIDE");
     check_keep("third-party message", "IGATE>APRS,WIDE1-1:}N0SRC-2>APRS::WFDIGI   :Hello{8",
-               "WFDIGI>APWFDP*::N0SRC-2  :ack8");
+               "WFDIGI>APWFDG*::N0SRC-2  :ack8");
     check_keep("third-party message is not digipeated", "IGATE>APRS,WIDE1-1:}N0SRC-2>APRS::WFDIGI   :Hello{8", 0);
     check_keep("third-party for someone else is digipeated", "IGATE>APRS,WIDE1-1:}N0SRC>APRS::N0OTH    :Hello{1",
                "IGATE>APRS,WFDIGI*:}N0SRC>APRS::N0OTH    :Hello{1");
     check_keep("malformed third-party is digipeated", "N0SRC>APRS,WIDE1-1:}not-a-header",
                "N0SRC>APRS,WFDIGI*:}not-a-header");
     check_keep("third-party alphanumeric ssid", "IGATE>APRS,WIDE1-1:}N0SRC-AP>APRS::WFDIGI   :Hello{8",
-               "WFDIGI>APWFDP*::N0SRC-AP :ack8");
+               "WFDIGI>APWFDG*::N0SRC-AP :ack8");
     check_keep("third-party callsign longer than ax.25", "IGATE>APRS,WIDE1-1:}STATION-1>APRS::WFDIGI   :Hello{4",
-               "WFDIGI>APWFDP*::STATION-1:ack4");
+               "WFDIGI>APWFDG*::STATION-1:ack4");
     check_keep("third-party ssid above 15", "IGATE>APRS,WIDE1-1:}N0SRC-16>APRS::WFDIGI   :Hello{5",
-               "WFDIGI>APWFDP*::N0SRC-16 :ack5");
+               "WFDIGI>APWFDG*::N0SRC-16 :ack5");
     check_keep("third-party callsign is copied as written",
                "IGATE>APRS,WIDE1-1:}N0SRC-0A>APRS::WFDIGI   :Hello{1",
-               "WFDIGI>APWFDP*::N0SRC-0A :ack1");
+               "WFDIGI>APWFDG*::N0SRC-0A :ack1");
     arm_beacon(600u);
     random_draw[0] = 30u;
     random_count = 1u;
@@ -1815,15 +1814,15 @@ static void test_heard(void)
     hear("N0AAA>APRS:Hi");
     now = (uint16_t)(now + 1u);
     check_keep("directs query", "N0SRC>APRS::WFDIGI   :?APRSD",
-               "WFDIGI>APWFDP*::N0SRC    :Directs= N0AAA N0SRC");
+               "WFDIGI>APWFDG*::N0SRC    :Directs= N0AAA N0SRC");
     check_keep("directs query echo", "N0SRC>APRS::WFDIGI   :?APRSD", 0);
     now = (uint16_t)(now + 1u);
     check_two("numbered directs query", "N0OTH>APRS,WIDE1-1::WFDIGI   :?APRSD{2",
-              "WFDIGI>APWFDP*::N0OTH    :ack2", "WFDIGI>APWFDP*::N0OTH    :Directs= N0AAA N0SRC N0OTH");
+              "WFDIGI>APWFDG*::N0OTH    :ack2", "WFDIGI>APWFDG*::N0OTH    :Directs= N0AAA N0SRC N0OTH");
 
     setup();
     check_keep("directs query through a digipeater", "N0SRC>APRS,N0DIG*::WFDIGI   :?APRSD",
-               "WFDIGI>APWFDP*::N0SRC    :Directs= ");
+               "WFDIGI>APWFDG*::N0SRC    :Directs= ");
 
     setup();
     for (i = 0; i < 12; ++i) {
@@ -1833,9 +1832,9 @@ static void test_heard(void)
     }
     {
         static const char *pages[] = {
-            "WFDIGI>APWFDP*::N0SRC    :Directs= N00AAA-15 N01AAA-15 N02AAA-15 N03AAA-15 N04AAA-15",
-            "WFDIGI>APWFDP*::N0SRC    :Directs= N05AAA-15 N06AAA-15 N07AAA-15 N08AAA-15 N09AAA-15",
-            "WFDIGI>APWFDP*::N0SRC    :Directs= N10AAA-15 N11AAA-15",
+            "WFDIGI>APWFDG*::N0SRC    :Directs= N00AAA-15 N01AAA-15 N02AAA-15 N03AAA-15 N04AAA-15",
+            "WFDIGI>APWFDG*::N0SRC    :Directs= N05AAA-15 N06AAA-15 N07AAA-15 N08AAA-15 N09AAA-15",
+            "WFDIGI>APWFDG*::N0SRC    :Directs= N10AAA-15 N11AAA-15",
         };
 
         check_frames("directs reply pages five calls at a time", "N0SRC>APRS,N0DIG*::WFDIGI   :?APRSD", pages, 3);

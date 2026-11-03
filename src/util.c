@@ -1,6 +1,32 @@
 #include "wfdigi.h"
 
+/* One destination for every build. The platform name travels in ?APRSV and BITS. */
+const uint8_t tncid[CALLSIGN_LEN] = {'A', 'P', 'W', 'F', 'D', 'G'};
+
 static const uint16_t u16_place[5] = {10000u, 1000u, 100u, 10u, 1u};
+
+uint8_t copy_version_platform(uint8_t *dest, uint8_t limit)
+{
+    uint8_t n = 0u;
+    uint8_t i = 0u;
+
+    while (wfdigi_version[i] != '\0' && n < limit) {
+        dest[n] = (uint8_t)wfdigi_version[i];
+        ++n;
+        ++i;
+    }
+    if (n < limit) {
+        dest[n] = (uint8_t)' ';
+        ++n;
+    }
+    i = 0u;
+    while (wfdigi_platform[i] != '\0' && n < limit) {
+        dest[n] = (uint8_t)wfdigi_platform[i];
+        ++n;
+        ++i;
+    }
+    return n;
+}
 
 uint8_t format_u16(uint16_t value, uint8_t width, uint8_t *dest)
 {

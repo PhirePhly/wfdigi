@@ -2,7 +2,9 @@
 
 Both targets use a 32 KiB ROM at `0x0000`, RAM at `0x8000`, an IM2 vector
 table at `0x0100`, and the same channel assignment: channel A is HDLC radio
-and channel B is the asynchronous terminal.
+and channel B is the asynchronous terminal. Every image uses destination
+TNCID `APWFDG`. `?APRSV` and the BITS telemetry definition identify the
+hardware as the firmware version, a space, and the platform name.
 
 ## UIDIGI-compatible TAPR TNC-2
 
@@ -26,7 +28,6 @@ DTR pins (normally labelled STA and CON). WFDIGI uses STA for a successfully
 decoded packet and CON for a packet waiting in the viscous digipeater queue;
 other logical PK-88 lamp states are not displayed. PTT
 itself remains channel A RTS, and terminal flow control remains channel B RTS.
-The TNC-2 image uses TNCID `APWFD2`.
 
 ## AEA PK-88
 

@@ -158,11 +158,16 @@ _Static_assert(CONFIG_ADDR + sizeof(DigiConfig) + 2u <= 0x8100u,
 extern DigiConfig __at (CONFIG_ADDR) g_config;
 
 /* Revision from `git describe --tags --always --dirty` at build time.
- * The boot banner prints this. Telemetry should use this same string.
+ * The boot banner prints this, a space, then wfdigi_platform. ?APRSV and the
+ * BITS telemetry definition send that same version-and-platform text.
  */
 extern const char wfdigi_version[];
 /* PLATFORM_NAME from the selected platform.h, such as "pk88" or "tnc2". */
 extern const char wfdigi_platform[];
+/* Copy "<version> <platform>" into dest, at most limit bytes. No trailing NUL.
+ * Returns how many bytes were stored.
+ */
+uint8_t copy_version_platform(uint8_t *dest, uint8_t limit);
 
 void firmware_boot(void);
 /* Enter the reset vector. Interrupts stop and the stack is discarded. */
@@ -353,7 +358,7 @@ void messaging_init(void);
  * A general ?APRS? may shorten the beacon countdown and still returns false.
  */
 bool process_frame_for_messaging(const uint8_t *frame, uint16_t len);
-/* Queue one UI frame from MYCALL to the platform TNCID. The text is the information field.
+/* Queue one UI frame from MYCALL to APWFDG. The text is the information field.
  * The first BPATH entry is the digipeater when that entry is a callsign.
  * Returns 0 when queued, 1 when the text does not fit, and 2 when the
  * transmit queue is full.

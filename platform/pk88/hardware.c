@@ -1,7 +1,5 @@
 #include "hardware.h"
 
-const uint8_t tncid[CALLSIGN_LEN] = {'A', 'P', 'W', 'F', 'D', 'P'};
-
 __sfr __at (PORT_SCC_A_CTRL) scc_a_ctrl;
 __sfr __at (PORT_SCC_A_DATA) scc_a_data;
 __sfr __at (PORT_SCC_B_CTRL) scc_b_ctrl;

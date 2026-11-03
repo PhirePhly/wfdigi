@@ -124,7 +124,6 @@ def main() -> None:
                 "terminal WR12 is not programmed for 9600 baud")
         require(bytes((0x0C, radio_tc)) in rom,
                 "radio WR12 is not programmed for the 1200 baud DPLL clock")
-        require(b"APWFDP" in rom, "PK-88 TNCID APWFDP missing")
     else:
         require(b"\xDB\xF8" not in rom, "TNC-2 image contains the PK-88 watchdog strobe")
         for port in (0xDC, 0xDD, 0xDE, 0xDF):
@@ -138,7 +137,9 @@ def main() -> None:
                 "TNC-2 terminal SIO setup missing")
         require(bytes((5, 0xEA, 1, 0x04)) in rom,
                 "TNC-2 status-modified interrupt vector setup missing")
-        require(b"APWFD2" in rom, "TNC-2 TNCID APWFD2 missing")
+    require(b"APWFDG" in rom, "TNCID APWFDG missing")
+    require(b"APWFDP" not in rom and b"APWFD2" not in rom,
+            "a per-platform TNCID is still linked")
 
     crc = store_rom_checksum(Path(sys.argv[6]), image)
     print(f"ROM layout: PASS ({max(image) + 1} bytes address span, checksum {crc:04X})")

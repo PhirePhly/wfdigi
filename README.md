@@ -102,7 +102,7 @@ It does not need SDCC or a Z80 to run the tests.
 ## Firmware organization
 
 - `platform/pk88/`, `platform/tnc2/`: target startup, controller setup, I/O,
-  lamps, PTT, watchdog behavior, and TNCID
+  lamps, PTT, and watchdog behavior
 - `src/isr_stubs.s`: shared interrupt entry/exit stubs
 - `src/lamps.c`: which front-panel lamps are lit on each service pass
 - `src/serial.c`: terminal I/O, with a receive interrupt and RTS flow control
@@ -203,8 +203,7 @@ At the callsign `>` prompt, a config name alone prints the value stored in SRAM.
 setting and is an effective way to take a backup of the full digipeater config.
 `HELP` prints where to read the documentation. `ENGSTAT` prints
 low level diagnostics counters of the wfdigi packet engine. `SENDRAW` queues
-one UI frame from `MYCALL` to the platform TNCID (`APWFDP` on PK-88 or
-`APWFD2` on TNC-2), via the first `BPATH` entry when that
+one UI frame from `MYCALL` to `APWFDG`, via the first `BPATH` entry when that
 entry is a callsign.
 `REBOOT`
 starts the firmware over and keeps the stored settings. `RESET` clears the
@@ -253,7 +252,7 @@ An APRS message whose addressee is `MYCALL` is answered and is not digipeated.
 The addressee is nine characters, SSID 0 is omitted, and letter case does not
 matter. A numbered message, whose text ends in `{` and one to five letters or
 digits, is acknowledged with `ack` and that number before any other reply.
-The reply is a UI frame from `MYCALL` to the platform TNCID, via the first `BPATH`
+The reply is a UI frame from `MYCALL` to `APWFDG`, via the first `BPATH`
 entry when that entry is a callsign, and it does not advance the beacon path.
 A directed `?APRS?` answers with ` ?APRSD ?APRSP ?APRSS ?APRSU ?APRSV`.
 `?APRSD` answers with one or more `Directs=` messages listing the stations

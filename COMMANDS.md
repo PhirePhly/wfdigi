@@ -415,12 +415,11 @@ does not appear in `DISPLAY`. A bare `SENDRAW` prints `Huh?`.
 SENDRAW >packet contents
 ```
 
-The frame is `MYCALL` to the platform TNCID (`APWFDP` on PK-88 or `APWFD2`
-on TNC-2). The packet contents are the information
+The frame is `MYCALL` to `APWFDG`. The packet contents are the information
 field, including spaces, and the case is preserved. The packet path is the
 first `BPATH` entry. `SENDRAW` does not advance the
 beacon-path cycle. With `BPATH WIDE1-1`, `SENDRAW >Test` goes out as
-`MYCALL>APWFDP,WIDE1-1:>Test` on a PK-88.
+`MYCALL>APWFDG,WIDE1-1:>Test`.
 
 Missing packet contents prints `Huh?`. Text that does not fit in the frame
 prints `Bad config: SENDRAW`. If the transmit queue cannot take the frame, the
@@ -449,14 +448,16 @@ One definition message follows every four hours, in this order:
 `BITS`, `EQNS`, `PARM`, `UNIT`.
 
 ```
-:MYCALL   :BITS.11111100,WFDIGI <version>
+:MYCALL   :BITS.11111100,WFDIGI <version> <platform>
 :MYCALL   :EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0
 :MYCALL   :PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,,COLD,SUM,!F,!Q,!R,!S
 :MYCALL   :UNIT.pkts/min,pkts/min,pkts/min,count,
 ```
 
-`EQNS` divides the received, transmitted, and viscous channels by 10, so a
-10-minute packet count is shown on a graph as packets per minute.
+The text after `WFDIGI` is the same version and platform string `?APRSV`
+returns, such as `v0.2 pk88`. `EQNS` divides the received, transmitted, and
+viscous channels by 10, so a 10-minute packet count is shown on a graph as
+packets per minute.
 
 Every 10 minutes a telemetry frame is sent out. The digipeater path used is
 controlled by `TELPATH`, and the definition messages use that same path:
@@ -547,7 +548,7 @@ other reply. The number is copied as received. A message without a valid
 number is not acknowledged.
 
 An acknowledgement, the supported-query list, the heard-direct list, the
-version reply, and the unsupported-query reply are UI frames from `MYCALL` to the platform TNCID.
+version reply, and the unsupported-query reply are UI frames from `MYCALL` to `APWFDG`.
 The first `BPATH` entry is its one digipeater when that entry is a callsign.
 A blank first entry, or no beacon path, is sent direct. The reply does not
 advance the beacon-path cycle. It is recorded in the duplicate list before it

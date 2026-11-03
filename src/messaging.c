@@ -184,7 +184,7 @@ static void general_query(void)
     timer_beacon_accelerate();
 }
 
-/* MYCALL to the platform TNCID. The first beacon path is the digipeater when it is set.
+/* MYCALL to APWFDG. The first beacon path is the digipeater when it is set.
  * Returns the index of the information field.
  */
 static uint16_t begin_ui(void)
@@ -302,24 +302,8 @@ static void send_supported_queries(const tnc2_callsign *to)
 /* The firmware version, a space, then the platform name, as in "v0.2 pk88". */
 static void send_version_string(const tnc2_callsign *to)
 {
-    uint8_t n = 0u;
-    uint8_t i = 0u;
+    uint8_t n = copy_version_platform(reply_pad, (uint8_t)FRAME_MAX);
 
-    while (wfdigi_version[i] != '\0' && n < FRAME_MAX) {
-        reply_pad[n] = (uint8_t)wfdigi_version[i];
-        ++n;
-        ++i;
-    }
-    if (n < FRAME_MAX) {
-        reply_pad[n] = (uint8_t)' ';
-        ++n;
-    }
-    i = 0u;
-    while (wfdigi_platform[i] != '\0' && n < FRAME_MAX) {
-        reply_pad[n] = (uint8_t)wfdigi_platform[i];
-        ++n;
-        ++i;
-    }
     send_reply(to, reply_pad, n);
 }
 

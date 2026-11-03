@@ -11,6 +11,8 @@
  * The report's eight digital bits, left to right, are B1 cold boot for this
  * power-on, B2 ROM checksum passed, B3 !F, B4 !Q, B5 !R, and B6 !S since the
  * previous report. B7 and B8 are unused. BITS.11111100 marks that same set.
+ * The BITS project name is WFDIGI followed by the same "<version> <platform>"
+ * text that ?APRSV returns.
  */
 #define FRAME_MAX 128u
 #define MSG_MAX 67u
@@ -163,7 +165,7 @@ static bool send_frame(bool once)
     return modem_send(frame, frame_n, g_config.txstale * 2u);
 }
 
-static bool send_message(const char *text, const char *extra, bool once)
+static bool send_message(const char *text, bool ident, bool once)
 {
     uint8_t used = 0u;
 
@@ -174,12 +176,10 @@ static bool send_message(const char *text, const char *extra, bool once)
         ++text;
         ++used;
     }
-    if (extra != 0) {
-        while (*extra != '\0' && used < MSG_MAX) {
-            put_byte((uint8_t)*extra);
-            ++extra;
-            ++used;
-        }
+    if (ident && frame_ok && used < MSG_MAX) {
+        uint8_t n = copy_version_platform(&frame[frame_n], (uint8_t)(MSG_MAX - used));
+
+        frame_n = (uint16_t)(frame_n + n);
     }
     return send_frame(once);
 }
@@ -187,15 +187,15 @@ static bool send_message(const char *text, const char *extra, bool once)
 static bool send_tel_def_kind(uint8_t kind, bool once)
 {
     if (kind == 0u) {
-        return send_message("BITS.11111100,WFDIGI ", wfdigi_version, once);
+        return send_message("BITS.11111100,WFDIGI ", true, once);
     }
     if (kind == 1u) {
-        return send_message(msg_eqns, 0, once);
+        return send_message(msg_eqns, false, once);
     }
     if (kind == 2u) {
-        return send_message(msg_parm, 0, once);
+        return send_message(msg_parm, false, once);
     }
-    return send_message(msg_unit, 0, once);
+    return send_message(msg_unit, false, once);
 }
 
 static bool send_tel_def(void)
