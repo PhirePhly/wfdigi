@@ -73,11 +73,26 @@ At the prompt, set the callsign, position, beacon text, and beacon interval.
 `NNALIAS0` already defaults to `WIDE`, but any additional NNALIASes or ALIASes
 should be configued if so desired.
 
+Recommended settings for a high level digipeater:
+
 ```
 MYCALL EXAMPL-7
 MYLOC 37 23.45 N 122 01.23 W
-BTEXT Whiskey Fox Digi
-BEACON 10
+BTEXT Mountain Top Name
+BEACON 30
+BPATH WIDE1-1 - - -
+```
+
+Recommended settings for a *fill-in* digipeater:
+
+```
+MYCALL EXAMPL-8
+MYLOC 37 23.45 N 122 01.23 W
+MYSYMBOL 1#
+BTEXT Mountain Top Name
+BEACON 30
+BPATH WIDE1-1 - - -
+VISCOUS 3 6
 ```
 
 Settings are applied and saved immediately, so there is no need to explicitly
