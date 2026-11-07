@@ -14,5 +14,7 @@
 #define PORT_SIO_A_CTRL 0xDDu
 #define PORT_SIO_B_DATA 0xDEu
 #define PORT_SIO_B_CTRL 0xDFu
+/* CD 0 ignores carrier. CD 1 is the SIO radio DCD pin. */
+#define CD_MAX 1u
 
 #endif

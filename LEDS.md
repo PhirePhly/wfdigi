@@ -24,8 +24,10 @@ experiencing a transmitter interlock because the callsign is still set to
 
 `SEND`: Indicates that the radio is keyed and we are sending a packet
 
-`DCD`: Data Carrier Detect indicates that we are receiving audio from the
-radio and attempting to decode AX.25 frames. The PK-88 expects squelched audio
+`DCD`: Data Carrier Detect follows the source selected by `CD`. With the
+default `CD 1` it indicates that we are receiving audio from the
+radio and attempting to decode AX.25 frames. `CD OFF` leaves this lamp dark.
+The PK-88 expects squelched audio
 from the radio, so if this light is lit continuously it indicates that the
 squelch settings on the radio need to be adjusted or the incorrect interface
 pin on the radio was used.

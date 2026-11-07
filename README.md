@@ -179,7 +179,7 @@ Cold-boot defaults:
 | PPERSIST | 63 | 0–255 |
 | SLOTTIME | 10 (100 ms) | 0–255, in 10 ms steps |
 | TXSTALE | 10 | 0–255 seconds; 0 or OFF disables the stale timeout, silent in DISPLAY when 10 |
-| FULLDUPLEX | off | off or on |
+| CD | 1 | 0 or OFF disables carrier detect; 1 follows the modem DCD pin; PK-88 also accepts 2 and 3 |
 | EQUALIZER | on | off or on |
 | ALIAS 0–3 | blank, disabled | an AX.25 call and SSID, or empty to disable that slot |
 | NNALIAS 0–3 | `WIDE`, then three blank slots | an n-N prefix, or empty to disable that slot |
@@ -195,7 +195,8 @@ else is waiting. A frame already in the transmit queue follows those flags
 immediately, and `TXDELAY` is used only when the radio first keys up. Half duplex
 waits until the channel is clear, then keys when a draw from 0 to 255 is
 less than or equal to `PPERSIST`. Otherwise it waits one `SLOTTIME` and
-draws again. Full duplex keys without that wait. A frame sent while the
+draws again. `CD OFF` leaves the channel looking idle, so that draw still
+happens and the radio may key while the channel is busy. A frame sent while the
 radio stays keyed does not draw again.
 
 At the callsign `>` prompt, a config name alone prints the value stored in SRAM.

@@ -190,6 +190,31 @@ void hardware_lamps(uint8_t lamps_on)
     led_latch = (uint8_t)~lamps_on;
 }
 
+bool hardware_update_dcd(void)
+{
+    uint8_t status;
+
+    if (g_config.cd == 0u) {
+        return false;
+    }
+    if (g_config.cd == 2u) {
+        /* Active-low squelch is inverted onto /DCDB, so the pin is high
+         * while the channel is busy. RR0 DCD is set only while the pin is low.
+         */
+        status = hardware_terminal_rr0();
+        return (status & RR0_DCD) == 0u;
+    }
+    if (g_config.cd == 3u) {
+        /* Active-high COS is inverted onto /DCDB, so the pin is low while
+         * the channel is busy and RR0 DCD is set.
+         */
+        status = hardware_terminal_rr0();
+        return (status & RR0_DCD) != 0u;
+    }
+    status = hardware_radio_rr0();
+    return (status & RR0_DCD) != 0u;
+}
+
 bool hardware_radio_dcd(void)
 {
     return modem_dcd();

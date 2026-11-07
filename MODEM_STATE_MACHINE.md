@@ -1,6 +1,6 @@
 # Modem state machines
 
-`src/modem.c` has one named transmitter state machine, `TxState`, and a receive path that moves a frame through two buffers. The main loop calls `logging_service` and `modem_service`. `modem_service` runs `tx_service` for every state except the ones the transmit interrupt advances. Channel A interrupts feed bytes, watch end-of-frame, and sample carrier.
+`src/modem.c` has one named transmitter state machine, `TxState`, and a receive path that moves a frame through two buffers. The main loop calls `logging_service` and `modem_service`. `modem_service` runs `tx_service` for every state except the ones the transmit interrupt advances. Channel A interrupts feed bytes and watch end-of-frame. The transmitter polls `hardware_update_dcd()` when it needs the current carrier state and stores that in `dcd_now`.
 
 Time is in 10 ms ticks. The PK-88 uses 12 interrupts at 1200 Hz per tick;
 the TNC-2 uses 6 interrupts at 600 Hz per tick.
@@ -50,7 +50,7 @@ stateDiagram-v2
     TX_CAL --> TX_IDLE: calibration seconds elapse
 ```
 
-`FULLDUPLEX` skips the carrier checks. Those arrows go from idle straight to the persistence draw, and a draw that wins keys immediately.
+`CD 0` makes `hardware_update_dcd()` return false, so `dcd_now` stays clear and every carrier check sees an idle channel. The persistence draw still runs.
 
 ### TX_IDLE
 
@@ -60,16 +60,16 @@ The radio is unkeyed and no frame is in the SCC. This is the only state that acc
 
 | Condition | Next |
 |---|---|
-| `FULLDUPLEX` is off and `dcd_now` is set | `TX_WAIT_DCD` |
-| Channel is free, or `FULLDUPLEX` is on | Persistence draw (`tx_persist`) |
+| `dcd_now` is set | `TX_WAIT_DCD` |
+| Channel is free | Persistence draw (`tx_persist`) |
 
 ### TX_WAIT_DCD
 
-A frame is waiting and the channel is busy. PTT is off. Each service pass stays here while `dcd_now` is set and `FULLDUPLEX` is off.
+A frame is waiting and the channel is busy. PTT is off. Each service pass polls the carrier source and stays here while `dcd_now` is set.
 
-When carrier drops, or when `FULLDUPLEX` is turned on, the wait ends with a persistence draw. The slot timer is cleared so a later slot does not inherit an old countdown.
+When the poll says the channel is idle, the wait ends with a persistence draw. The slot timer is cleared so a later slot does not inherit an old countdown.
 
-`tx_key` can return here without keying. It samples the live `/DCD` pin, not the shadow, and if carrier has come back it updates `dcd_now` and waits again.
+`tx_key` can return here without keying. It calls `hardware_update_dcd()` again, and if the channel is active it updates `dcd_now` and waits again.
 
 ### TX_WAIT_SLOT
 
@@ -77,7 +77,7 @@ The channel was free and the persistence draw lost. PTT is off. The slot timer i
 
 | Condition | Next |
 |---|---|
-| `FULLDUPLEX` is off and carrier returns | `TX_WAIT_DCD`, slot timer cleared |
+| Carrier returns | `TX_WAIT_DCD`, slot timer cleared |
 | `SLOTTIME` is 0, or the slot timer expires | Persistence draw |
 | Otherwise | Stay |
 
@@ -85,7 +85,7 @@ The channel was free and the persistence draw lost. PTT is off. The slot timer i
 
 `tx_persist` is not its own state. It is the step out of idle, out of the DCD wait, and out of a finished slot.
 
-`FULLDUPLEX` keys immediately. Otherwise a busy channel goes to `TX_WAIT_DCD`. On a free channel the firmware stirs the generator with the seconds clock and draws `prng_u8()`, a value from 0 to 255. The draw wins when it is less than or equal to `PPERSIST`, and the radio keys. A larger draw enters `TX_WAIT_SLOT`.
+A busy channel goes to `TX_WAIT_DCD`. On a free channel the firmware stirs the generator with the seconds clock and draws `prng_u8()`, a value from 0 to 255. The draw wins when it is less than or equal to `PPERSIST`, and the radio keys. A larger draw enters `TX_WAIT_SLOT`. `CD 0` leaves the channel free, so the draw still happens.
 
 ### TX_DELAY
 
@@ -142,7 +142,7 @@ PTT is on. The tone is high (2200 Hz), low (1200 Hz), or flags, for the requeste
 
 There is no receive enum. A frame is assembled in one buffer, and a finished frame occupies the other until the service loop takes it.
 
-Bytes arrive from the channel A receive interrupt and the special-condition interrupt. Both drain the SCC FIFO through `rx_take`. While `keyed` is set and `FULLDUPLEX` is off, those bytes are the station's own transmission and are discarded. An end-of-frame or overrun on that audio resets the assembler.
+Bytes arrive from the channel A receive interrupt and the special-condition interrupt. Both drain the SCC FIFO through `rx_take`. While `keyed` is set and `CD` is not 0, those bytes are the station's own transmission and are discarded. An end-of-frame or overrun on that audio resets the assembler. `CD 0` keeps frames received while the radio is keyed.
 
 ### Assembling
 

@@ -83,8 +83,8 @@ static void rx_reset(void)
 
 static void rx_take(uint8_t data, uint8_t rr1)
 {
-    /* Half duplex: the receiver hears this station. Discard that audio. */
-    if (keyed && g_config.fullduplex == 0u) {
+    /* Carrier detect on: this station hears itself. CD 0 keeps the audio. */
+    if (keyed && g_config.cd != 0u) {
         if ((rr1 & (RR1_END_FRAME | RR1_OVERRUN)) != 0u) {
             rx_reset();
             radio_cmd(0x30u);
@@ -169,7 +169,6 @@ void modem_isr_a_ext(void)
     uint8_t latched = radio_rr0();
 
     radio_cmd(0x10u);
-    dcd_now = (radio_rr0() & RR0_DCD) != 0u;
     if ((latched & RR0_ABORT) != 0u) {
         rx_reset();
     }
@@ -236,6 +235,16 @@ void modem_isr_b_tx(void)
 {
     scc_ius(0x28u);
     scc_ius(0x38u);
+}
+
+static void dcd_poll(void)
+{
+    bool active;
+
+    hardware_irq_off();
+    active = hardware_update_dcd();
+    hardware_irq_restore();
+    dcd_now = active ? 1u : 0u;
 }
 
 bool modem_dcd(void)
@@ -415,7 +424,8 @@ static void tx_kick(void)
         return;
     }
     tx_i = 0u;
-    if (g_config.fullduplex != 0u || dcd_now == 0u) {
+    dcd_poll();
+    if (dcd_now == 0u) {
         tx_persist();
     } else {
         tx_state = TX_WAIT_DCD;
@@ -483,14 +493,15 @@ static void tx_continue(void)
 static void tx_key(void)
 {
     hardware_irq_off();
-    /* Sample the pin, not the shadow: carrier may have returned since the last edge. */
-    if (g_config.fullduplex == 0u && (radio_rr0() & RR0_DCD) != 0u) {
+    /* Sample the selected source. Carrier may have returned since the last poll. */
+    if (hardware_update_dcd()) {
         dcd_now = 1u;
         hardware_irq_on();
         timer_set(TIMER_SLOTTIME, 0u);
         tx_state = TX_WAIT_DCD;
         return;
     }
+    dcd_now = 0u;
     keyed = true;
     hardware_ptt(true);
     /* Flag idle is already selected, and the underrun latch is set, so the
@@ -513,10 +524,6 @@ static void tx_key(void)
 /* The channel is free. Key when the draw wins; otherwise wait one slot. */
 static void tx_persist(void)
 {
-    if (g_config.fullduplex != 0u) {
-        tx_key();
-        return;
-    }
     if (dcd_now != 0u) {
         timer_set(TIMER_SLOTTIME, 0u);
         tx_state = TX_WAIT_DCD;
@@ -538,6 +545,7 @@ static void tx_service(void)
     if (keyed) {
         hardware_watchdog_pet();
     }
+    dcd_poll();
     hardware_irq_off();
     state = tx_state;
     hardware_irq_on();
@@ -546,12 +554,12 @@ static void tx_service(void)
         tx_kick();
         break;
     case TX_WAIT_DCD:
-        if (dcd_now == 0u || g_config.fullduplex != 0u) {
+        if (dcd_now == 0u) {
             tx_persist();
         }
         break;
     case TX_WAIT_SLOT:
-        if (g_config.fullduplex == 0u && dcd_now != 0u) {
+        if (dcd_now != 0u) {
             timer_set(TIMER_SLOTTIME, 0u);
             tx_state = TX_WAIT_DCD;
             break;
@@ -802,7 +810,7 @@ void modem_init(void)
     radio_cmd(0x30u);
     radio_cmd(0x10u);
     radio_cmd(0x10u);
-    dcd_now = (radio_rr0() & RR0_DCD) != 0u;
+    dcd_now = hardware_update_dcd() ? 1u : 0u;
     /* External status, and an interrupt on every received byte or special condition.
      * Transmit-empty interrupts stay off until tx_start_data.
      */

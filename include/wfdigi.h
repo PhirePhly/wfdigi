@@ -106,7 +106,11 @@ typedef struct {
     uint8_t slottime;
     /* Seconds a frame may sit in the TX queue before it goes stale (!S). */
     uint8_t txstale;
-    uint8_t fullduplex;
+    /* Carrier-detect source. 0 ignores carrier, so the channel looks idle and
+     * the station runs full duplex. 1 is the modem DCD pin. The PK-88 also
+     * accepts 2 (active-low squelch) and 3 (active-high COS).
+     */
+    uint8_t cd;
     /* A blank call disables that slot. */
     uint8_t alias[ALIAS_COUNT][CALLSIGN_LEN];
     uint8_t alias_ssid[ALIAS_COUNT];
@@ -194,6 +198,8 @@ void hardware_cal_tone(uint8_t tone);
 void hardware_cal_restore(void);
 void hardware_init(void);
 void hardware_lamps(uint8_t lamps_on);
+/* True when the CD source says the channel is busy. CD 0 returns false. */
+bool hardware_update_dcd(void);
 bool hardware_radio_dcd(void);
 uint8_t hardware_radio_rr0(void);
 uint8_t hardware_radio_rr1(void);

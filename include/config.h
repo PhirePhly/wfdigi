@@ -16,6 +16,8 @@
  * TELPATH is the one digipeater path for those frames. "-" sends them direct.
  * VISCOUS is off when both limits are 0. Otherwise both are 1 through 9,
  * and the minimum cannot be greater than the maximum.
+ * CD is the carrier-detect source. 0 or OFF ignores carrier. 1 follows the
+ * modem DCD pin. Higher values are platform-specific.
  * EQUALIZER is 1 for Bell 202 with the compromise equalizer, or 0 for Bell 202.
  * DROPLIST is zero to ten calls, separated by spaces. "-" is an empty list.
  * A call may end in -SSID or -* to match every SSID of that call.
@@ -37,7 +39,7 @@
 #define CFG_SLOTTIME 10
 #define CFG_TXSTALE 10
 /* Zero disables the TX queue stale timeout entirely. */
-#define CFG_FULLDUPLEX 0
+#define CFG_CD 1
 #define CFG_EQUALIZER 1
 
 #define CFG_ALIAS_0 ""

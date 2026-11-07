@@ -14,7 +14,7 @@ _Static_assert((CFG_VISCOUS_MIN == 0 && CFG_VISCOUS_MAX == 0) ||
 _Static_assert(CFG_TXDELAY >= TXDELAY_MIN && CFG_TXDELAY <= TXDELAY_MAX, "TXDELAY is out of range");
 _Static_assert(CFG_PPERSIST >= PERSIST_MIN && CFG_PPERSIST <= PERSIST_MAX, "PPERSIST is out of range");
 _Static_assert(CFG_SLOTTIME >= SLOTTIME_MIN && CFG_SLOTTIME <= SLOTTIME_MAX, "SLOTTIME is out of range");
-_Static_assert(CFG_FULLDUPLEX <= 1u, "FULLDUPLEX must be 0 or 1");
+_Static_assert(CFG_CD <= CD_MAX, "CD is out of range");
 _Static_assert(CFG_EQUALIZER <= 1u, "EQUALIZER must be 0 or 1");
 _Static_assert(sizeof(CFG_ALIAS_0) <= CALLSIGN_LEN + 1u, "ALIAS 0 is longer than 6 characters");
 _Static_assert(sizeof(CFG_ALIAS_1) <= CALLSIGN_LEN + 1u, "ALIAS 1 is longer than 6 characters");
@@ -374,7 +374,7 @@ static void config_cold_boot(void)
     store_u8("PPERSIST", (uint8_t)CFG_PPERSIST, PERSIST_MIN, PERSIST_MAX, &g_config.persist);
     store_u8("SLOTTIME", (uint8_t)CFG_SLOTTIME, SLOTTIME_MIN, SLOTTIME_MAX, &g_config.slottime);
     store_u8("TXSTALE", (uint8_t)CFG_TXSTALE, 0u, 255u, &g_config.txstale);
-    store_u8("FULLDUPLEX", (uint8_t)CFG_FULLDUPLEX, 0u, 1u, &g_config.fullduplex);
+    store_u8("CD", (uint8_t)CFG_CD, 0u, CD_MAX, &g_config.cd);
     store_u8("EQUALIZER", (uint8_t)CFG_EQUALIZER, 0u, 1u, &g_config.equalizer);
     store_alias(CFG_ALIAS_0, (uint8_t)CFG_ALIAS_0_SSID, g_config.alias[0], &g_config.alias_ssid[0]);
     store_alias(CFG_ALIAS_1, (uint8_t)CFG_ALIAS_1_SSID, g_config.alias[1], &g_config.alias_ssid[1]);
@@ -1302,9 +1302,9 @@ static void command_display(void)
         serial_puts("TXSTALE ");
         show_number_or_off(g_config.txstale);
     }
-    if (g_config.fullduplex) {
-        serial_puts("FULLDUPLEX ");
-        show_flag(g_config.fullduplex);
+    if (g_config.cd != 1u) {
+        serial_puts("CD ");
+        show_number_or_off(g_config.cd);
     }
     if (!g_config.equalizer) {
         serial_puts("EQUALIZER ");
@@ -1551,11 +1551,15 @@ void config_command(char *line)
         }
         return;
     }
-    if (same_text(cmd, "FULLDUPLEX")) {
+    if (same_text(cmd, "CD")) {
         if (value == 0) {
-            show_flag(g_config.fullduplex);
-        } else if (set_flag("FULLDUPLEX", value, &g_config.fullduplex)) {
-            show_flag(g_config.fullduplex);
+            show_number_or_off(g_config.cd);
+        } else if (is_off(value)) {
+            g_config.cd = 0u;
+            note_config();
+            show_number_or_off(g_config.cd);
+        } else if (set_number("CD", value, 0u, CD_MAX, &g_config.cd)) {
+            show_number_or_off(g_config.cd);
         }
         return;
     }

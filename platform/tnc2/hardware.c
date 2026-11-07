@@ -164,6 +164,14 @@ void hardware_lamps(uint8_t lamps_on)
     hardware_irq_restore();
 }
 
+bool hardware_update_dcd(void)
+{
+    if (g_config.cd == 0u) {
+        return false;
+    }
+    return (hardware_radio_rr0() & RR0_DCD) != 0u;
+}
+
 bool hardware_radio_dcd(void)
 {
     return modem_dcd();

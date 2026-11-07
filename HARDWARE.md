@@ -61,7 +61,7 @@ Physical channel A, port `0xF2`, is the radio channel:
 - WR10 is `0xA0`: NRZI, the AX.25 line code.
 - WR11 is `0x66`: receive clock from the DPLL, transmit clock from the `/RTxC` pin.
 - WR12/WR13 hold the baud-rate time constant. For 1200 baud the DPLL needs a 32× clock, which is time constant `0x003E` from the 4.9152 MHz PCLK.
-- RR0 bit 3 (`/DCD`) drives the front-panel DCD LED.
+- With `CD 1`, RR0 bit 3 (`/DCD`) is the carrier sample that drives the front-panel DCD LED.
 - WR5 bit 1 (`/RTS`) is radio PTT and drives the SEND LED.
 
 Physical channel B, port `0xF0`, is the RS-232 user terminal:
@@ -144,7 +144,7 @@ WR11 = `0x56`: receive and transmit clocks are the baud-rate generator, and `/TR
 
 | Pin | Name | Direction | Function |
 |---|---|---|---|
-| 21 | `/DCDB` | input | Terminal `DCD`. The front-panel DCD lamp does not use this pin |
+| 21 | `/DCDB` | input | Terminal `DCD` in normal wiring. `CD 2` and `CD 3` instead read this pin as inverted radio squelch: active-low busy leaves the pin high, and active-high COS pulls it low. RR0 DCD is set while the pin is low |
 | 22 | `/CTSB` | input | Terminal `CTS`, active low, in RR0 bit 5 |
 | 23 | `/RTSB` | output | Terminal `RTS`, WR5 bit 1. On while the host may send; the receive interrupt drops it when the terminal buffer is filling |
 | 24 | `/DTR//REQB` | output | 7910 `MC1`, driven by WR5 bit 7. The pin is high when that bit is clear |

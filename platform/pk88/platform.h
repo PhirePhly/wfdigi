@@ -13,6 +13,8 @@
  */
 #define TERMINAL_BRG_TC 14u
 #define RADIO_DPLL_TC 62u
+/* CD 0 ignores carrier. CD 1 is modem /DCDA. CD 2 and CD 3 read radio squelch on /DCDB. */
+#define CD_MAX 3u
 
 #define PORT_SCC_B_CTRL 0xF0u
 #define PORT_SCC_B_DATA 0xF1u

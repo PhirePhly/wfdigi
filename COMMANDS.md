@@ -125,6 +125,29 @@ malformed argument prints `Huh?`. A duration of 0 or above 30 prints
 and does not key. `CAL` is not a stored setting and does not appear in
 `DISPLAY`.
 
+## CD
+
+_A shadow setting you probably don't need to care about_
+
+Selects how the TNC decides that the radio channel is busy. Accepts `OFF`,
+`0`, or a source number. `OFF` and `0` disable carrier detect. The channel
+then always looks idle, so the TNC may transmit over another station, and
+frames heard while the radio is keyed are kept. Any other value discards
+that audio, because it is this station's own transmission.
+
+`1` follows the modem carrier-detect pin on the radio port. That is the
+cold-boot default, and `DISPLAY` omits `CD` while it is `1`.
+
+On the PK-88, `2` and `3` follow the radio squelch input instead of the
+modem. A transistor on the TNC inverts that input onto the SCC `/DCDB` pin.
+`2` expects an active-low busy signal, which leaves `/DCDB` high while the
+channel is busy. `3` expects an active-high COS signal, which pulls `/DCDB`
+low while the channel is busy. The TNC-2 accepts only `OFF` and `1`.
+
+This byte in battery SRAM used to be `FULLDUPLEX`, stored with the opposite
+sense. A warm boot of a configuration saved by older firmware treats a stored
+`0` as `CD OFF`. Send `CD 1`, or `RESET` for a cold boot, after updating.
+
 ## DIGIPEAT
 
 Turns digipeating on or off. Accepts `ON`, `OFF`, `1`, or `0`. When it is
@@ -239,15 +262,6 @@ AX.25 should be emphasized or flat, so it is not at all clear what the correct
 setting is for this knob.
 Kenneth's recommendation is to assume that APRS is transmitted flat, so leave this
 setting on if your receive pathway has de-emphasis in it.
-
-## FULLDUPLEX
-
-_A shadow setting you probably don't need to care about_
-
-Selects full duplex. Accepts `ON`, `OFF`, `1`, or `0`. When it is on, the
-TNC transmits without waiting for a clear channel. When it is off, transmit
-timing follows carrier detect, `PPERSIST`, and `SLOTTIME`. The cold-boot
-default is `OFF`.
 
 ## HELP
 
