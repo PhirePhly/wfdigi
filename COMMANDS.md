@@ -453,7 +453,8 @@ is `ON`. Received and transmitted
 frame counts keep running either way; `ENGSTAT` prints the increase since
 the previous report.
 
-Boot and a change to this setting start the PARMS/UNITS schedule over.
+Boot and a change to this setting start the PARMS/UNITS schedule over and
+zero the Erlang byte counter.
 The first definition message waits five minutes to protect the local network from
 an antenna failure causing the TNC to reset and creating an AIO style boot loop
 immediately keying the radio again.
@@ -463,9 +464,9 @@ One definition message follows every four hours, in this order:
 
 ```
 :MYCALL   :BITS.11111100,WFDIGI <version> <platform>
-:MYCALL   :EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0
-:MYCALL   :PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,,COLD,SUM,!F,!Q,!R,!S
-:MYCALL   :UNIT.pkts/min,pkts/min,pkts/min,count,
+:MYCALL   :EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,0.002844,0
+:MYCALL   :PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,Erlangs,COLD,SUM,!F,!Q,!R,!S
+:MYCALL   :UNIT.pkts/min,pkts/min,pkts/min,count,E
 ```
 
 The text after `WFDIGI` is the same version and platform string `?APRSV`
@@ -477,7 +478,7 @@ Every 10 minutes a telemetry frame is sent out. The digipeater path used is
 controlled by `TELPATH`, and the definition messages use that same path:
 
 ```
-T#000,<received>,<transmitted>,<viscous>,<drops>,0,bbbbbbbb
+T#000,<received>,<transmitted>,<viscous>,<drops>,<erlangs>,bbbbbbbb
 ```
 
 `<received>`, `<transmitted>`, and `<viscous>` are the frames counted since
@@ -486,7 +487,13 @@ another station had already repeated the same source and information field.
 The counters are 16-bit and roll over. The value is their unsigned
 difference, so a rollover still counts the frames in that interval.
 `<drops>` is how far the `!R`, `!Q`, `!S`, and `!F` adverse drop
-counters have moved since the previous report. The eight digits are digital
+counters have moved since the previous report. `<erlangs>` is the high
+byte of the bytes sent or received since that byte was last reported.
+Each counted frame includes four extra bytes for the opening flag, the
+closing flag, and the CRC. That total saturates at 65535, and the low
+byte stays in the counter for a later report. `EQNS` multiplies this
+channel by 0.002844, so on a 1200 bps channel 90000 bytes in the ten
+minutes reads as 1.0 Erlang. The eight digits are digital
 bits B1 through B8. B1 indicates that a cold boot was performed, where a warm
 boot will cause B1 to be `0`. B2 indicates that the boot ROM passed its CRC checksum.
 B3 through B6 indicate that the `!F`, `!Q`, `!R`, and `!S` adverse drop counters

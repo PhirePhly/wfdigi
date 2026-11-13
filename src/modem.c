@@ -109,7 +109,7 @@ static void rx_take(uint8_t data, uint8_t rr1)
         (rr1 & RR1_RESIDUE) == RR1_RESIDUE_OK && rx_len >= 2u) {
         uint16_t n = (uint16_t)(rx_len - 2u);
         if (n >= AX25_MIN) {
-            telemetry_note_rx();
+            telemetry_note_rx(n);
             sta_arm = 1u;
             if (rx_ready == 0u) {
                 rx_done = rx_fill;
@@ -450,7 +450,7 @@ static void tx_unkey(bool sent)
 {
     tx_release(!sent);
     if (sent) {
-        telemetry_note_tx();
+        telemetry_note_tx(tx_len);
         logging_frame('T', tx_buf, tx_len);
     }
     tx_kick();
@@ -484,7 +484,7 @@ static void tx_next_frame(void)
  */
 static void tx_continue(void)
 {
-    telemetry_note_tx();
+    telemetry_note_tx(tx_len);
     logging_frame('T', tx_buf, tx_len);
     tx_tail_due = 1u;
     tx_next_frame();

@@ -13,16 +13,23 @@
  * previous report. B7 and B8 are unused. BITS.11111100 marks that same set.
  * The BITS project name is WFDIGI followed by the same "<version> <platform>"
  * text that ?APRSV returns.
+ * Analog channel five is channel occupancy in Erlangs. byte_count is the
+ * bytes sent or received since its high byte was last reported, plus four
+ * per frame for the opening flag, the closing flag, and the CRC. It saturates
+ * at 65535. The report sends the high byte, and the low byte stays so a
+ * short frame is still counted in a later report. EQNS multiplies that byte
+ * by 0.002844 (1/351.56): 90000 bytes in the ten minutes would read as 1.0.
+ * Preamble and bit stuffing are not counted. telemetry_restart zeros it.
  */
 #define FRAME_MAX 128u
-#define MSG_MAX 67u
+#define MSG_MAX (FRAME_MAX - 35u)
 #define SLOT_SECONDS 600u
 #define TELEMETRY_START_DELAY 300u
 #define TELEMETRY_DEF_INTERVAL 14400u
 
-static const char msg_eqns[] = "EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,1,0";
-static const char msg_parm[] = "PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,,COLD,SUM,!F,!Q,!R,!S";
-static const char msg_unit[] = "UNIT.pkts/min,pkts/min,pkts/min,count,";
+static const char msg_eqns[] = "EQNS.0,0.1,0,0,0.1,0,0,0.1,0,0,1,0,0,0.002844,0";
+static const char msg_parm[] = "PARM.RxPkts,TxPks,ViscousDrops,AdverseDrops,Erlangs,COLD,SUM,!F,!Q,!R,!S";
+static const char msg_unit[] = "UNIT.pkts/min,pkts/min,pkts/min,count,E";
 
 _Static_assert(sizeof(msg_eqns) - 1u <= MSG_MAX, "EQNS message is too long");
 _Static_assert(sizeof(msg_parm) - 1u <= MSG_MAX, "PARM message is too long");
@@ -34,6 +41,8 @@ static bool frame_ok;
 
 static volatile uint16_t rx_count;
 static uint16_t tx_count;
+/* Bytes on the channel since the high byte was last reported. Saturates. */
+static volatile uint16_t byte_count;
 static uint16_t last_rx;
 static uint16_t last_tx;
 static uint16_t last_r;
@@ -217,6 +226,40 @@ static void put_bit(bool on)
     put_byte(on ? (uint8_t)'1' : (uint8_t)'0');
 }
 
+/* len is the AX.25 frame without flags or CRC. Four more bytes count the
+ * opening flag, the closing flag, and the CRC. The sum saturates at 65535.
+ * Caller holds exclusive access to byte_count.
+ */
+static void add_bytes(uint16_t len)
+{
+    uint16_t add;
+
+    if (len > (uint16_t)(65535u - 4u)) {
+        byte_count = 65535u;
+        return;
+    }
+    add = (uint16_t)(len + 4u);
+    if (byte_count > (uint16_t)(65535u - add)) {
+        byte_count = 65535u;
+    } else {
+        byte_count = (uint16_t)(byte_count + add);
+    }
+}
+
+/* The report carried the high byte of snap. Keep the low byte, and any
+ * bytes counted while the frame was queued.
+ */
+static void commit_byte_count(uint16_t snap)
+{
+    uint16_t high = (uint16_t)(snap & 0xFF00u);
+
+    hardware_irq_off();
+    if (byte_count >= high) {
+        byte_count = (uint16_t)(byte_count - high);
+    }
+    hardware_irq_on();
+}
+
 static bool send_data(void)
 {
     uint16_t rx_now;
@@ -233,9 +276,11 @@ static bool send_data(void)
     uint16_t df;
     uint16_t drops;
     uint16_t viscous;
+    uint16_t bytes_now;
 
     hardware_irq_off();
     rx_now = rx_count;
+    bytes_now = byte_count;
     hardware_irq_on();
     tx_now = tx_count;
     rx = (uint16_t)(rx_now - last_rx);
@@ -275,7 +320,9 @@ static bool send_data(void)
     put_u16(viscous);
     put_byte((uint8_t)',');
     put_u16(drops);
-    put_text(",0,");
+    put_byte((uint8_t)',');
+    put_u16((uint16_t)(bytes_now >> 8));
+    put_byte((uint8_t)',');
     put_bit(cold_boot);
     put_bit(rom_checksum_pass);
     put_bit(df != 0u);
@@ -295,6 +342,7 @@ static bool send_data(void)
     last_s = s;
     last_f = f;
     last_v = viscous_count;
+    commit_byte_count(bytes_now);
     if (seq >= 999u) {
         seq = 0u;
     } else {
@@ -324,14 +372,18 @@ static void arm_schedule(void)
     data_left = SLOT_SECONDS;
 }
 
-void telemetry_note_rx(void)
+void telemetry_note_rx(uint16_t len)
 {
     ++rx_count;
+    add_bytes(len);
 }
 
-void telemetry_note_tx(void)
+void telemetry_note_tx(uint16_t len)
 {
     ++tx_count;
+    hardware_irq_off();
+    add_bytes(len);
+    hardware_irq_on();
 }
 
 void telemetry_note_viscous(void)
@@ -354,6 +406,7 @@ void telemetry_init(void)
 {
     hardware_irq_off();
     rx_count = 0u;
+    byte_count = 0u;
     hardware_irq_restore();
     tx_count = 0u;
     last_rx = 0u;
@@ -377,6 +430,7 @@ void telemetry_restart(void)
 
     hardware_irq_off();
     last_rx = rx_count;
+    byte_count = 0u;
     hardware_irq_restore();
     last_tx = tx_count;
     modem_drop_counts(&r, &q, &s, &f);
