@@ -763,8 +763,9 @@ void engine_stat(void)
 {
     uint16_t received;
     uint16_t transmitted;
+    uint16_t erlang;
 
-    telemetry_packet_counts(&received, &transmitted);
+    telemetry_packet_counts(&received, &transmitted, &erlang);
     serial_puts("TIME ");
     print_u16(timer_seconds());
     serial_puts("\r\nDUPEDB ");
@@ -773,6 +774,8 @@ void engine_stat(void)
     print_u16(received);
     serial_puts("\r\nTX ");
     print_u16(transmitted);
+    serial_puts("\r\nERLANG ");
+    print_u16(erlang);
     serial_puts("\r\n!R ");
     print_u16(drop_r);
     serial_puts("\r\n!Q ");

@@ -41,8 +41,7 @@ static bool frame_ok;
 
 static volatile uint16_t rx_count;
 static uint16_t tx_count;
-/* Bytes on the channel since the high byte was last reported. Saturates. */
-static volatile uint16_t byte_count;
+static uint16_t byte_count;
 static uint16_t last_rx;
 static uint16_t last_tx;
 static uint16_t last_r;
@@ -391,7 +390,7 @@ void telemetry_note_viscous(void)
     ++viscous_count;
 }
 
-void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted)
+void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted, uint16_t *erlang)
 {
     uint16_t rx_now;
 
@@ -400,6 +399,7 @@ void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted)
     hardware_irq_restore();
     *received = (uint16_t)(rx_now - last_rx);
     *transmitted = (uint16_t)(tx_count - last_tx);
+    *erlang = byte_count;
 }
 
 void telemetry_init(void)

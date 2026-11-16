@@ -5,7 +5,7 @@
  * the buffer to the low-water mark.
  */
 #define RX_SIZE 128u
-#define RX_HIGH 64u
+#define RX_HIGH 112u
 #define RX_LOW 16u
 
 _Static_assert((RX_SIZE & (RX_SIZE - 1u)) == 0u, "receive buffer is a power of two");
@@ -21,7 +21,6 @@ static uint8_t scc_b_rr0(void)
 {
     uint8_t status;
 
-    /* The sync-edge ISR also uses this channel's register pointer. */
     hardware_irq_off();
     status = hardware_terminal_rr0();
     hardware_irq_restore();
@@ -30,16 +29,7 @@ static uint8_t scc_b_rr0(void)
 
 void serial_putc(uint8_t byte)
 {
-    for (;;) {
-        /* A command print can run during a keyed transmission. Keep the PTT
-         * watchdog alive for that stretch, and only for that stretch. */
-        if (modem_keyed()) {
-            hardware_watchdog_pet();
-        }
-        if ((scc_b_rr0() & RR0_TX_EMPTY) != 0u) {
-            break;
-        }
-    }
+    serial_flush();
     hardware_terminal_data_write(byte);
 }
 
@@ -54,9 +44,6 @@ void serial_puts(const char *text)
 void serial_flush(void)
 {
     for (;;) {
-        if (modem_keyed()) {
-            hardware_watchdog_pet();
-        }
         if ((scc_b_rr0() & RR0_TX_EMPTY) != 0u) {
             return;
         }

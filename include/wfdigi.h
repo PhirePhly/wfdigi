@@ -477,8 +477,8 @@ void telemetry_note_rx(uint16_t len);
 void telemetry_note_tx(uint16_t len);
 /* Count one viscous repeat suppressed by a copy heard from another station. */
 void telemetry_note_viscous(void);
-/* Increase since the previous telemetry report. Both counters roll over. */
-void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted);
+/* Increase since the previous telemetry report. Both counters roll over, erlang decrements. */
+void telemetry_packet_counts(uint16_t *received, uint16_t *transmitted, uint16_t *erlang);
 /* Zero the packet counts and the Erlang byte counter, and arm the schedule from g_config.telemetry. */
 void telemetry_init(void);
 /* Start the telemetry schedule over. The packet counts keep running. The Erlang byte counter is zeroed. */
